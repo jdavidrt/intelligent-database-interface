@@ -1,2 +1,2 @@
-# intelligent-database-interface
+# IDI (intelligent database interface)
 Intelligent Database Interface

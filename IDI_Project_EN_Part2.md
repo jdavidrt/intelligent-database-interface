@@ -310,9 +310,9 @@ For large schemas (100+ tables), reduce LLM attention burden:
 
 ### 9.4 Challenge: Multi-Turn Dialogue
 
-**Problem**: Exploratory data analysis requires conversational sequences with context preservation and progressive refinement.
+**Problem**: Exploratory data analysis requires conversational sequences with context preservation, progressive refinement, the ability to ask follow-up questions from results, and provide feedback for query adjustment.
 
-**IDI Solution**: **Stateful Conversation Manager**
+**IDI Solution**: **Stateful Conversation Manager with Follow-Up and Feedback Support**
 
 #### Component 1: Dialogue State Machine
 
@@ -320,16 +320,22 @@ For large schemas (100+ tables), reduce LLM attention burden:
 States:
 - INITIAL: Fresh conversation, no context
 - CLARIFYING: Awaiting user response to ambiguity questions
-- EXECUTING: Query processing in progress
-- RESULTS_READY: Displaying results, ready for follow-up
+- PROCESSING: Query processing in progress (with progress updates)
+- RESULTS_READY: Displaying results, ready for follow-up or feedback
+- REFINING: Processing user feedback to adjust query
 - ERROR: Handling query failure, offering retry
+- SAVING_SESSION: User saving conversation context
 
 Transitions:
-INITIAL --[query submitted]--> CLARIFYING (if ambiguities) | EXECUTING (if clear)
-CLARIFYING --[user response]--> EXECUTING
-EXECUTING --[success]--> RESULTS_READY | --[failure]--> ERROR
-RESULTS_READY --[follow-up query]--> CLARIFYING | EXECUTING
-ERROR --[retry/rephrase]--> CLARIFYING | EXECUTING
+INITIAL --[query submitted]--> CLARIFYING (if ambiguities) | PROCESSING (if clear)
+CLARIFYING --[user response]--> PROCESSING
+PROCESSING --[success]--> RESULTS_READY | --[failure]--> ERROR
+RESULTS_READY --[follow-up query]--> CLARIFYING | PROCESSING
+RESULTS_READY --[feedback]--> REFINING
+RESULTS_READY --[save request]--> SAVING_SESSION
+REFINING --[adjusted query ready]--> PROCESSING
+ERROR --[retry/rephrase]--> CLARIFYING | PROCESSING
+SAVING_SESSION --[saved]--> RESULTS_READY (can continue)
 ```
 
 #### Component 2: Reference Resolution
@@ -352,9 +358,9 @@ def resolve_references(query: str, context: ConversationContext) -> str:
     return query
 ```
 
-#### Component 3: Progressive Refinement
+#### Component 3: Progressive Refinement and Feedback Handling
 
-**Scenario**: User starts broad, narrows iteratively
+**Scenario 1: Progressive Narrowing** (User starts broad, narrows iteratively)
 
 ```
 Turn 1:
@@ -363,17 +369,75 @@ System: [Clarifies → Generates query for total sales]
 Result: $10.5M total sales in Q3 2024
 
 Turn 2:
-User: "By region"
+User: "By region"  [Follow-up from results]
 System: [Infers: GROUP BY region for the same metric and time period]
 Result: Northeast $4.2M, Southeast $3.1M, West $2.7M, Midwest $0.5M
 
 Turn 3:
-User: "Northeast only, by product category"
+User: "Northeast only, by product category"  [Further drill-down]
 System: [Infers: Same metric, Q3 2024, filter region='Northeast', GROUP BY product_category]
 Result: Electronics $1.8M, Apparel $1.5M, Home Goods $0.9M
 ```
 
-**Implementation**: Maintain modification stack, applying deltas to base query rather than regenerating from scratch.
+**Scenario 2: Feedback-Based Refinement** (User provides adjustment feedback)
+
+```
+Turn 1:
+User: "Show me top products by revenue"
+System: Generates query, shows all products sorted by revenue (200+ results)
+
+Turn 2:
+User: "Too many results, show me just the top 10"  [Feedback: limit results]
+System: [Detects feedback intent → Adds LIMIT 10 to existing query]
+Result: Top 10 products displayed
+
+Turn 3:
+User: "Include product categories too"  [Feedback: add column]
+System: [Adds product_category to SELECT and GROUP BY]
+Result: Top 10 products with categories
+
+Turn 4:
+User: "Make it simpler, remove the timestamps"  [Feedback: simplify output]
+System: [Removes timestamp columns from SELECT]
+Result: Simplified table with product, category, revenue only
+```
+
+**Feedback Pattern Detection**:
+```python
+FEEDBACK_PATTERNS = {
+    "too_many": {
+        "triggers": ["too many", "limit to", "just top", "only show"],
+        "action": "add_limit",
+        "examples": ["Show me just top 5", "Too many results"]
+    },
+    "simplify": {
+        "triggers": ["simpler", "remove", "exclude", "don't need"],
+        "action": "remove_columns",
+        "examples": ["Make it simpler", "Remove the dates"]
+    },
+    "add_detail": {
+        "triggers": ["include", "add", "also show", "with"],
+        "action": "add_columns",
+        "examples": ["Include categories", "Add timestamps"]
+    },
+    "change_grouping": {
+        "triggers": ["by", "break down", "group by"],
+        "action": "modify_groupby",
+        "examples": ["By region instead", "Break down by month"]
+    },
+    "filter_narrow": {
+        "triggers": ["only", "just", "filter to", "excluding"],
+        "action": "add_where_clause",
+        "examples": ["Only Q3", "Excluding refunds"]
+    }
+}
+```
+
+**Implementation**:
+- Maintain modification stack, applying deltas to base query rather than regenerating from scratch
+- Detect feedback intent using pattern matching + LLM classification
+- Apply incremental modifications to previous SQL
+- Preserve conversation context (all previous queries and results)
 
 #### Component 4: Result Caching
 
@@ -384,7 +448,11 @@ Result: Electronics $1.8M, Apparel $1.5M, Home Goods $0.9M
 
 **Benefit**: Sub-second response for repeated/similar queries
 
-**Expected Impact**: 90% success rate for 3+ turn conversations.
+**Expected Impact**:
+- 90% success rate for 3+ turn conversations
+- 85% accuracy in detecting follow-up intent vs. new query
+- 80% success rate in applying feedback correctly (limited modifications)
+- Average 3-5 turns per investigative workflow
 
 ---
 
@@ -680,11 +748,11 @@ def add_statistical_overlays(chart_spec: ChartSpec, results: DataFrame) -> Chart
 
 ---
 
-### 9.7 Challenge: Computational Resource Constraints
+### 9.7 Challenge: Computational Resource Constraints and Extended Processing Times
 
-**Problem**: State-of-the-art LLMs require extensive GPU resources and API costs.
+**Problem**: State-of-the-art LLMs require extensive GPU resources and API costs. Additionally, complex queries on resource-constrained devices may require extended processing times, necessitating transparent progress communication and user control.
 
-**IDI Solution**: **Local Deployment with Quantization + Model Selection**
+**IDI Solution**: **Local Deployment with Quantization + Model Selection + Progress Communication**
 
 #### Strategy 1: Model Size Optimization
 
@@ -779,6 +847,411 @@ print(f"Trainable parameters: {trainable_params / 1e6:.2f}M")  # ~50M for 13B mo
 - Focus on high-diversity examples (different query types, schema patterns)
 
 **Expected Impact**: <$10 total cloud compute cost for fine-tuning (using free Colab/Kaggle GPU hours).
+
+#### Strategy 5: Progress Communication and Timeout Management
+
+**Philosophy**: Trade speed for accessibility—accept up to 30-second processing times to enable deployment on consumer hardware while maintaining user trust through transparent communication.
+
+**Progress Tracking System**:
+
+```python
+class ProgressTracker:
+    """Tracks query processing progress and estimates completion time."""
+
+    PROCESSING_PHASES = {
+        "understanding": {"weight": 0.15, "message": "Analyzing your question..."},
+        "context_retrieval": {"weight": 0.10, "message": "Gathering relevant database information..."},
+        "sql_generation": {"weight": 0.40, "message": "Crafting your query..."},
+        "verification": {"weight": 0.15, "message": "Verifying query correctness..."},
+        "execution": {"weight": 0.15, "message": "Executing and retrieving results..."},
+        "visualization": {"weight": 0.05, "message": "Creating visualization..."}
+    }
+
+    def estimate_completion_time(self, query_complexity: QueryComplexity) -> float:
+        """Estimate time based on query complexity and historical data."""
+        base_times = {
+            QueryComplexity.SIMPLE: 3.0,      # Single table, basic aggregation
+            QueryComplexity.MODERATE: 8.0,    # Multiple tables, joins
+            QueryComplexity.COMPLEX: 18.0     # Complex joins, nested queries
+        }
+        return base_times.get(query_complexity, 10.0)
+
+    def update_progress(self, phase: str, percent_complete: float):
+        """Emit progress update to frontend."""
+        emit_websocket_event({
+            "type": "progress_update",
+            "phase": phase,
+            "message": self.PROCESSING_PHASES[phase]["message"],
+            "percent": percent_complete,
+            "estimated_remaining": self.estimate_remaining_time()
+        })
+```
+
+**Creative Status Messages** (displayed during processing):
+- "Analyzing your question..."
+- "Gathering relevant database information..."
+- "Crafting your query... (Estimated: 8 seconds)"
+- "Constructing SQL logic..." [████████░░░░] 60%
+- "Optimizing join strategy..."
+- "Analyzing multi-table relationships..."
+- "Verifying query correctness..."
+- "Executing and retrieving results..."
+- "Creating visualization..."
+
+**Timeout Management**:
+```python
+class QueryExecutor:
+    MAX_TIMEOUT = 30  # seconds
+
+    def execute_with_timeout(self, query_fn, timeout: float = 30):
+        """Execute query with cancellation support."""
+        import signal
+
+        def timeout_handler(signum, frame):
+            raise TimeoutError(f"Query exceeded {timeout}s timeout")
+
+        # Set signal alarm
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(int(timeout))
+
+        try:
+            result = query_fn()
+            signal.alarm(0)  # Cancel alarm
+            return result
+        except TimeoutError:
+            return {
+                "error": "Query processing exceeded time limit",
+                "suggestion": "Try simplifying your query or filtering the data"
+            }
+```
+
+**User Cancellation Support**:
+```python
+class CancellableTask:
+    """Allows users to cancel long-running queries."""
+
+    def __init__(self, task_id: str):
+        self.task_id = task_id
+        self.cancelled = False
+
+    def check_cancellation(self):
+        """Check if user cancelled via WebSocket message."""
+        if self.cancelled:
+            raise TaskCancelledException("User cancelled query")
+
+    def execute_cancellable(self, llm_generation_fn):
+        """Execute LLM generation with periodic cancellation checks."""
+        # For streaming generation, check cancellation between tokens
+        for token in llm_generation_fn(stream=True):
+            self.check_cancellation()
+            yield token
+```
+
+**WebSocket-Based Real-Time Updates**:
+```python
+# Backend (FastAPI)
+from fastapi import WebSocket
+
+@app.websocket("/ws/query/{session_id}")
+async def query_websocket(websocket: WebSocket, session_id: str):
+    await websocket.accept()
+
+    try:
+        # Receive query
+        query_data = await websocket.receive_json()
+
+        # Process with progress updates
+        async for progress in process_query_streaming(query_data):
+            await websocket.send_json({
+                "type": "progress",
+                "data": progress
+            })
+
+        # Send final result
+        await websocket.send_json({
+            "type": "result",
+            "data": final_results
+        })
+
+    except Exception as e:
+        await websocket.send_json({
+            "type": "error",
+            "message": str(e)
+        })
+```
+
+**Expected Impact**:
+- User tolerance for wait times improves from <5s to <25s when progress visible
+- Cancellation usage: ~5-10% of complex queries (user realizes query too broad)
+- System enables deployment on 80%+ of existing organizational hardware (vs. requiring specialized infrastructure)
+
+---
+
+### 9.8 Challenge: Investigation Continuity
+
+**Problem**: Complex analytical investigations span multiple sessions and require preserving entire investigative contexts (query sequences, intermediate results, conversational threads) for resumption, sharing, or replication—functionality missing from stateless query systems.
+
+**IDI Solution**: **Session Manager with Full Context Persistence**
+
+#### Component 1: Session Persistence Layer
+
+**Session Data Model**:
+```python
+from dataclasses import dataclass
+from typing import List, Dict, Any
+from datetime import datetime
+import uuid
+
+@dataclass
+class QueryRecord:
+    """Single query within a session."""
+    query_id: str
+    natural_language: str
+    generated_sql: str
+    execution_time: float
+    result_rows: int
+    timestamp: datetime
+    clarifications: List[Dict[str, Any]]  # Questions and user responses
+
+@dataclass
+class Session:
+    """Complete investigation session."""
+    session_id: str
+    name: str  # User-provided
+    description: str  # Optional user-provided
+    tags: List[str]  # User-provided for organization
+    created_at: datetime
+    updated_at: datetime
+    queries: List[QueryRecord]  # Chronological order
+    conversation_history: List[Dict[str, Any]]  # Full dialogue
+    results_snapshots: Dict[str, Any]  # Query results (may be truncated for large datasets)
+
+    def save_to_db(self, db_session):
+        """Persist session to database."""
+        session_data = {
+            "session_id": self.session_id,
+            "name": self.name,
+            "description": self.description,
+            "tags": json.dumps(self.tags),
+            "created_at": self.created_at,
+            "updated_at": datetime.now(),
+            "data": json.dumps({
+                "queries": [asdict(q) for q in self.queries],
+                "conversation": self.conversation_history,
+                "results": self.results_snapshots
+            })
+        }
+        db_session.execute(insert_or_update_query, session_data)
+```
+
+**Storage Schema** (PostgreSQL with JSONB):
+```sql
+CREATE TABLE sessions (
+    session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    tags TEXT[],  -- Array of tags
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    data JSONB NOT NULL,  -- Flexible storage for queries, conversation, results
+
+    -- Indexes for fast retrieval
+    CONSTRAINT session_name_unique UNIQUE(name)
+);
+
+-- Full-text search on names, descriptions, tags
+CREATE INDEX sessions_search_idx ON sessions
+USING GIN (to_tsvector('english', name || ' ' || description || ' ' || array_to_string(tags, ' ')));
+
+-- Index on tags for filtering
+CREATE INDEX sessions_tags_idx ON sessions USING GIN (tags);
+
+-- Index on timestamps for sorting
+CREATE INDEX sessions_created_idx ON sessions (created_at DESC);
+```
+
+#### Component 2: Session Management Operations
+
+**Save Session** (User-initiated):
+```python
+async def save_session(current_context: ConversationContext, metadata: SessionMetadata):
+    """Save current conversation as named session."""
+    session = Session(
+        session_id=str(uuid.uuid4()),
+        name=metadata.name,
+        description=metadata.description,
+        tags=metadata.tags,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+        queries=[create_query_record(q) for q in current_context.queries],
+        conversation_history=current_context.messages,
+        results_snapshots=truncate_large_results(current_context.results)
+    )
+
+    session.save_to_db(db)
+    return {"session_id": session.session_id, "message": "Session saved successfully!"}
+```
+
+**Load Session**:
+```python
+async def load_session(session_id: str) -> ConversationContext:
+    """Restore full conversation context from saved session."""
+    session = db.query(Session).filter_by(session_id=session_id).first()
+
+    if not session:
+        raise SessionNotFoundError(f"Session {session_id} not found")
+
+    # Restore conversation context
+    context = ConversationContext(
+        session_id=session.session_id,
+        queries=session.data['queries'],
+        messages=session.data['conversation'],
+        results=session.data['results']
+    )
+
+    return context
+```
+
+**List Sessions** (with search/filter):
+```python
+async def list_sessions(
+    search_query: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+    limit: int = 50,
+    offset: int = 0
+) -> List[SessionSummary]:
+    """List saved sessions with optional filtering."""
+    query = db.query(Session)
+
+    if search_query:
+        # Full-text search
+        query = query.filter(
+            "to_tsvector('english', name || ' ' || description) @@ plainto_tsquery(:search)",
+            search=search_query
+        )
+
+    if tags:
+        # Filter by tags (AND logic: must have all tags)
+        query = query.filter(Session.tags.contains(tags))
+
+    sessions = query.order_by(Session.updated_at.desc()).limit(limit).offset(offset).all()
+
+    return [SessionSummary(
+        session_id=s.session_id,
+        name=s.name,
+        description=s.description,
+        tags=s.tags,
+        query_count=len(s.data['queries']),
+        created_at=s.created_at,
+        updated_at=s.updated_at
+    ) for s in sessions]
+```
+
+**Export Session**:
+```python
+async def export_session(session_id: str, format: str = "json") -> bytes:
+    """Export session for sharing or backup."""
+    session = load_session_from_db(session_id)
+
+    if format == "json":
+        return json.dumps(asdict(session), indent=2, default=str).encode()
+
+    elif format == "pdf":
+        # Generate PDF report with queries, results, visualizations
+        return generate_pdf_report(session)
+
+    elif format == "markdown":
+        # Generate markdown document
+        return generate_markdown_report(session)
+```
+
+#### Component 3: Session UI Components
+
+**Session Save Dialog**:
+```typescript
+interface SessionSaveDialogProps {
+  currentContext: ConversationContext;
+  onSave: (metadata: SessionMetadata) => void;
+}
+
+function SessionSaveDialog({ currentContext, onSave }: SessionSaveDialogProps) {
+  return (
+    <Dialog>
+      <DialogTitle>Save Session</DialogTitle>
+      <DialogContent>
+        <TextField
+          label="Session Name"
+          required
+          placeholder="Q3 2024 Sales Regional Analysis"
+        />
+        <TextField
+          label="Description (optional)"
+          multiline
+          placeholder="Investigating August peak performance..."
+        />
+        <TagInput
+          label="Tags"
+          placeholder="sales, Q3, regional, 2024"
+        />
+        <Typography variant="caption">
+          This will save {currentContext.queries.length} queries and all conversation history
+        </Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button onClick={onSave} variant="contained">Save Session</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+```
+
+**Session Library** (Browse saved sessions):
+```typescript
+function SessionLibrary() {
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
+
+  return (
+    <div className="session-library">
+      <SearchBar placeholder="Search sessions..." />
+      <TagFilter tags={["sales", "Q3", "regional", "2024", ...]} />
+
+      <SessionGrid>
+        {sessions.map(session => (
+          <SessionCard key={session.session_id}>
+            <CardHeader>
+              <h3>{session.name}</h3>
+              <Chip>{session.query_count} queries</Chip>
+            </CardHeader>
+            <CardContent>
+              <p>{session.description}</p>
+              <Tags>{session.tags.map(tag => <Tag>{tag}</Tag>)}</Tags>
+              <Timestamp>Last updated: {session.updated_at}</Timestamp>
+            </CardContent>
+            <CardActions>
+              <Button onClick={() => loadSession(session.session_id)}>
+                Resume
+              </Button>
+              <Button onClick={() => exportSession(session.session_id)}>
+                Export
+              </Button>
+              <Button onClick={() => shareSession(session.session_id)}>
+                Share
+              </Button>
+            </CardActions>
+          </SessionCard>
+        ))}
+      </SessionGrid>
+    </div>
+  );
+}
+```
+
+**Expected Impact**:
+- 40-60% of investigations span multiple work sessions (hours/days apart)
+- Saved sessions reduce re-work by 70% (no need to recreate query sequences)
+- Knowledge sharing: 30% of sessions exported or shared with colleagues
+- Session library becomes organizational knowledge base of common analyses
 
 ---
 
@@ -1007,6 +1480,215 @@ trainer.train()
 **Alternatives**:
 - **Full Fine-Tuning**: Requires 4x more memory, minimal benefit
 - **Adapter Layers**: Similar concept, but PEFT more actively maintained
+
+#### 10.1.7 Session Storage and Management
+
+**Primary Choice: PostgreSQL with JSONB**
+
+**Justification**:
+- **Flexible Schema**: JSONB columns store conversation history and results with full indexing
+- **Full-Text Search**: Built-in FTS for searching session names/descriptions/tags
+- **ACID Compliance**: Ensures session data integrity
+- **Array Support**: Native PostgreSQL arrays for tags
+- **Performance**: GIN indexes enable fast search on JSONB and text arrays
+
+```python
+from sqlalchemy import create_engine, Column, String, ARRAY, DateTime, Text
+from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+import uuid
+
+Base = declarative_base()
+
+class Session(Base):
+    __tablename__ = 'sessions'
+
+    session_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), nullable=False, unique=True)
+    description = Column(Text)
+    tags = Column(ARRAY(String))  # PostgreSQL array for tags
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    data = Column(JSONB, nullable=False)  # Stores queries, conversation, results
+
+# Create engine
+engine = create_engine('postgresql://user:password@localhost:5432/idi_sessions')
+
+# Create all tables
+Base.metadata.create_all(engine)
+
+# Session maker
+Session = sessionmaker(bind=engine)
+db_session = Session()
+```
+
+**Schema Migration** (using Alembic):
+```python
+# alembic/versions/001_create_sessions.py
+def upgrade():
+    op.create_table(
+        'sessions',
+        sa.Column('session_id', postgresql.UUID(as_uuid=True), primary_key=True),
+        sa.Column('name', sa.String(255), nullable=False),
+        sa.Column('description', sa.Text),
+        sa.Column('tags', postgresql.ARRAY(sa.String)),
+        sa.Column('created_at', sa.DateTime, nullable=False),
+        sa.Column('updated_at', sa.DateTime, nullable=False),
+        sa.Column('data', postgresql.JSONB, nullable=False)
+    )
+
+    # Create indexes
+    op.create_index(
+        'sessions_search_idx',
+        'sessions',
+        [sa.text("to_tsvector('english', name || ' ' || description || ' ' || array_to_string(tags, ' '))")],
+        postgresql_using='gin'
+    )
+    op.create_index('sessions_tags_idx', 'sessions', ['tags'], postgresql_using='gin')
+    op.create_index('sessions_created_idx', 'sessions', ['created_at'], postgresql_ops={'created_at': 'DESC'})
+```
+
+**Query Examples**:
+
+```python
+# Save session
+new_session = Session(
+    session_id=uuid.uuid4(),
+    name="Q3 2024 Sales Regional Analysis",
+    description="Investigating August peak performance",
+    tags=["sales", "Q3", "regional", "2024"],
+    data={
+        "queries": [...],
+        "conversation": [...],
+        "results": [...]
+    }
+)
+db_session.add(new_session)
+db_session.commit()
+
+# Full-text search
+search_results = db_session.query(Session).filter(
+    sa.text("to_tsvector('english', name || ' ' || description) @@ plainto_tsquery('sales peak')")
+).all()
+
+# Filter by tags
+tagged_sessions = db_session.query(Session).filter(
+    Session.tags.contains(['sales', 'Q3'])
+).all()
+
+# Get recent sessions
+recent = db_session.query(Session).order_by(Session.updated_at.desc()).limit(10).all()
+```
+
+**Alternatives**:
+- **MongoDB**: Document-oriented, natural fit for JSON data, but weaker for relational queries
+- **Redis with JSON**: Fast but limited query capabilities, better suited for caching
+- **SQLite with JSON1 extension**: Good for development, lacks full-text search and array support
+
+#### 10.1.8 Real-Time Communication: WebSockets
+
+**Primary Choice: FastAPI WebSockets + Socket.IO (optional)**
+
+**Justification**:
+- **Progress Updates**: Real-time progress indicators during query processing
+- **Cancellation**: User can abort queries mid-execution
+- **Low Latency**: <100ms update frequency for smooth progress bars
+- **Built-in**: FastAPI has native WebSocket support
+
+```python
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from typing import Dict
+import asyncio
+
+app = FastAPI()
+
+# Track active connections
+active_connections: Dict[str, WebSocket] = {}
+
+@app.websocket("/ws/query/{session_id}")
+async def query_websocket(websocket: WebSocket, session_id: str):
+    await websocket.accept()
+    active_connections[session_id] = websocket
+
+    try:
+        while True:
+            # Receive query from client
+            data = await websocket.receive_json()
+
+            if data["type"] == "query":
+                # Process query with progress updates
+                async for progress in process_query_with_progress(data["query"], session_id):
+                    await websocket.send_json({
+                        "type": "progress",
+                        "phase": progress.phase,
+                        "percent": progress.percent,
+                        "message": progress.message,
+                        "estimated_remaining": progress.estimated_remaining
+                    })
+
+                # Send final results
+                await websocket.send_json({
+                    "type": "result",
+                    "data": progress.final_result
+                })
+
+            elif data["type"] == "cancel":
+                # Handle cancellation
+                cancel_query(session_id)
+                await websocket.send_json({
+                    "type": "cancelled",
+                    "message": "Query cancelled by user"
+                })
+
+    except WebSocketDisconnect:
+        del active_connections[session_id]
+
+async def send_progress_update(session_id: str, progress: ProgressUpdate):
+    """Send progress update to specific client."""
+    if session_id in active_connections:
+        await active_connections[session_id].send_json({
+            "type": "progress",
+            "data": progress.dict()
+        })
+```
+
+**Frontend (React + WebSocket)**:
+```typescript
+function useQueryWebSocket(sessionId: string) {
+  const [progress, setProgress] = useState<ProgressUpdate | null>(null);
+  const [result, setResult] = useState<QueryResult | null>(null);
+  const ws = useRef<WebSocket | null>(null);
+
+  useEffect(() => {
+    ws.current = new WebSocket(`ws://localhost:8000/ws/query/${sessionId}`);
+
+    ws.current.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+
+      if (message.type === 'progress') {
+        setProgress(message.data);
+      } else if (message.type === 'result') {
+        setResult(message.data);
+        setProgress(null);
+      }
+    };
+
+    return () => ws.current?.close();
+  }, [sessionId]);
+
+  const cancelQuery = () => {
+    ws.current?.send(JSON.stringify({ type: 'cancel' }));
+  };
+
+  return { progress, result, cancelQuery };
+}
+```
+
+**Alternatives**:
+- **Server-Sent Events (SSE)**: One-way communication, simpler but can't cancel
+- **Polling**: Simple but inefficient, high latency
+- **Socket.IO**: More features but heavier, overkill for this use case
 
 ### 10.2 Frontend Technologies
 
@@ -1307,8 +1989,9 @@ jobs:
 - 5+ detailed use case scenarios with expected system behavior
 
 **Success Criteria**:
-- All 6 modules have specified inputs, outputs, and responsibilities
-- Metrics defined for accuracy (>90%), latency (<5s), usability (SUS >70)
+- All 7 modules have specified inputs, outputs, and responsibilities (including Session Manager)
+- Metrics defined for accuracy (>90%), latency (<30s for complex queries), usability (SUS >70)
+- Session management requirements specified (save, load, search, export)
 
 **Phase 1 Milestone**: Requirements document approved, benchmarks prepared, clear success criteria established.
 
@@ -1432,7 +2115,7 @@ jobs:
 - SQL Generator produces syntactically valid SQL for >95% of inputs
 - Fine-tuned models show >10% improvement over base models on validation set
 
-#### Activity 3.3: Verification, Visualization, and Orchestration (Week 11-12)
+#### Activity 3.3: Verification, Visualization, Session Manager, and Orchestration (Week 11-12)
 
 **Tasks**:
 - Implement Verification Agent (three layers)
@@ -1444,27 +2127,41 @@ jobs:
   - Chart type selection logic
   - Recharts integration
   - Statistical overlay generation
+- Implement Session Manager Agent
+  - PostgreSQL session storage with JSONB
+  - Save/load/list/delete/export operations
+  - Full-text search on session metadata
+  - Session UI components (save dialog, session library)
 - Implement Multi-Agent Orchestrator
   - LangGraph workflow definition
-  - State management
+  - State management with multi-turn support
+  - Progress tracking and WebSocket updates
+  - Query cancellation handling
   - Error handling and retry logic
 - Develop web interface
   - Keyword-assisted query builder UI
   - Visualization dashboard
   - Clarification dialogue components
+  - Progress indicators with estimated completion times
+  - Session controls (save, load, browse)
+  - Real-time WebSocket connection for progress updates
 
 **Deliverables**:
 - Verification Agent with comprehensive test suite
 - Visualization Engine with 5+ chart types supported
-- Multi-Agent Orchestrator coordinating all modules
-- Functional web interface (React frontend)
-- End-to-end integration tests
+- Session Manager with database schema and full CRUD operations
+- Multi-Agent Orchestrator coordinating all 7 modules with progress tracking
+- Functional web interface (React frontend) with WebSocket support
+- End-to-end integration tests including multi-turn conversations
 
 **Success Criteria**:
 - Verification detects >90% of semantic errors with <10% false positives
 - Visualization correctly selects chart type for >85% of result sets
+- Session save/load operations complete successfully with full context restoration
+- Progress indicators update in real-time with <200ms latency
+- Query cancellation works reliably for long-running operations
 - Orchestrator successfully routes queries through appropriate workflow paths
-- Web interface loads and processes queries end-to-end
+- Web interface loads and processes queries end-to-end with progress visibility
 
 **Phase 3 Milestone**: Fully functional prototype system, all modules implemented and tested, basic UI operational.
 
@@ -1641,6 +2338,28 @@ jobs:
   - **RAM <12GB, VRAM <7GB** (leaving headroom on 16GB/8GB system)
   - **CPU <70% average** (leaving capacity for concurrent processes)
 
+**Metric 7: Progress Communication Effectiveness**
+- **Measurements**:
+  - Progress update latency (time between processing phase change and UI update)
+  - User satisfaction with progress indicators (survey question: 1-5 scale)
+  - Query cancellation success rate
+- **Target**:
+  - **Progress update latency <200ms**
+  - **User satisfaction >4/5**
+  - **Cancellation success rate >95%**
+
+**Metric 8: Session Management Performance**
+- **Measurements**:
+  - Session save time (average time to persist session to database)
+  - Session load time (average time to restore full context)
+  - Session search response time (full-text search on metadata)
+  - Session usage rate (percentage of multi-query investigations that get saved)
+- **Target**:
+  - **Save time <1 second**
+  - **Load time <2 seconds**
+  - **Search response <500ms**
+  - **Usage rate >30% of multi-turn conversations**
+
 **Evaluation Protocol**:
 1. Profile system with `nvidia-smi` (GPU), `psutil` (RAM/CPU)
 2. Execute 100+ diverse queries and record metrics
@@ -1749,13 +2468,16 @@ jobs:
 
 ### 13.1 Technical Achievements
 
-**Primary Deliverable**: Functional IDI system with six integrated modules achieving target performance metrics.
+**Primary Deliverable**: Functional IDI system with seven integrated modules achieving target performance metrics.
 
 **Quantitative Targets**:
 - **Execution Accuracy**: 90-95% on domain-specific queries, 85-90% on cross-domain benchmarks
-- **Latency**: <5 seconds for 90% of queries
+- **Latency**: <30 seconds for complex queries with progress indicators, <5 seconds for simple queries
 - **Verification Performance**: >95% error detection, <5% false positives
 - **Ambiguity Resolution**: >85% success rate, <2 average clarification turns
+- **Multi-Turn Support**: 90% success rate for 3+ turn conversations, 80% feedback accuracy
+- **Progress Communication**: <200ms update latency, >95% cancellation success rate
+- **Session Management**: <1s save time, <2s load time, >30% usage rate
 - **Usability**: SUS score >70
 
 **Qualitative Outcomes**:
@@ -1849,9 +2571,29 @@ jobs:
   - Use integration testing throughout Phase 3
 - **Contingency**: Simplify integration (reduce module count, merge related components)
 
+**Risk 5: WebSocket Connection Stability**
+- **Probability**: Low-Medium (20-30%)
+- **Impact**: Medium (broken progress updates, poor UX)
+- **Mitigation**:
+  - Implement automatic reconnection logic with exponential backoff
+  - Fallback to polling if WebSocket unavailable
+  - Store progress state server-side for recovery after reconnection
+  - Comprehensive error handling for connection drops
+- **Contingency**: Use Server-Sent Events (SSE) for one-way updates, disable cancellation feature
+
+**Risk 6: Session Storage Performance Degradation**
+- **Probability**: Low (15-20%)
+- **Impact**: Low-Medium (slow session operations)
+- **Mitigation**:
+  - Proper database indexing (GIN indexes on JSONB, tags, timestamps)
+  - Limit result snapshot size (truncate large datasets)
+  - Implement pagination for session lists
+  - Cache frequently accessed sessions
+- **Contingency**: Switch to MongoDB for better document storage performance, implement session archiving
+
 ### 14.2 Project Management Risks
 
-**Risk 5: Scope Creep**
+**Risk 7: Scope Creep**
 - **Probability**: High (50-60%) [common in thesis projects]
 - **Impact**: Medium (timeline delays)
 - **Mitigation**:
@@ -1860,7 +2602,7 @@ jobs:
   - Define MVP clearly in Phase 1
 - **Contingency**: Cut nice-to-have features (advanced visualizations, dashboard composition)
 
-**Risk 6: Timeline Slippage**
+**Risk 8: Timeline Slippage**
 - **Probability**: Medium (35-45%)
 - **Impact**: High (missed defense deadline)
 - **Mitigation**:
@@ -1870,7 +2612,7 @@ jobs:
   - Bi-weekly checkpoint meetings
 - **Contingency**: Reduce evaluation scope (skip user study, rely on benchmarks + heuristic evaluation)
 
-**Risk 7: Advisor Availability Limited**
+**Risk 9: Advisor Availability Limited**
 - **Probability**: Low (10-20%)
 - **Impact**: Medium (feedback delays)
 - **Mitigation**:
@@ -1881,7 +2623,7 @@ jobs:
 
 ### 14.3 External Risks
 
-**Risk 8: Benchmark Dataset Access Issues**
+**Risk 10: Benchmark Dataset Access Issues**
 - **Probability**: Low (5-10%)
 - **Impact**: Medium (evaluation limitations)
 - **Mitigation**:
@@ -1890,7 +2632,7 @@ jobs:
   - Have alternative benchmarks identified
 - **Contingency**: Use only publicly available benchmarks + custom test set
 
-**Risk 9: User Study Recruitment Failure**
+**Risk 11: User Study Recruitment Failure**
 - **Probability**: Medium (30-40%) [especially in academic environment]
 - **Impact**: Low (alternative evaluation methods exist)
 - **Mitigation**:
@@ -1899,7 +2641,7 @@ jobs:
   - Leverage advisor networks (professors, local businesses)
 - **Contingency**: Substitute with heuristic evaluation, cognitive walkthrough with peers (fully acceptable for thesis)
 
-**Risk 10: Hardware Failure**
+**Risk 12: Hardware Failure**
 - **Probability**: Very Low (<5%)
 - **Impact**: High (data loss, development halt)
 - **Mitigation**:

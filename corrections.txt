@@ -1,0 +1,4 @@
+lets slice the IDI_Project file on 2 files, part one will have point 1 to 8 , the other file, all the other points
+Since our system will think on complex querys sometimes and its mean to be running on not so powerfull devices, query expected time to resolve can go up to 30seconds, we will sacrifice fast results for being able to run it on a lot of pcs and waiting a little bit longer, we can take longer to think at any time of the process, its not a problem, but we will provide expected time to the user
+ALso, correct the flow, so A user can make new questions from a result or give feedback and then make another query, any questions?
+Also lets make the possibility to save querys into "Sessions" so when an user gets a pretty usefull query and want to do something similar or follow up an investigation they can save that result, that query, that line of tought, any questions?

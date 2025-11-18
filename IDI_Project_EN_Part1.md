@@ -59,16 +59,21 @@ Despite these advances, enterprise deployment remains challenging due to domain 
 
 ### 1.3 Project Scope
 
-This thesis project proposes the design, development, and evaluation of IDI (Intelligent Database Interface), a comprehensive NL2SQL system tailored for executive decision support. The system integrates six specialized modules orchestrated through agentic workflows:
+This thesis project proposes the design, development, and evaluation of IDI (Intelligent Database Interface), a comprehensive NL2SQL system tailored for executive decision support. The system integrates seven specialized modules orchestrated through agentic workflows:
 
 1. **Context Manager Agent**: Acquires and maintains enterprise-specific domain knowledge
 2. **Query Understanding Agent**: Parses natural language and detects ambiguities
 3. **SQL Generator Agent**: Translates structured intent into executable SQL
 4. **Verification Agent**: Validates correctness through three-layer checking
 5. **Visualization Engine**: Automatically renders statistical insights
-6. **Multi-Agent Orchestrator**: Coordinates dynamic workflow routing
+6. **Session Manager Agent**: Saves and manages query contexts for investigation continuity
+7. **Multi-Agent Orchestrator**: Coordinates dynamic workflow routing
 
 The project emphasizes practical deployment considerations, including resource constraints (local execution on consumer hardware), cost efficiency (minimal cloud dependency), and extensibility (modular architecture enabling component evolution).
+
+**Design Philosophy - Performance Trade-offs**: IDI prioritizes accessibility over raw speed. Complex queries may require up to 30 seconds for processing, deliberately trading rapid response for the ability to execute on resource-constrained devices (standard laptops, workstations). This design choice democratizes access—allowing deployment across organizational tiers without requiring expensive infrastructure. The system provides transparent progress indicators with estimated completion times and user-cancellable operations, ensuring executives understand processing status while maintaining control.
+
+**Conversational Intelligence**: Unlike single-shot query systems, IDI supports iterative investigation workflows where users can ask follow-up questions from results, provide feedback for query refinement, and build upon previous analyses—all within maintained conversational context. Sessions can be saved to preserve entire investigation threads (queries + results + conversation history), enabling users to resume complex analytical paths or share investigative workflows with colleagues.
 
 ---
 
@@ -86,13 +91,15 @@ The project emphasizes practical deployment considerations, including resource c
 
 3. **Schema Complexity**: Enterprise databases feature distributed architectures, nested table structures, multi-dimensional data (arrays within columns), and complex join relationships requiring expert-level SQL knowledge.
 
-4. **Multi-turn Dialogue Limitations**: Exploratory data analysis requires conversational sequences with context preservation, entity tracking, and progressive query refinement—capabilities absent in single-shot NL2SQL systems.
+4. **Multi-turn Dialogue Limitations**: Exploratory data analysis requires conversational sequences with context preservation, entity tracking, progressive query refinement, and the ability to ask follow-up questions from results or provide feedback for query adjustment—capabilities absent in single-shot NL2SQL systems.
 
-5. **SQL Correctness Verification**: Generated queries may contain semantic errors (wrong aggregations, incorrect joins, missing filters) that produce misleading results, undermining trust and potentially impacting business decisions.
+5. **Investigation Continuity**: Complex analytical investigations span multiple sessions and require preserving entire investigative contexts (query sequences, intermediate results, conversational threads) for resumption, sharing, or replication—functionality missing from stateless query systems.
 
-6. **Result Interpretability**: Raw tabular outputs lack visual context for trend identification, comparative analysis, and pattern recognition—requiring automatic visualization selection and rendering.
+6. **SQL Correctness Verification**: Generated queries may contain semantic errors (wrong aggregations, incorrect joins, missing filters) that produce misleading results, undermining trust and potentially impacting business decisions.
 
-7. **Computational Resource Constraints**: State-of-the-art LLMs (70B+ parameters) demand extensive GPU resources and cloud API costs, creating barriers for resource-constrained environments.
+7. **Result Interpretability**: Raw tabular outputs lack visual context for trend identification, comparative analysis, and pattern recognition—requiring automatic visualization selection and rendering.
+
+8. **Computational Resource Constraints**: State-of-the-art LLMs (70B+ parameters) demand extensive GPU resources and cloud API costs, creating barriers for resource-constrained environments. Additionally, complex queries may require extended processing times (up to 30 seconds), necessitating transparent progress communication and user control mechanisms (cancellation, status updates).
 
 ### 2.3 Research Questions
 
@@ -105,6 +112,10 @@ The project emphasizes practical deployment considerations, including resource c
 4. How can multi-agent architectures improve NL2SQL robustness compared to monolithic end-to-end models?
 
 5. What is the optimal balance between model size, accuracy, and inference latency for local deployment on consumer hardware (16GB RAM, 8GB VRAM)?
+
+6. How does session-based investigation continuity (saving queries, results, and conversational context) impact analytical workflow effectiveness compared to stateless query systems?
+
+7. What progress communication mechanisms (estimated completion times, processing status updates, cancellation controls) are necessary to maintain user trust during extended query processing (up to 30 seconds)?
 
 ---
 
@@ -240,7 +251,7 @@ Recent work explores agent-based decomposition of NL2SQL tasks:
 
 ### 6.1 General Objective
 
-**Design, develop, and evaluate IDI (Intelligent Database Interface), a modular multi-agent NL2SQL system that enables non-technical executives to extract statistical insights from relational databases through natural language queries with contextual awareness, ambiguity resolution, and automated verification, achieving >90% query correctness while operating on local consumer hardware.**
+**Design, develop, and evaluate IDI (Intelligent Database Interface), a modular multi-agent NL2SQL system that enables non-technical executives to extract statistical insights from relational databases through conversational natural language queries with contextual awareness, ambiguity resolution, automated verification, and session-based investigation continuity, achieving >90% query correctness while operating on local consumer hardware with transparent progress communication for extended processing times (up to 30 seconds).**
 
 ### 6.2 Specific Objectives
 
@@ -255,31 +266,37 @@ Recent work explores agent-based decomposition of NL2SQL tasks:
 
 #### Specific Objective 2: System Design
 
-**Design the IDI modular architecture, specifying component responsibilities, inter-agent communication protocols, data flows, and technology stack selection optimized for local deployment on consumer hardware (16GB RAM, 8GB VRAM).**
+**Design the IDI modular architecture, specifying component responsibilities, inter-agent communication protocols, data flows, session management mechanisms, progress communication strategies, and technology stack selection optimized for local deployment on consumer hardware (16GB RAM, 8GB VRAM) with extended query timeouts (up to 30 seconds).**
 
 **Expected Outcomes**:
-- System architecture diagrams (component, deployment, sequence diagrams)
-- Module interface specifications (inputs, outputs, APIs)
+- System architecture diagrams (component, deployment, sequence diagrams) including Session Manager module
+- Module interface specifications (inputs, outputs, APIs) with multi-turn conversation flows
 - Technology stack justification document comparing alternatives (LLM choices, frameworks, databases)
 - Context acquisition survey design and metadata schema
+- Session persistence schema (queries, results, conversation history, metadata)
+- Progress indicator design (estimated times, processing phases, cancellation mechanisms)
 
 #### Specific Objective 3: Solution Development
 
-**Implement the six core IDI modules (Context Manager, Query Understanding, SQL Generator, Verification Agent, Visualization Engine, Multi-Agent Orchestrator) with synthetic training data generation, model fine-tuning pipelines, and user interface components.**
+**Implement the seven core IDI modules (Context Manager, Query Understanding, SQL Generator, Verification Agent, Visualization Engine, Session Manager, Multi-Agent Orchestrator) with synthetic training data generation, model fine-tuning pipelines, conversational flow management, and user interface components including progress indicators and session controls.**
 
 **Expected Outcomes**:
-- Functional prototype system with web-based interface
+- Functional prototype system with web-based interface supporting multi-turn conversations
 - Fine-tuned LLM models for NL understanding and SQL generation
 - Synthetic training dataset (minimum 500 query-SQL pairs)
-- Test suite with unit, integration, and system-level tests
+- Session management implementation (save, load, list, delete, export functionality)
+- Progress indicator system with estimated completion times and cancellation capability
+- Test suite with unit, integration, and system-level tests including multi-turn conversation scenarios
 
 #### Specific Objective 4: Results Analysis
 
-**Evaluate IDI performance through quantitative benchmarking (execution accuracy, latency, verification effectiveness) and qualitative assessment (user study, expert review), comparing results against baseline methods and identifying improvement opportunities.**
+**Evaluate IDI performance through quantitative benchmarking (execution accuracy, latency, verification effectiveness, session usage patterns) and qualitative assessment (user study with multi-turn tasks, expert review, progress indicator effectiveness), comparing results against baseline methods and identifying improvement opportunities.**
 
 **Expected Outcomes**:
-- Performance evaluation report with statistical significance testing
-- User study results (task success rate, System Usability Scale scores)
+- Performance evaluation report with statistical significance testing including query timeout analysis
+- User study results (task success rate, System Usability Scale scores, multi-turn conversation effectiveness)
+- Session feature evaluation (usage frequency, resumption patterns, sharing behavior)
+- Progress indicator assessment (user satisfaction during extended processing, cancellation usage)
 - Comparative analysis against existing solutions (Tableau Ask Data, Power BI Q&A)
 - Recommendations for system enhancement and future work
 
@@ -350,43 +367,48 @@ Each sprint includes:
 
 ### 8.1 High-Level Architecture
 
-IDI employs a **modular microservices-inspired architecture** with six specialized components orchestrated by an agent coordinator:
+IDI employs a **modular microservices-inspired architecture** with seven specialized components orchestrated by an agent coordinator:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Executive Interface Layer                     │
-│         (Web UI: Query Builder + Visualization Dashboard)        │
+│  (Web UI: Query Builder + Visualization Dashboard +              │
+│   Progress Indicators + Session Controls)                        │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
                             │ REST API
                             │
 ┌───────────────────────────▼─────────────────────────────────────┐
 │                   Multi-Agent Orchestrator                       │
-│            (Workflow Router + State Management)                  │
-└───┬──────────┬───────────┬───────────┬───────────┬──────────────┘
-    │          │           │           │           │
-    │          │           │           │           │
-┌───▼────┐ ┌──▼──────┐ ┌──▼────────┐ ┌▼────────┐ ┌▼─────────────┐
-│Context │ │Query    │ │SQL        │ │Verifi-  │ │Visualization │
-│Manager │ │Under-   │ │Generator  │ │cation   │ │Engine        │
-│Agent   │ │standing │ │Agent      │ │Agent    │ │              │
-│        │ │Agent    │ │           │ │         │ │              │
-└────┬───┘ └─────────┘ └───────────┘ └─────────┘ └──────────────┘
-     │
-     │
-┌────▼────────────────────────────────────────────────────────────┐
-│                    Data Storage Layer                            │
-│  • Vector DB (Context Embeddings)                                │
-│  • Relational DB (Target Database + Metadata)                    │
-│  • Cache (Query Results + Generated SQL)                         │
-└──────────────────────────────────────────────────────────────────┘
+│     (Workflow Router + State Management + Progress Tracker)      │
+└───┬──────────┬───────────┬───────────┬───────────┬─────────┬───┘
+    │          │           │           │           │         │
+    │          │           │           │           │         │
+┌───▼────┐ ┌──▼──────┐ ┌──▼────────┐ ┌▼────────┐ ┌▼──────┐ ┌▼────────┐
+│Context │ │Query    │ │SQL        │ │Verifi-  │ │Visual- │ │Session  │
+│Manager │ │Under-   │ │Generator  │ │cation   │ │ization │ │Manager  │
+│Agent   │ │standing │ │Agent      │ │Agent    │ │Engine  │ │Agent    │
+│        │ │Agent    │ │           │ │         │ │        │ │         │
+└────┬───┘ └─────────┘ └───────────┘ └─────────┘ └────────┘ └────┬────┘
+     │                                                              │
+     │                                                              │
+┌────▼──────────────────────────────────────────────────────────┬─▼───┐
+│                    Data Storage Layer                          │     │
+│  • Vector DB (Context Embeddings)                              │     │
+│  • Relational DB (Target Database + Metadata)                  │     │
+│  • Cache (Query Results + Generated SQL)                       │Sess-│
+│  • Session Store (Queries + Results + Conversation History +   │ion  │
+│                   Metadata: names, tags, timestamps)           │Store│
+└────────────────────────────────────────────────────────────────┴─────┘
 ```
 
 **Design Principles**:
 1. **Separation of Concerns**: Each module handles distinct responsibility
 2. **Loose Coupling**: Components communicate via defined interfaces, enabling independent evolution
 3. **Fail-Safe Design**: Verification layer prevents execution of malformed queries
-4. **Stateful Context**: Session management enables multi-turn conversations
+4. **Stateful Context**: Session management enables multi-turn conversations and investigation continuity
+5. **User-Controlled Processing**: Transparent progress communication and cancellation capability for extended queries (up to 30 seconds)
+6. **Investigation Persistence**: Full session context preservation (queries, results, conversation threads) for resumption and sharing
 
 ### 8.2 Module Descriptions
 
@@ -516,15 +538,18 @@ IDI employs a **modular microservices-inspired architecture** with six specializ
 
 **Responsibilities**:
 - Route queries to appropriate modules based on complexity
-- Manage conversation state across turns
+- Manage conversation state within active session
 - Handle error recovery and retries
+- Track query processing progress and estimated completion times
+- Manage query cancellation requests
 - Log execution traces for debugging
 
 **Key Components**:
 - Workflow engine implementing state machine
 - Context aggregator collecting inputs for each stage
 - Error handler with retry logic
-- Session manager for multi-turn dialogues
+- Progress tracker with timeout management (up to 30 seconds)
+- Cancellation handler for user-initiated query termination
 
 **Inputs**: User query, session history, system state
 **Outputs**: Orchestrated execution plan + final results
@@ -534,18 +559,74 @@ IDI employs a **modular microservices-inspired architecture** with six specializ
 - State management: Python dictionaries + Redis (if persistence needed)
 - Workflow: Directed Acyclic Graph (DAG) representation
 
-### 8.3 Data Flow: End-to-End Example
+#### 8.2.7 Session Manager Agent
 
-**Scenario**: Executive asks: *"Show me sales performance last quarter"*
+**Purpose**: Persist and manage investigative sessions for continuity and sharing.
+
+**Responsibilities**:
+- Save complete session contexts (queries, results, conversation history)
+- Manage session metadata (names, descriptions, tags, timestamps)
+- List, search, and filter saved sessions
+- Load and resume previous sessions with full context restoration
+- Delete and archive sessions
+- Export sessions for sharing or backup
+- Track session usage analytics
+
+**Key Components**:
+- Session persistence layer (database storage)
+- Metadata indexing for fast search/retrieval
+- Conversation history serializer/deserializer
+- Results snapshot manager (handling large datasets)
+- Export formatter (JSON, CSV, or shareable formats)
+- Session lifecycle manager (creation, update, deletion)
+
+**Inputs**:
+- Save request: Current query, results, conversation history, user-provided metadata
+- Load request: Session ID or search criteria
+- Management operations: List, delete, export commands
+
+**Outputs**:
+- Saved session confirmation with session ID
+- Loaded session context (full conversation state + results)
+- Session list with metadata
+- Exported session files
+
+**Technology Candidates**:
+- Storage: PostgreSQL (relational metadata + JSONB for flexible storage) or MongoDB (document-oriented)
+- Serialization: JSON for conversation history, Parquet/CSV for large result sets
+- Metadata schema:
+  ```
+  Session {
+    id: UUID
+    name: String (user-provided)
+    description: String (optional)
+    tags: String[] (user-provided)
+    created_at: Timestamp
+    updated_at: Timestamp
+    queries: Query[] (chronological order)
+    conversation_history: Message[] (full context)
+    results_snapshots: Result[] (query outputs)
+  }
+  ```
+- Search: Full-text search on names/descriptions/tags using PostgreSQL FTS or Elasticsearch
+
+### 8.3 Data Flow: Multi-Turn Conversation Example
+
+**Scenario**: Executive conducts an iterative sales investigation with follow-up questions, feedback, and session saving.
 
 **Step-by-Step Flow**:
 
 ```
+═══════════════════════════════════════════════════════════════
+TURN 1: Initial Query
+═══════════════════════════════════════════════════════════════
+
 1. User Input → Executive Interface
    Query: "Show me sales performance last quarter"
    Keywords selected: [sales, performance, quarter]
 
 2. Interface → Orchestrator
+   Status: "Analyzing your question..."
    Ambiguity detected: "last quarter" undefined
 
 3. Orchestrator → Context Manager
@@ -560,6 +641,7 @@ IDI employs a **modular microservices-inspired architecture** with six specializ
 6. User Selection: "Q3 2024"
 
 7. Orchestrator → Query Understanding Agent (refined)
+   Status: "Understanding your request..."
    Intent: {
      operation: "aggregate",
      metric: "sales_total",
@@ -568,9 +650,12 @@ IDI employs a **modular microservices-inspired architecture** with six specializ
    }
 
 8. Orchestrator → Context Manager
+   Status: "Gathering relevant database information..."
    Retrieves: Sales schema, join relationships, few-shot examples
 
 9. Orchestrator → SQL Generator Agent
+   Status: "Crafting your query... (Estimated: 8 seconds)"
+   Progress: [████████░░░░] 60% - "Constructing SQL logic..."
    Context: Schema + Examples + Intent
    Output:
    SELECT
@@ -582,11 +667,13 @@ IDI employs a **modular microservices-inspired architecture** with six specializ
    ORDER BY month;
 
 10. Orchestrator → Verification Agent
+    Status: "Verifying query correctness..."
     Layer 1: Syntax ✓ (valid SQL)
     Layer 2: Semantic ✓ (matches intent)
     Layer 3: (awaits execution)
 
 11. Orchestrator → Database Execution
+    Status: "Executing query and retrieving results..."
     Results: [
       {month: "2024-07-01", sales_total: 1500000},
       {month: "2024-08-01", sales_total: 1750000},
@@ -597,6 +684,7 @@ IDI employs a **modular microservices-inspired architecture** with six specializ
     Sanity: ✓ (positive values, reasonable magnitudes)
 
 13. Orchestrator → Visualization Engine
+    Status: "Creating visualization..."
     Analysis: Time series (3 points), single metric
     Selection: Line chart with bar overlay
 
@@ -606,6 +694,116 @@ IDI employs a **modular microservices-inspired architecture** with six specializ
 
 15. Interface → User
     Display: Chart + SQL (collapsible) + Export options
+    Status: ✓ Complete (Total time: 7.2 seconds)
+    Options: [Ask Follow-up] [Give Feedback] [Save to Session]
+
+═══════════════════════════════════════════════════════════════
+TURN 2: Follow-up Question from Results
+═══════════════════════════════════════════════════════════════
+
+16. User Input → Executive Interface
+    Follow-up Query: "Which region drove the August peak?"
+    Context: Previous query + results maintained
+
+17. Orchestrator → Query Understanding Agent
+    Status: "Analyzing follow-up question..."
+    Context-aware parsing: References August from previous result
+    Intent: {
+      operation: "breakdown",
+      metric: "sales_total",
+      grouping: "region",
+      time_filter: {start: "2024-08-01", end: "2024-08-31"}
+    }
+
+18. Orchestrator → SQL Generator Agent
+    Status: "Building regional breakdown query... (Estimated: 12 seconds)"
+    Progress: [██████░░░░░░] 50% - "Analyzing multi-table relationships..."
+    Output:
+    SELECT
+      r.region_name,
+      SUM(o.total_amount) AS sales_total
+    FROM orders o
+    JOIN customers c ON o.customer_id = c.customer_id
+    JOIN regions r ON c.region_id = r.region_id
+    WHERE o.order_date BETWEEN '2024-08-01' AND '2024-08-31'
+    GROUP BY r.region_name
+    ORDER BY sales_total DESC;
+
+19. [Verification + Execution + Visualization pipeline...]
+    Status: "Verifying and executing..."
+    Results: [
+      {region_name: "Northeast", sales_total: 780000},
+      {region_name: "West", sales_total: 520000},
+      {region_name: "South", sales_total: 450000}
+    ]
+
+20. Interface → User
+    Display: Bar chart showing regional breakdown
+    Insight: "Northeast contributed 44.6% of August sales"
+    Status: ✓ Complete (Total time: 11.8 seconds)
+
+═══════════════════════════════════════════════════════════════
+TURN 3: User Feedback for Refinement
+═══════════════════════════════════════════════════════════════
+
+21. User Input → Executive Interface
+    Feedback: "Show me just the top 3 regions and include product categories"
+    Context: Previous query refined based on user preference
+
+22. Orchestrator → Query Understanding Agent
+    Status: "Refining query based on feedback..."
+    Intent: {
+      operation: "breakdown",
+      metric: "sales_total",
+      grouping: ["region", "product_category"],
+      limit: 3,
+      time_filter: {start: "2024-08-01", end: "2024-08-31"}
+    }
+
+23. Orchestrator → SQL Generator Agent
+    Status: "Building multi-dimensional breakdown... (Estimated: 18 seconds)"
+    Progress: [████░░░░░░░░] 30% - "Optimizing join strategy..."
+    Progress: [████████░░░░] 65% - "Constructing aggregation logic..."
+    [User can click [Cancel] button at any time]
+
+24. [Verification + Execution + Visualization...]
+    Results: Grouped bar chart showing categories per top 3 regions
+    Status: ✓ Complete (Total time: 17.3 seconds)
+
+═══════════════════════════════════════════════════════════════
+TURN 4: Session Saving
+═══════════════════════════════════════════════════════════════
+
+25. User Action → Session Manager
+    Clicks "Save to Session"
+
+26. Interface → Session Manager Agent
+    Prompt for metadata:
+      - Session Name: [User enters: "Q3 2024 Sales Regional Analysis"]
+      - Description: [Optional: "Investigating August peak performance"]
+      - Tags: [User enters: "sales, Q3, regional, 2024"]
+
+27. Session Manager → Storage Layer
+    Saves:
+      - All 3 queries (original + 2 follow-ups)
+      - All result sets
+      - Complete conversation history with clarifications
+      - Metadata: {
+          session_id: "550e8400-e29b-41d4-a716-446655440000",
+          created_at: "2024-11-18T14:32:00Z",
+          name: "Q3 2024 Sales Regional Analysis",
+          tags: ["sales", "Q3", "regional", "2024"]
+        }
+
+28. Session Manager → Interface
+    Confirmation: "✓ Session saved successfully!"
+    Options: [Share Session] [Export as PDF] [Continue Investigation]
+
+29. User can later:
+    - Resume session from Session Library
+    - Load complete context (queries + results + conversation)
+    - Share with colleagues for collaborative analysis
+    - Export investigation thread for reporting
 ```
 
 ### 8.4 Key Architectural Decisions
@@ -642,13 +840,46 @@ IDI employs a **modular microservices-inspired architecture** with six specializ
 
 **Implementation**: LoRA/QLoRA for parameter-efficient fine-tuning
 
-#### Decision 4: Synchronous vs. Asynchronous Processing
+#### Decision 4: Extended Query Timeout (30 seconds) with Progress Communication
 
-**Choice**: Synchronous pipeline with async option for complex queries
+**Choice**: Accept processing times up to 30 seconds with transparent progress indicators and user cancellation
 **Rationale**:
-- **User Experience**: Immediate feedback for simple queries (<3 seconds)
-- **Complexity Handling**: Long-running queries (>10 seconds) handled asynchronously with progress indicators
-- **Resource Management**: Prevents concurrent query overload on limited hardware
+- **Accessibility over Speed**: Prioritizes deployment on resource-constrained devices (consumer laptops, standard workstations) over raw performance, democratizing access across organizational tiers
+- **Complex Query Support**: Enterprise-grade multi-table joins, aggregations, and verification pipelines require computational headroom unavailable in sub-second constraints
+- **User Trust Maintenance**: Transparent progress communication (estimated completion times, processing phase descriptions, visual progress bars) maintains engagement during extended processing
+- **User Control**: Cancellation capability empowers users to abort non-productive queries, preventing frustration and resource waste
+
+**Implementation**:
+- **Timeout Tiers**: Simple queries (3-5s), moderate complexity (8-15s), complex multi-join/verification (20-30s)
+- **Progress Phases**: Display creative, informative status messages:
+  - "Analyzing your question..."
+  - "Gathering relevant database information..."
+  - "Crafting your query... (Estimated: 12 seconds)"
+  - "Constructing SQL logic..." [████████░░░░] 60%
+  - "Verifying query correctness..."
+  - "Executing and retrieving results..."
+- **Cancellation Protocol**: User-initiated abortion triggers graceful shutdown (LLM inference termination, resource cleanup, partial results return if available)
+- **Adaptive Estimation**: Machine learning model predicts completion time based on query complexity, schema size, and historical performance
+
+**Trade-off**: Longer wait times vs. broader deployment feasibility—acceptable for analytical use cases where insight quality supersedes response latency
+
+#### Decision 5: Session-Based vs. Stateless Query System
+
+**Choice**: Persistent session management with full context preservation
+**Rationale**:
+- **Investigation Continuity**: Complex analytical tasks span multiple queries over hours/days—session persistence enables resumption without context loss
+- **Knowledge Sharing**: Exportable sessions facilitate collaborative analysis and onboarding (senior analysts share investigation paths with junior colleagues)
+- **Pattern Replication**: Saved sessions become reusable templates for recurring analyses (monthly sales reviews, quarterly compliance audits)
+- **Accountability**: Audit trail of queries and results supports regulatory compliance and decision traceability
+
+**Implementation**:
+- **Session Scope**: Queries, results, conversation history, clarifications, visualizations
+- **Metadata**: User-provided names, descriptions, tags; system-generated timestamps, usage statistics
+- **Storage**: Relational database (PostgreSQL JSONB) for structured metadata + document store for large result sets
+- **Operations**: Save, load, list, search (full-text on metadata), delete, export (JSON/PDF formats)
+- **User Experience**: Manual save (user-initiated "Save to Session" button) to avoid cluttering storage with exploratory dead-ends
+
+**Trade-off**: Additional storage overhead and complexity vs. significantly enhanced usability for iterative workflows
 
 ---
 

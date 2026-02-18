@@ -1,0 +1,1 @@
+# Handles intelligent chart selection and rendering

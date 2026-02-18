@@ -1,0 +1,1 @@
+// Displays query processing progress

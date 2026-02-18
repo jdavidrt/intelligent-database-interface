@@ -1,0 +1,1 @@
+# Translates structured intent into SQL queries

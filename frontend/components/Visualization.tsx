@@ -1,0 +1,1 @@
+// Component for rendering charts and visualizations

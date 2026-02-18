@@ -1,32 +1,28 @@
-# Sandbox application for testing models and LoRA adapters
+# Sandbox application for testing Qwen2.5-Coder-3B-Instruct model via text input
 
-from fastapi import FastAPI
-from pydantic import BaseModel
-import subprocess
+import requests
 
-# Initialize FastAPI app
-app = FastAPI()
+def main():
+    print("Welcome to the Qwen2.5-Coder-3B-Instruct Sandbox!")
+    print("Type your query below (type 'exit' to quit):")
 
-# Define a request model
-class QueryRequest(BaseModel):
-    query: str
+    while True:
+        user_input = input("You: ")
+        if user_input.lower() == "exit":
+            print("Exiting the sandbox. Goodbye!")
+            break
 
-# Endpoint to test the model with a query
-@app.post("/test_model")
-async def test_model(request: QueryRequest):
-    # Simulate model testing (replace with actual model inference code)
-    try:
-        # Example: Call a subprocess to run the model with the given query
-        result = subprocess.run(
-            ["python", "../backend/sql_generator.py", request.query],
-            capture_output=True,
-            text=True
-        )
-        return {"query": request.query, "result": result.stdout}
-    except Exception as e:
-        return {"error": str(e)}
+        try:
+            # Send the query to the llama.cpp server
+            response = requests.post(
+                "http://localhost:8080/generate",  # Replace with actual llama.cpp server endpoint
+                json={"prompt": user_input}
+            )
+            response.raise_for_status()
+            result = response.json()
+            print("Model:", result)
+        except requests.exceptions.RequestException as e:
+            print("Error communicating with the model:", e)
 
-# Example root endpoint
-@app.get("/")
-async def root():
-    return {"message": "Welcome to the sandbox for testing models and LoRA adapters!"}
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where:*)",
+      "Bash(echo:*)",
+      "Bash(cmake:*)",
+      "Bash(git --version)",
+      "Bash(make:*)",
+      "Bash(gcc:*)",
+      "Bash(cl:*)",
+      "Bash(ninja:*)",
+      "Bash(winget:*)"
+    ]
+  }
+}

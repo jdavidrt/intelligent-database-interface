@@ -69,6 +69,8 @@ IDI transforms ambiguous natural language questions into verified statistical in
 | **Fine-tuning Method** | LoRA (Low-Rank Adaptation) | Task-specific adapters (~20-50MB each)            |
 | **Training Platform**  | Google Colab + Unsloth     | Free T4 GPU, QLoRA support, 2-4 hours per adapter |
 
+Model URL: https://huggingface.co/Triangle104/Qwen2.5-Coder-3B-Instruct-Q4_K_M-GGUF
+
 ### LoRA Adapters (Task-Specific Fine-Tuning)
 
 | Adapter                      | Purpose                                  | Training Dataset                                  | Priority |
@@ -174,3 +176,65 @@ IDI transforms ambiguous natural language questions into verified statistical in
 │  (Context Store)  │                    │  (Sessions + Meta) │
 └───────────────────┘                    └────────────────────┘
 ```
+
+### Sandbox Setup Guide
+
+To set up the sandbox environment for running the Qwen2.5-Coder-3B-Instruct model using llama.cpp, follow these steps:
+
+1. **Install Required Tools**:
+   - **Python 3.10 or higher**: Download and install Python from [python.org](https://www.python.org/downloads/).
+   - **Chocolatey**: If not already installed, follow the instructions at [Chocolatey Installation Guide](https://chocolatey.org/install).
+   - **CMake**: Install CMake using Chocolatey:
+     ```powershell
+     choco install cmake -y
+     ```
+   - **Git**: Install Git using Chocolatey:
+     ```powershell
+     choco install git -y
+     ```
+   - **Visual Studio Build Tools**: Download and install the [Build Tools for Visual Studio](https://visualstudio.microsoft.com/visual-cpp-build-tools/). During installation, ensure you select the "Desktop development with C++" workload.
+
+2. **Clone the llama.cpp Repository**:
+   - Open a terminal and navigate to the directory where you want to clone the repository.
+   - Run the following command:
+     ```powershell
+     git clone https://github.com/ggml-org/llama.cpp.git
+     ```
+
+3. **Build llama.cpp**:
+   - Navigate to the `llama.cpp` directory:
+     ```powershell
+     cd llama.cpp
+     ```
+   - Create a `build` directory and navigate into it:
+     ```powershell
+     mkdir build
+     cd build
+     ```
+   - Run CMake to configure and build the project:
+     ```powershell
+     cmake ..
+     cmake --build . --config Release
+     ```
+
+4. **Download the Qwen2.5-Coder-3B-Instruct Model**:
+   - Set your Hugging Face token as an environment variable:
+     ```powershell
+     $env:HUGGINGFACE_TOKEN = "your_huggingface_token"
+     ```
+   - Download the model:
+     ```powershell
+     Invoke-WebRequest -Uri "https://huggingface.co/Qwen/Qwen-2.5-Coder-3B-Instruct/resolve/main/qwen-2.5-coder-3b-instruct.q4_k_m.gguf" -Headers @{Authorization = "Bearer $env:HUGGINGFACE_TOKEN"} -OutFile "models/qwen-2.5-coder-3b-instruct.q4_k_m.gguf"
+     ```
+
+5. **Run the Sandbox Application**:
+   - Start the llama.cpp server:
+     ```powershell
+     ./server --model models/qwen-2.5-coder-3b-instruct.q4_k_m.gguf --port 8080
+     ```
+   - Run the sandbox application:
+     ```powershell
+     python sandbox_app.py
+     ```
+
+Ensure all dependencies are installed and properly configured before running the setup script or the sandbox application.

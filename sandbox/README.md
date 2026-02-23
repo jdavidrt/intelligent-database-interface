@@ -4,96 +4,98 @@ This sandbox is designed to test the Qwen2.5-Coder-3B-Instruct model using llama
 
 ## Prerequisites
 
-1. **Install Python**
-   - Download and install Python 3.10 or higher from the [official Python website](https://www.python.org/downloads/).
-   - Ensure Python is added to your system PATH during installation.
+1.  **Install Python**
+    -   Download and install Python 3.10 or higher from the [official Python website](https://www.python.org/downloads/).
+    -   Ensure Python is added to your system PATH during installation.
 
-2. **Install Required Python Packages**
-   - Open a terminal and run the following command to install the required dependencies:
+2.  **Install Required Python Packages**:
+    ```bash
+    pip install requests flask flask-cors
+    ```
 
-     ```bash
-     pip install requests
-     ```
+3.  **Install Build Tools (for building llama.cpp from source)**
 
-3. **Install llama.cpp**
+    You need **Git**, **CMake**, and a **C++ compiler**.
 
-   The easiest way to install llama.cpp on Windows is via `winget`:
+    **Option A: Visual Studio Build Tools (Recommended for Windows)**
 
-   ```powershell
-   winget install llama.cpp
-   ```
+    1.  Go to [Visual Studio Downloads](https://visualstudio.microsoft.com/downloads/).
+    2.  Under **Tools for Visual Studio**, download **"Build Tools for Visual Studio 2022"** (free, no IDE required).
+    3.  Run the installer and select the **"Desktop development with C++"** workload.
+        -   This automatically includes: MSVC compiler, CMake, and Ninja.
+    4.  Also install [Git for Windows](https://git-scm.com/download/win) if not already present.
+    5.  After installing, use the **"Developer Command Prompt for VS 2022"** (search in Start Menu) to run `make` build commands.
 
-   This installs pre-built binaries (`llama-server`, `llama-cli`, etc.) system-wide. No compilation or build tools required.
+    **Option B: MSYS2 / MinGW (alternative, native `make`)**
 
-   > **Note:** The old Makefile-based build has been removed from llama.cpp. If you need to build from source instead, see the [Alternative: Build from Source](#alternative-build-from-source) section below.
+    1.  Install [MSYS2](https://www.msys2.org/).
+    2.  In the MSYS2 UCRT64 terminal, run:
+        ```bash
+        pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake git make
+        ```
 
-4. **Download the Qwen2.5-Coder-3B-Instruct Model**
-   - Visit the [official Qwen2.5-Coder-3B-Instruct model page](https://huggingface.co/Qwen/Qwen-2.5-Coder-3B-Instruct) on Hugging Face.
-   - Download the model in GGUF format with Quantization Q4_K_M.
-   - Place the downloaded model file (e.g., `qwen2.5-coder-3b-instruct-q4_k_m.gguf`) in the `llama.cpp/models/` directory inside the sandbox folder.
+4.  **Download & Place the Model**
 
-5. **Start the llama.cpp Server**
-   - Run the following command to start the llama.cpp server with the downloaded model:
-
-     ```powershell
-     llama-server --model llama.cpp/models/qwen2.5-coder-3b-instruct-q4_k_m.gguf --port 8080
-     ```
-
-   - The server should now be running and accessible at `http://localhost:8080`.
+    -   Visit [Qwen2.5-Coder-3B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct-GGUF) on Hugging Face.
+    -   Download `qwen2.5-coder-3b-instruct-q4_k_m.gguf`.
+    -   Place the file at `sandbox/llama.cpp/models/qwen2.5-coder-3b-instruct-q4_k_m.gguf`.
 
 ## Running the Sandbox
 
-1. Navigate to the `sandbox` directory of this project:
+### Step 1 — Build llama.cpp from Source
 
-   ```bash
-   cd /path/to/intelligent-database-interface/sandbox
-   ```
+From the `sandbox/` directory, run:
 
-2. Run the sandbox application:
+```bash
+# Windows (native):
+build.bat
 
-   ```bash
-   python sandbox_app.py
-   ```
-
-3. Interact with the model directly in the terminal. Type your query and press Enter to send it to the model. The model's response will be displayed in the terminal.
-
-   Example interaction:
-
-   ```
-   Welcome to the Qwen2.5-Coder-3B-Instruct Sandbox!
-   Type your query below (type 'exit' to quit):
-   You: What is the capital of France?
-   Model Response: The capital of France is Paris.
-   ```
-
-4. Type `exit` to quit the sandbox.
-
-## Automated Setup
-
-You can use the provided PowerShell script to automate the installation:
-
-```powershell
-.\setup_sandbox.ps1
+# Linux/macOS (if make is installed):
+make
 ```
 
-The script will install llama.cpp via `winget`, download the model, and start the server.
+This will automatically:
+1.  **Clone** `https://github.com/ggml-org/llama.cpp.git` into `sandbox/llama.cpp/` (skipped if already cloned)
+2.  **Configure** with CMake (`-DLLAMA_BUILD_SERVER=ON`)
+3.  **Build** in Release mode
 
-## Alternative: Build from Source
+The built binary will be placed at:
+-   **Windows**: `sandbox/llama.cpp/build/bin/Release/llama-server.exe`
+-   **Linux/macOS**: `sandbox/llama.cpp/build/bin/llama-server`
 
-If you prefer to build llama.cpp from source instead of using pre-built binaries:
+You only need to run `make` **once** (or after updating llama.cpp).
 
-1. **Install Visual Studio 2022** with the "Desktop development with C++" workload (includes CMake, Ninja, and MSVC).
-2. **Open "Developer PowerShell for VS 2022"** (not a regular PowerShell terminal).
-3. Clone and build:
+### Step 2 — Start the LLM Server
 
-   ```powershell
-   git clone https://github.com/ggml-org/llama.cpp.git
-   cd llama.cpp
-   cmake -B build
-   cmake --build build --config Release
-   ```
+```bash
+python sandbox_app.py
+```
 
-4. The server binary will be at `build/bin/Release/llama-server.exe`.
+The server will start on **port `7860`**. Logs are written to `llama_server.log`.
+
+### Step 3 — (Optional) Start the Web Backend
+
+To use the web UI, open a second terminal and run:
+
+```bash
+cd sandbox/backend
+python app.py
+```
+
+The backend API runs on **port `5000`** and proxies requests to the llama server at `7860`.
+
+### Step 4 — Open the Frontend
+
+Open `sandbox/frontend/index.html` in your browser.
+
+---
+
+## Troubleshooting
+
+-   **Port conflicts**: The llama server uses port `7860`. If that's occupied, set: `set LLAMA_CPP_SERVER_PORT=9090` before running `sandbox_app.py`.
+-   **Build errors**: Ensure you are running `make` from a **Developer Command Prompt for VS 2022** (not a regular terminal).
+-   **Slow startup**: The first model load can take 30–60 seconds. Check `llama_server.log` for progress.
+-   **Model not found**: Verify the `.gguf` file is at `sandbox/llama.cpp/models/qwen2.5-coder-3b-instruct-q4_k_m.gguf`.
 
 ## Notes
 

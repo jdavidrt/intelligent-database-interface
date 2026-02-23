@@ -124,3 +124,8 @@ lightning_logs/
 .cursor/
 .cursor_history/
 .antigravity/
+
+# Sandbox
+sandbox/llama.cpp/
+sandbox/*.log
+sandbox/*.zip

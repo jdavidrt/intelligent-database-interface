@@ -34,26 +34,72 @@ def format_model_response(text):
 
 def start_llama_cpp_server():
     """Start the llama.cpp server with the specified model and configuration."""
-    model_path = os.getenv("LLAMA_CPP_MODEL_PATH", "llama.cpp/models/qwen2.5-coder-3b-instruct-q4_k_m.gguf")
-    server_port = os.getenv("LLAMA_CPP_SERVER_PORT", "8080")
+    sandbox_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Define absolute paths
+    model_relative = os.getenv("LLAMA_CPP_MODEL_PATH", "llama.cpp/models/qwen2.5-coder-3b-instruct-q4_k_m.gguf")
+    model_path = os.path.join(sandbox_dir, model_relative)
+    server_port = os.getenv("LLAMA_CPP_SERVER_PORT", "7860")
+    # Prefer cmake-built binary; fall back to legacy pre-built location
+    cmake_binary_win = os.path.join(sandbox_dir, "llama.cpp", "build", "bin", "Release", "llama-server.exe")
+    cmake_binary_unix = os.path.join(sandbox_dir, "llama.cpp", "build", "bin", "llama-server")
+    legacy_binary = os.path.join(sandbox_dir, "llama.cpp", "llama-server.exe")
+    local_binary = cmake_binary_win if os.path.exists(cmake_binary_win) \
+        else cmake_binary_unix if os.path.exists(cmake_binary_unix) \
+        else legacy_binary
+    log_file_path = os.path.join(sandbox_dir, "llama_server.log")
 
     # Check if the server is already running
     try:
-        response = requests.get(f"http://localhost:{server_port}/health")
+        response = requests.get(f"http://localhost:{server_port}/health", timeout=2)
         if response.status_code == 200:
-            # print("llama.cpp server is already running.")
             return
     except requests.exceptions.RequestException:
         pass
 
-    # Start the server (llama-server installed via winget is available system-wide)
-    print(f"{Colors.CYAN}Starting llama.cpp server...{Colors.RESET}")
-    subprocess.Popen(
-        ["llama-server", "--model", model_path, "--port", server_port],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
-    print(f"{Colors.GREEN}llama.cpp server started on port {server_port}.{Colors.RESET}")
+    # Determine binary to run (Local Priority)
+    binary_to_run = "llama-server"
+    if os.path.exists(local_binary):
+        binary_to_run = local_binary
+        print(f"{Colors.CYAN}Using local llama.cpp binary: {local_binary}{Colors.RESET}")
+    else:
+        print(f"{Colors.CYAN}Local binary not found, attempting to use global 'llama-server'...{Colors.RESET}")
+
+    if not os.path.exists(model_path):
+        print(f"{Colors.RED}Error: Model not found at {model_path}{Colors.RESET}")
+        print(f"{Colors.YELLOW}Please ensure you downloaded the model and placed it in the correct folder.{Colors.RESET}")
+        sys.exit(1)
+
+    print(f"{Colors.CYAN}Starting llama.cpp server in background...{Colors.RESET}")
+    print(f"{Colors.CYAN}Logs will be written to: {log_file_path}{Colors.RESET}")
+    
+    with open(log_file_path, "w") as log_file:
+        subprocess.Popen(
+            [binary_to_run, "--model", model_path, "--port", server_port],
+            stdout=log_file,
+            stderr=log_file,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0
+        )
+
+    # Wait for the server to be healthy
+    print(f"{Colors.YELLOW}Waiting for server to become healthy...{Colors.RESET}")
+    max_retries = 30
+    for i in range(max_retries):
+        try:
+            response = requests.get(f"http://localhost:{server_port}/health", timeout=2)
+            if response.status_code == 200:
+                print(f"{Colors.GREEN}Server is healthy and ready!{Colors.RESET}")
+                return
+        except requests.exceptions.RequestException:
+            pass
+        
+        sys.stdout.write(f"\r{Colors.YELLOW}Retry {i+1}/{max_retries}...{Colors.RESET}")
+        sys.stdout.flush()
+        time.sleep(1)
+    
+    print(f"\n{Colors.RED}Error: Server failed to start or become healthy after {max_retries} seconds.{Colors.RESET}")
+    print(f"{Colors.YELLOW}Check {log_file_path} for details.{Colors.RESET}")
+    sys.exit(1)
 
 def main():
     # Enable VT100 emulation in Windows console (needed for colors)
@@ -67,7 +113,7 @@ def main():
     start_llama_cpp_server()
 
     # Load llama.cpp server URL from environment variable or use default
-    llama_cpp_server_url = os.getenv("LLAMA_CPP_SERVER_URL", "http://localhost:8080/v1/chat/completions")
+    llama_cpp_server_url = os.getenv("LLAMA_CPP_SERVER_URL", "http://localhost:7860/v1/chat/completions")
 
     def load_context():
         """Reads all files in sandbox/context/ and returns their content."""
@@ -108,9 +154,25 @@ def main():
         
         # Construct the messages list
         # 1. System Prompt
-        system_content = "You are IDI (Intelligent Database Interface) a NL to SQL model, you should answer as IDI and be very polite."
+        system_content = (
+            "You are IDI (Intelligent Database Interface), a Natural Language to SQL model. "
+            "Your goal is to generate accurate SQL queries based on the provided database context. "
+            "CRITICAL: Always verify that every table mentioned in your SQL (SELECT, FROM, JOIN, etc.) "
+            "exactly matches the table names defined in the provided context (especially within 'README.txt'). "
+            "If a user asks for a table that is not found in the context, do not invent it; "
+            "instead, politely inform them that the table is not defined in the current schema.\n\n"
+            "PERSON COLUMNS RULE: Whenever a query involves people (users, students, instructors, etc.), "
+            "always include the following columns as the FIRST selected columns, in this exact order, "
+            "if they are available in the table:\n"
+            "  1. The person's ID (e.g. id, user_id, student_id — whichever is the primary key)\n"
+            "  2. Full name as a single concatenated column: first_name || ' ' || last_name AS full_name\n"
+            "  3. Email address (e.g. email)\n"
+            "After these three, include any other columns that are specifically relevant to the user's query. "
+            "If any of these three columns do not exist in the table, omit them.\n\n"
+            "Be very polite and answer as IDI."
+        )
         if extra_context:
-            system_content += "\n\nUse the following context to answer the user's request:" + extra_context
+            system_content += "\n\n### DATABASE CONTEXT:\n" + extra_context
             
         # Construct the verified system prompt
         base_messages = [{"role": "system", "content": system_content}]
@@ -156,74 +218,24 @@ def main():
                 print(f"\n{Colors.RED}Error: {e}{Colors.RESET}")
                 return None
 
-        def run_timed_interaction(initial_messages, phase_name, min_duration=30):
-            """Loops the model interaction for a minimum duration."""
-            start_time = time.time()
-            current_messages = initial_messages.copy()
-            
-            # Initial generation
-            print(f"{Colors.CYAN}Starting {phase_name} Phase ({min_duration}s minimum)...{Colors.RESET}")
-            content = get_completion_with_timer(current_messages, f"{phase_name} (Initial)", start_time)
-            if not content: return None
-
-            iteration = 1
-            while (time.time() - start_time) < min_duration:
-                elapsed = time.time() - start_time
-                remaining = max(0, min_duration - elapsed)
-                
-                # Append the previous assistant output
-                current_messages.append({"role": "assistant", "content": content})
-                
-                # Prompt for refinement
-                refine_prompt = f"You have {remaining:.1f} seconds remaining in the {phase_name} phase. Critically review your last response. Improve accuracy, check for edge cases, and refine logic. Output the improved version."
-                current_messages.append({"role": "user", "content": refine_prompt})
-                
-                # Generate refinement
-                new_content = get_completion_with_timer(current_messages, f"{phase_name} (Iter {iteration})", start_time)
-                if new_content:
-                    content = new_content
-                iteration += 1
-
-            print(f"{Colors.GREEN}>> {phase_name} Complete in {time.time() - start_time:.1f}s{Colors.RESET}\n")
-            return content
-
-        # --- PHASE 1: DEEP THINKING (30s) ---
-        # Ask for a reasoning plan first
-        think_messages = base_messages.copy()
-        think_messages.append({
-            "role": "user", 
-            "content": "Phase 1: Deep Thinking. logic only. Do NOT generate SQL yet. Analyze the Request, Schema, and Strategy. Critique your own logic."
-        })
+        # Execute simple chat completion
+        sys.stdout.write(f"{Colors.HEADER}Generating...{Colors.RESET}")
+        sys.stdout.flush()
         
-        thought_process = run_timed_interaction(think_messages, "Thinking", min_duration=30)
-        if not thought_process: continue
-
-        # --- PHASE 2: SQL GENERATION ---
-        # Now ask for SQL based on the refined thought
-        print(f"{Colors.CYAN}Generating SQL Draft...{Colors.RESET}")
-        gen_messages = base_messages.copy()
-        gen_messages.append({"role": "assistant", "content": thought_process}) # Contextualize with best thought
-        gen_messages.append({"role": "user", "content": "Now, based on that analysis, generate the single optimized MySQL SELECT statement."})
+        start_time = time.time()
+        final_content = get_completion_with_timer(base_messages, "Generating", start_time)
         
-        sql_draft = get_completion_with_timer(gen_messages, "Drafting SQL")
-        if not sql_draft: continue
+        if not final_content:
+            continue
 
-        # --- PHASE 3: FINAL VALIDATION (30s) ---
-        # Validate the SQL
-        verify_messages = base_messages.copy()
-        verify_messages.append({"role": "assistant", "content": sql_draft})
-        verify_messages.append({
-            "role": "user", 
-            "content": "Phase 3: Validation. Check syntax, table names, joins, and logic. If errors found, fix them. If optimal, confirm it."
-        })
-        
-        final_content = run_timed_interaction(verify_messages, "Validation", min_duration=30) or sql_draft
+        total_elapsed = time.time() - start_time
+        print(f"{Colors.GREEN}>> Complete in {total_elapsed:.1f}s{Colors.RESET}\n")
 
         # Format and print model response
         print(f"{Colors.GREEN}IDI:{Colors.RESET}")
         print(format_model_response(final_content))
         
-        # Add FINAL verified response to history (keeping context clean)
+        # Add response to history
         chat_history.append({"role": "assistant", "content": final_content})
 
         # Feedback Loop
@@ -252,6 +264,7 @@ def main():
                 chat_history.append({"role": "assistant", "content": refined_response})
             else:
                 break
+
 
 
 if __name__ == "__main__":

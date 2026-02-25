@@ -9,7 +9,29 @@
       "Bash(gcc:*)",
       "Bash(cl:*)",
       "Bash(ninja:*)",
-      "Bash(winget:*)"
+      "Bash(winget:*)",
+      "Bash(npm install)",
+      "Bash(cmd.exe /c \"cd c:\\\\Users\\\\jutorres\\\\Documents\\\\Repos\\\\IDI\\\\intelligent-database-interface\\\\sandbox\\\\frontend && npm install\")",
+      "Bash(cmd.exe /c \"cd c:\\\\Users\\\\jutorres\\\\Documents\\\\Repos\\\\IDI\\\\intelligent-database-interface\\\\sandbox\\\\frontend && npm install 2>&1\")",
+      "Bash(cmd.exe /c \"cd /d c:\\\\Users\\\\jutorres\\\\Documents\\\\Repos\\\\IDI\\\\intelligent-database-interface\\\\sandbox\\\\frontend && npm install 2>&1\")",
+      "Bash(cmd.exe /c \"cd /d \"\"c:\\\\Users\\\\jutorres\\\\Documents\\\\Repos\\\\IDI\\\\intelligent-database-interface\\\\sandbox\\\\frontend\"\" && npm install\")",
+      "Bash(powershell.exe -Command \"Set-Location ''c:\\\\Users\\\\jutorres\\\\Documents\\\\Repos\\\\IDI\\\\intelligent-database-interface\\\\sandbox\\\\frontend''; npm install\")",
+      "Bash(powershell.exe -Command \"Get-Command npm -ErrorAction SilentlyContinue; where.exe npm 2>&1; [System.Environment]::GetEnvironmentVariable\\(''PATH'', ''User''\\)\")",
+      "Bash(powershell.exe -Command \"[System.Environment]::GetEnvironmentVariable\\(''PATH'', ''Machine''\\)\")",
+      "Bash(powershell.exe -Command \"Test-Path ''C:\\\\Program Files\\\\nodejs\\\\npm.cmd''; Test-Path ''C:\\\\Program Files\\\\nodejs\\\\node.exe''; Test-Path ''C:\\\\Users\\\\jutorres\\\\AppData\\\\Roaming\\\\npm\\\\npm.cmd''\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem ''C:\\\\Program Files'' -Filter ''node*'' -ErrorAction SilentlyContinue | Select Name; Get-ChildItem ''C:\\\\Program Files \\(x86\\)'' -Filter ''node*'' -ErrorAction SilentlyContinue | Select Name; Get-ChildItem ''C:\\\\Users\\\\jutorres\\\\AppData\\\\Local'' -Filter ''node*'' -ErrorAction SilentlyContinue | Select Name\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem ''C:\\\\Users\\\\jutorres\\\\AppData\\\\Local\\\\Programs'' -ErrorAction SilentlyContinue | Select Name\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem ''C:\\\\Users\\\\jutorres\\\\AppData\\\\Local\\\\Programs\\\\Antigravity\\\\bin'' -ErrorAction SilentlyContinue | Select Name\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem C:\\\\ -Filter ''npm.cmd'' -Recurse -ErrorAction SilentlyContinue -Depth 5 | Select FullName\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem ''C:\\\\Users\\\\jutorres'' -Filter ''npm.cmd'' -Recurse -ErrorAction SilentlyContinue -Depth 6 | Select FullName\")",
+      "Bash(powershell.exe -Command \"python -c ''import shutil, sys; npm=shutil.which\\(\"\"npm.cmd\"\"\\) or shutil.which\\(\"\"npm\"\"\\); print\\(\"\"npm:\"\", npm\\); import importlib.util; print\\(\"\"uvicorn:\"\", importlib.util.find_spec\\(\"\"uvicorn\"\"\\) is not None\\)''\")",
+      "Bash(powershell.exe -Command \"python -c \"\"import shutil, importlib.util; npm=shutil.which\\(''npm.cmd''\\) or shutil.which\\(''npm''\\); print\\(''npm:'', npm\\); print\\(''uvicorn:'', importlib.util.find_spec\\(''uvicorn''\\) is not None\\)\"\"\")",
+      "Bash(powershell.exe -Command \"winget --version\")",
+      "Bash(powershell.exe -Command \"python -c \"\":*)",
+      "Bash(\"C:\\\\nvm4w\\\\nodejs\\\\npm.cmd\" install --prefix \"c:\\\\Users\\\\jutorres\\\\Documents\\\\Repos\\\\IDI\\\\intelligent-database-interface\\\\sandbox\\\\frontend\")",
+      "Bash(powershell.exe -Command \"try { \\(Invoke-WebRequest -Uri ''http://localhost:7860/health'' -TimeoutSec 2\\).StatusCode } catch { ''NOT RUNNING'' }\")",
+      "Bash(powershell.exe -Command \":*)",
+      "Bash(powershell.exe -NoProfile -Command \"Get-ChildItem ''C:/Users/jutorres/AppData/Local/Microsoft/WinGet/Packages/ggml.llamacpp_Microsoft.Winget.Source_8wekyb3d8bbwe'' -Filter ''llama-server*'' -Recurse | Select-Object -ExpandProperty FullName\")"
     ]
   }
 }

@@ -153,7 +153,7 @@ def start_llama_server(binary: str) -> subprocess.Popen:
     print(f"  Starting llama.cpp server (log → {LLAMA_LOG}) ...", flush=True)
     log_f = open(LLAMA_LOG, "w")
     proc = subprocess.Popen(
-        [binary, "--model", MODEL_PATH, "--port", LLAMA_PORT],
+        [binary, "--model", MODEL_PATH, "--port", LLAMA_PORT, "-ngl", "99"],
         stdout=log_f,
         stderr=log_f,
     )

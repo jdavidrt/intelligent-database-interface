@@ -543,3 +543,14 @@ body {
     from { opacity: 0; transform: translateY(-4px); }
     to   { opacity: 0.85; transform: translateY(0); }
 }
+
+/* ── Metrics display ── */
+.message-metrics {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 10px;
+    padding-top: 6px;
+    border-top: 1px solid var(--glass-border);
+    text-align: right;
+    opacity: 0.8;
+}

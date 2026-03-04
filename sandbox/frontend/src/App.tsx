@@ -7,10 +7,10 @@ import { buildBotMessageHTML } from './utils/markdownRenderer';
 const BACKEND_URL = 'http://localhost:5000/chat';
 
 const THEMES = [
-    { name: 'Mystic Dusk',    key: 'mystic-dusk' },
-    { name: 'Desert Bloom',   key: 'desert-bloom' },
-    { name: 'Abyss',          key: 'abyss' },
-    { name: 'Neon Burst',     key: 'neon-burst' },
+    { name: 'Mystic Dusk', key: 'mystic-dusk' },
+    { name: 'Desert Bloom', key: 'desert-bloom' },
+    { name: 'Abyss', key: 'abyss' },
+    { name: 'Neon Burst', key: 'neon-burst' },
     { name: 'Lavender Dream', key: 'lavender-dream' },
 ] as const;
 
@@ -44,6 +44,7 @@ export default function App() {
     const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
     const [isWaiting, setIsWaiting] = useState(false);
     const [typingText, setTypingText] = useState<string | null>(null);
+    const typingMetricsRef = useRef<any | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
 
     useEffect(() => { applyTheme(themeIndex); }, [themeIndex]);
@@ -53,13 +54,32 @@ export default function App() {
     }, []);
 
     const handleTypingDone = useCallback((html: string) => {
-        setTypingText(null);
-        if (html) {
-            setMessages(prev => [
-                ...prev,
-                { id: crypto.randomUUID(), role: 'bot', content: html },
-            ]);
-        }
+        setTypingText(prev => {
+            // If already null, we've already handled this completion (React 18 Strict Mode fix)
+            if (prev === null) return null;
+
+            if (html) {
+                const m = typingMetricsRef.current;
+                setMessages(msgs => [
+                    ...msgs,
+                    {
+                        id: crypto.randomUUID(),
+                        role: 'bot',
+                        content: html,
+                        metrics: m
+                            ? {
+                                promptTokens: m.prompt_tokens,
+                                completionTokens: m.completion_tokens,
+                                totalTokens: m.total_tokens,
+                                timeMs: m.time_ms
+                            }
+                            : undefined
+                    },
+                ]);
+            }
+            typingMetricsRef.current = null;
+            return null;
+        });
     }, []);
 
     const sendMessage = useCallback(async (userText: string) => {
@@ -82,6 +102,7 @@ export default function App() {
             setIsWaiting(false);
 
             if (data.response) {
+                typingMetricsRef.current = data.metrics || null;
                 setTypingText(data.response);
             } else {
                 const errText = `⚠️ Error: ${data.error || 'Unknown error'}`;

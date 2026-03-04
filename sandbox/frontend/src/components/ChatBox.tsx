@@ -3,11 +3,19 @@ import { MessageBubble } from './MessageBubble';
 import { TypewriterMessage } from './TypewriterMessage';
 import { GeneratingIndicator } from './GeneratingIndicator';
 
+export interface Metrics {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    timeMs: number;
+}
+
 export interface Message {
     id: string;
     role: 'user' | 'bot';
     /** For user: plain text. For bot: rendered HTML string. */
     content: string;
+    metrics?: Metrics;
 }
 
 interface ChatBoxProps {
@@ -29,7 +37,7 @@ export function ChatBox({ messages, isWaiting, typingText, onTypingDone }: ChatB
     return (
         <div className="chat-box">
             {messages.map(msg => (
-                <MessageBubble key={msg.id} role={msg.role} content={msg.content} />
+                <MessageBubble key={msg.id} role={msg.role} content={msg.content} metrics={msg.metrics} />
             ))}
 
             {typingText !== null && (

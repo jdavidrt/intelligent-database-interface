@@ -1,0 +1,6 @@
+Create a reload button for the frontend that reloads the page.
+Create a reload button for the backend that reloads the backend.
+Create a reload button for the llama.cpp server that reloads the llama.cpp server.
+
+Add a button to clear the chat history.
+

@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+import time
 import requests
 import os
 
@@ -94,11 +95,28 @@ def chat(req: ChatRequest):
     }
 
     try:
+        t0 = time.time()
         response = requests.post(LLAMA_CPP_SERVER_URL, json=payload, timeout=60)
         response.raise_for_status()
+        t1 = time.time()
+
         result = response.json()
         content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
-        return {"response": content}
+        usage = result.get("usage", {})
+        
+        print(f"DEBUG LLM RESULT: {result}")
+        print(f"DEBUG USAGE: {usage}")
+
+        metrics = {
+            "prompt_tokens": usage.get("prompt_tokens", 0),
+            "completion_tokens": usage.get("completion_tokens", 0),
+            "total_tokens": usage.get("total_tokens", 0),
+            "time_ms": int((t1 - t0) * 1000)
+        }
+        
+        print(f"DEBUG METRICS TO FRONTEND: {metrics}")
+        
+        return {"response": content, "metrics": metrics}
     except requests.exceptions.Timeout:
         return JSONResponse(
             {"error": "The model took too long to respond. Try a shorter query."},

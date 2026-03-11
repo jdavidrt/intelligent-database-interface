@@ -1,12 +1,32 @@
+type Page = 'chat' | 'benchmarks';
+
 interface HeaderProps {
     themeName: string;
     onThemeCycle: () => void;
+    page: Page;
+    onPageChange: (page: Page) => void;
 }
 
-export function Header({ themeName, onThemeCycle }: HeaderProps) {
+export function Header({ themeName, onThemeCycle, page, onPageChange }: HeaderProps) {
     return (
         <div className="header">
             <h1>IDI (Intelligent Database Interface)</h1>
+
+            <nav className="header-nav">
+                <button
+                    className={`nav-tab ${page === 'chat' ? 'nav-tab-active' : ''}`}
+                    onClick={() => onPageChange('chat')}
+                >
+                    💬 Chat
+                </button>
+                <button
+                    className={`nav-tab ${page === 'benchmarks' ? 'nav-tab-active' : ''}`}
+                    onClick={() => onPageChange('benchmarks')}
+                >
+                    📊 Benchmarks
+                </button>
+            </nav>
+
             <button className="theme-btn" aria-label="Switch theme" onClick={onThemeCycle}>
                 <span className="theme-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">

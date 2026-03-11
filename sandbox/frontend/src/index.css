@@ -554,3 +554,457 @@ body {
     text-align: right;
     opacity: 0.8;
 }
+
+/* ═══════════════════════════════════════════
+   HEADER NAV TABS
+   ═══════════════════════════════════════════ */
+
+.header-nav {
+    display: flex;
+    gap: 6px;
+}
+
+.nav-tab {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+    white-space: nowrap;
+}
+
+.nav-tab:hover {
+    background: var(--input-bg);
+    border-color: var(--glass-border);
+    color: var(--text);
+    -webkit-text-fill-color: var(--text);
+}
+
+.nav-tab-active {
+    background: var(--input-bg-focus);
+    border-color: var(--primary);
+    color: var(--primary);
+    -webkit-text-fill-color: var(--primary);
+}
+
+/* ═══════════════════════════════════════════
+   BENCHMARKS PAGE
+   ═══════════════════════════════════════════ */
+
+/* Score bar color tokens — theme-agnostic */
+:root {
+    --score-good: #4caf50;
+    --score-mid:  #ff9800;
+    --score-bad:  #f44336;
+}
+
+.bench-page {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.bench-page::-webkit-scrollbar { width: 6px; }
+.bench-page::-webkit-scrollbar-thumb {
+    background: var(--scrollbar);
+    border-radius: 10px;
+}
+
+/* -- Header section -- */
+.bench-header {
+    text-align: center;
+}
+
+.bench-title {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    background: var(--header-grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 6px;
+}
+
+.bench-subtitle {
+    font-size: 0.92rem;
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+    line-height: 1.6;
+}
+
+.bench-warning {
+    font-size: 0.82rem;
+    color: var(--score-mid);
+    -webkit-text-fill-color: var(--score-mid);
+    opacity: 0.85;
+}
+
+/* -- Mode cards -- */
+.mode-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.mode-card {
+    background: var(--bot-bubble);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+    transition: border-color 0.25s;
+}
+
+.mode-card-gpu  { border-color: rgba(100, 200, 255, 0.35); }
+.mode-card-cpu  { border-color: rgba(200, 180, 100, 0.35); }
+.mode-card-done { border-color: rgba(76, 175, 80, 0.45); }
+
+.mode-card-step {
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+    align-self: flex-start;
+    background: var(--input-bg);
+    border-radius: 8px;
+    padding: 2px 8px;
+}
+
+.mode-card-icon { font-size: 2rem; line-height: 1; }
+
+.mode-card-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+    -webkit-text-fill-color: var(--text);
+}
+
+.mode-card-sub {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+    font-family: 'Fira Mono', monospace;
+}
+
+.mode-run-btn {
+    margin-top: 8px;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 22px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s;
+}
+
+.mode-run-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.mode-run-btn:not(:disabled):hover { transform: translateY(-1px); opacity: 0.9; }
+.mode-run-btn:not(:disabled):active { transform: translateY(0); }
+
+.mode-run-gpu { background: rgba(100, 200, 255, 0.25); color: #64c8ff; -webkit-text-fill-color: #64c8ff; border: 1px solid rgba(100, 200, 255, 0.45); }
+.mode-run-cpu { background: rgba(255, 200, 80, 0.18); color: #ffc850; -webkit-text-fill-color: #ffc850; border: 1px solid rgba(255, 200, 80, 0.4); }
+
+/* Progress bar inside mode card */
+.mode-progress {
+    width: 100%;
+    margin-top: 4px;
+}
+
+.mode-progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--input-bg);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.mode-progress-fill {
+    height: 100%;
+    background: var(--primary);
+    border-radius: 10px;
+    transition: width 0.4s ease;
+}
+
+.mode-progress-label {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+    margin-top: 4px;
+    text-align: center;
+    font-style: italic;
+}
+
+.mode-done {
+    font-size: 0.82rem;
+    color: var(--score-good);
+    -webkit-text-fill-color: var(--score-good);
+    font-weight: 600;
+    margin-top: 4px;
+}
+
+.mode-error {
+    font-size: 0.82rem;
+    color: var(--score-bad);
+    -webkit-text-fill-color: var(--score-bad);
+    font-weight: 600;
+    margin-top: 4px;
+    text-align: center;
+}
+
+/* -- Results section -- */
+.bench-results-section { display: flex; flex-direction: column; gap: 10px; }
+
+.bench-results-title {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    background: var(--header-grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.bench-empty {
+    text-align: center;
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+    font-size: 0.92rem;
+    font-style: italic;
+    padding: 32px 0;
+}
+
+/* -- Comparison table -- */
+.bench-table-wrap {
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.bench-table-header {
+    display: grid;
+    grid-template-columns: 32px 1fr 1fr 1fr 36px;
+    background: var(--input-bg);
+    padding: 10px 14px;
+    gap: 8px;
+    border-bottom: 1px solid var(--glass-border);
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.bench-th { display: flex; align-items: center; gap: 6px; }
+.bench-th-index { width: 32px; }
+.bench-th-title { flex: 1; }
+.bench-th-mode  { flex: 1; }
+.bench-th-expand { width: 36px; }
+
+.mode-badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    border-radius: 8px;
+    padding: 1px 7px;
+    font-weight: 700;
+}
+.gpu-badge { background: rgba(100, 200, 255, 0.18); color: #64c8ff; -webkit-text-fill-color: #64c8ff; }
+.cpu-badge { background: rgba(255, 200, 80, 0.15); color: #ffc850; -webkit-text-fill-color: #ffc850; }
+
+/* -- Result rows -- */
+.bench-row { border-bottom: 1px solid var(--glass-border); }
+.bench-row:last-child { border-bottom: none; }
+.bench-row-even { background: var(--input-bg); }
+
+.bench-row-header {
+    display: grid;
+    grid-template-columns: 32px 1fr 1fr 1fr 36px;
+    padding: 10px 14px;
+    gap: 8px;
+    align-items: center;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.bench-row-header:hover { background: var(--input-bg-focus); }
+
+.bench-row-index {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+    text-align: center;
+}
+
+.bench-row-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    -webkit-text-fill-color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bench-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.result-cell-inner { display: flex; flex-direction: column; gap: 2px; }
+
+.bench-metric {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text);
+    -webkit-text-fill-color: var(--text);
+}
+.bench-metric-sub {
+    font-size: 0.74rem;
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+}
+
+.bench-pending {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+    font-style: italic;
+}
+
+.bench-err {
+    font-size: 0.82rem;
+    color: var(--score-bad);
+    -webkit-text-fill-color: var(--score-bad);
+    font-weight: 600;
+}
+
+.bench-expand-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+    padding: 2px 4px;
+    transition: color 0.15s;
+}
+.bench-expand-btn:hover { color: var(--primary); -webkit-text-fill-color: var(--primary); }
+
+/* -- Score bar -- */
+.score-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.score-bar-fill {
+    height: 5px;
+    border-radius: 4px;
+    min-width: 2px;
+    max-width: 80px;
+    transition: width 0.4s ease;
+}
+
+.score-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+/* -- Expanded detail -- */
+.bench-detail {
+    padding: 12px 16px 14px;
+    border-top: 1px solid var(--glass-border);
+    background: var(--bot-bubble);
+}
+
+.bench-detail-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.expanded-col { display: flex; flex-direction: column; gap: 6px; }
+
+.expanded-col-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+}
+
+.bench-detail-meta {
+    display: flex;
+    gap: 14px;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+    flex-wrap: wrap;
+}
+.bench-detail-meta strong {
+    color: var(--text);
+    -webkit-text-fill-color: var(--text);
+}
+
+.bench-detail-missing {
+    font-size: 0.76rem;
+    color: var(--score-mid);
+    -webkit-text-fill-color: var(--score-mid);
+}
+.bench-detail-missing span {
+    font-family: 'Fira Mono', monospace;
+    color: var(--score-bad);
+    -webkit-text-fill-color: var(--score-bad);
+}
+
+.bench-warn {
+    color: var(--score-mid);
+    -webkit-text-fill-color: var(--score-mid);
+    font-weight: 700;
+    font-size: 0.76rem;
+}
+
+.bench-detail-error {
+    font-size: 0.8rem;
+    color: var(--score-bad);
+    -webkit-text-fill-color: var(--score-bad);
+}
+
+.bench-response {
+    background: var(--code-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: 'Fira Mono', 'Consolas', monospace;
+    font-size: 0.74rem;
+    color: var(--code-color);
+    -webkit-text-fill-color: var(--code-color);
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 280px;
+    overflow-y: auto;
+    margin-top: 4px;
+    line-height: 1.5;
+}

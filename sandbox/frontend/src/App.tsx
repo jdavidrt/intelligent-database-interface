@@ -2,9 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Header } from './components/Header';
 import { ChatBox, Message } from './components/ChatBox';
 import { InputArea } from './components/InputArea';
+import { BenchmarksPage } from './components/BenchmarksPage';
 import { buildBotMessageHTML } from './utils/markdownRenderer';
 
 const BACKEND_URL = 'http://localhost:5000/chat';
+
+type Page = 'chat' | 'benchmarks';
 
 const THEMES = [
     { name: 'Mystic Dusk', key: 'mystic-dusk' },
@@ -40,6 +43,7 @@ const INITIAL_MESSAGE: Message = {
 };
 
 export default function App() {
+    const [page, setPage] = useState<Page>('chat');
     const [themeIndex, setThemeIndex] = useState<number>(loadThemeIndex);
     const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
     const [isWaiting, setIsWaiting] = useState(false);
@@ -55,7 +59,6 @@ export default function App() {
 
     const handleTypingDone = useCallback((html: string) => {
         setTypingText(prev => {
-            // If already null, we've already handled this completion (React 18 Strict Mode fix)
             if (prev === null) return null;
 
             if (html) {
@@ -136,18 +139,30 @@ export default function App() {
 
     return (
         <div className="container">
-            <Header themeName={THEMES[themeIndex].name} onThemeCycle={cycleTheme} />
-            <ChatBox
-                messages={messages}
-                isWaiting={isWaiting}
-                typingText={typingText}
-                onTypingDone={handleTypingDone}
+            <Header
+                themeName={THEMES[themeIndex].name}
+                onThemeCycle={cycleTheme}
+                page={page}
+                onPageChange={setPage}
             />
-            <InputArea
-                isWaiting={isWaiting}
-                onSend={sendMessage}
-                onStop={handleStop}
-            />
+
+            {page === 'chat' ? (
+                <>
+                    <ChatBox
+                        messages={messages}
+                        isWaiting={isWaiting}
+                        typingText={typingText}
+                        onTypingDone={handleTypingDone}
+                    />
+                    <InputArea
+                        isWaiting={isWaiting}
+                        onSend={sendMessage}
+                        onStop={handleStop}
+                    />
+                </>
+            ) : (
+                <BenchmarksPage />
+            )}
         </div>
     );
 }

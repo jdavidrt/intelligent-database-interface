@@ -96,7 +96,7 @@ El mercado global de herramientas de inteligencia de negocios (BI) y analítica 
 
 ### Objetivo Específico 2: diseño del Sistema
 
-**Diseñar la arquitectura modular de IDI, especificando responsabilidades de componentes, protocolos de comunicación inter-agente, flujos de datos, mecanismos de gestión de sesiones, estrategias de comunicación de progreso, y selección de stack tecnológico optimizado para despliegue local en hardware de consumo (16GB RAM, 8GB VRAM) con timeouts de consulta extendidos (hasta 30 segundos).**
+**Diseñar la arquitectura modular de IDI, especificando responsabilidades de componentes, protocolos de comunicación inter-agente, flujos de datos, mecanismos de gestión de sesiones, estrategias de comunicación de progreso, y selección de stack tecnológico optimizado para despliegue local en hardware de consumo (16GB RAM, 4GB VRAM) con timeouts de consulta extendidos (hasta 30 segundos).**
 
 ### Objetivo Específico 3: desarrollo de la Solución
 
@@ -239,7 +239,7 @@ Para el desarrollo de este proyecto, se requieren los siguientes recursos:
 ### Recursos Humanos
 
 - **Estudiante**: dedicación de 20-25 horas semanales durante 16 semanas para investigación, desarrollo e implementación del sistema
-- **Computador personal**: equipo con especificaciones mínimas de 16GB RAM, 8GB VRAM (GPU NVIDIA RTX 3060/3070 o equivalente), CPU moderno multi-núcleo
+- **Computador personal**: equipo con especificaciones mínimas de 16GB RAM, 4GB VRAM (GPU NVIDIA GTX 1650 o equivalente), CPU moderno multi-núcleo
 
 ### Recursos Tecnológicos
 

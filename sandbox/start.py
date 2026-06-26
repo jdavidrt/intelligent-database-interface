@@ -24,6 +24,10 @@ import urllib.request
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.join(ROOT, "backend")
+
+# Use the venv Python if it exists (avoids broken system-level pip installs)
+_venv_python = os.path.join(ROOT, ".venv", "Scripts", "python.exe")
+PYTHON = _venv_python if os.path.isfile(_venv_python) else sys.executable
 FRONTEND_DIR = os.path.join(ROOT, "frontend")
 
 MODEL_PATH = os.path.join(ROOT, "llama.cpp", "models", "qwen2.5-coder-3b-instruct-q4_k_m.gguf")
@@ -103,7 +107,9 @@ def find_llama_server() -> str | None:
 def preflight() -> bool:
     ok = True
 
-    if not importlib.util.find_spec("uvicorn"):
+    venv_uvicorn = os.path.join(ROOT, ".venv", "Scripts", "uvicorn.exe")
+    uvicorn_ok = os.path.isfile(venv_uvicorn) or importlib.util.find_spec("uvicorn")
+    if not uvicorn_ok:
         print("  [ERROR] uvicorn is not installed.")
         print("          Fix: pip install -r sandbox/backend/requirements.txt\n")
         ok = False
@@ -150,7 +156,7 @@ def start_llama_server(binary: str) -> subprocess.Popen:
         print(f"  llama.cpp server already running on port {LLAMA_PORT}.")
         return None  # type: ignore
 
-    print(f"  Starting llama.cpp server (log → {LLAMA_LOG}) ...", flush=True)
+    print(f"  Starting llama.cpp server (log -> {LLAMA_LOG}) ...", flush=True)
     log_f = open(LLAMA_LOG, "w")
     proc = subprocess.Popen(
         [binary, "--model", MODEL_PATH, "--port", LLAMA_PORT, "-ngl", "99"],
@@ -201,7 +207,7 @@ def main() -> None:
 
     # 2. FastAPI backend
     backend = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "main:app", "--reload", "--port", "5000"],
+        [PYTHON, "-m", "uvicorn", "main:app", "--reload", "--port", "5000"],
         cwd=BACKEND_DIR,
         env=child_env,
     )
@@ -213,9 +219,9 @@ def main() -> None:
         env=child_env,
     )
 
-    print("  llama.cpp →  http://localhost:7860")
-    print("  Backend   →  http://localhost:5000")
-    print("  Frontend  →  http://localhost:5173")
+    print("  llama.cpp ->  http://localhost:7860")
+    print("  Backend   ->  http://localhost:5000")
+    print("  Frontend  ->  http://localhost:5173")
     print("\n  Press Ctrl+C to stop all servers.\n")
 
     procs = [p for p in (llama_proc, backend, frontend) if p is not None]

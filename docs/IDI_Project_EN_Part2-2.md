@@ -178,7 +178,7 @@ tables = metadata.tables.keys()  # Get all table names
 **Primary Choice: PEFT (Parameter-Efficient Fine-Tuning)**
 
 **Justification**:
-- **Memory Efficiency**: QLoRA enables 13B model fine-tuning on 8GB VRAM
+- **Memory Efficiency**: QLoRA enables fine-tuning the 3B base model on a free-tier Colab T4 GPU
 - **Speed**: 3-4x faster training than full fine-tuning
 - **Quality**: Minimal accuracy degradation vs. full fine-tuning (<1-2%)
 
@@ -779,7 +779,7 @@ jobs:
 - Final technology selection with rationale
 
 **Success Criteria**:
-- Selected models fit in 8GB VRAM with <5s inference latency
+- Selected model fits in 4GB VRAM with <5s inference latency
 - Documented accuracy degradation from quantization <5%
 - Technology choices justified with empirical data
 

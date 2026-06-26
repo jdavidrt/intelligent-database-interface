@@ -111,7 +111,7 @@ The project emphasizes practical deployment considerations, including resource c
 
 4. How can multi-agent architectures improve NL2SQL robustness compared to monolithic end-to-end models?
 
-5. What is the optimal balance between model size, accuracy, and inference latency for local deployment on consumer hardware (16GB RAM, 8GB VRAM)?
+5. What is the optimal balance between model size, accuracy, and inference latency for local deployment on consumer hardware (16GB RAM, 4GB VRAM)?
 
 6. How does session-based investigation continuity (saving queries, results, and conversational context) impact analytical workflow effectiveness compared to stateless query systems?
 
@@ -266,7 +266,7 @@ Recent work explores agent-based decomposition of NL2SQL tasks:
 
 #### Specific Objective 2: System Design
 
-**Design the IDI modular architecture, specifying component responsibilities, inter-agent communication protocols, data flows, session management mechanisms, progress communication strategies, and technology stack selection optimized for local deployment on consumer hardware (16GB RAM, 8GB VRAM) with extended query timeouts (up to 30 seconds).**
+**Design the IDI modular architecture, specifying component responsibilities, inter-agent communication protocols, data flows, session management mechanisms, progress communication strategies, and technology stack selection optimized for local deployment on consumer hardware (16GB RAM, 4GB VRAM) with extended query timeouts (up to 30 seconds).**
 
 **Expected Outcomes**:
 - System architecture diagrams (component, deployment, sequence diagrams) including Session Manager module
@@ -828,7 +828,7 @@ TURN 4: Session Saving
 - **Latency**: No network roundtrip for LLM inference
 - **Learning Goal**: Demonstrates optimization techniques for consumer hardware
 
-**Feasibility**: 13B parameter models fit in 8GB VRAM with 4-bit quantization
+**Feasibility**: A 3B-parameter model (Qwen2.5-Coder-3B) fits in 4GB VRAM with 4-bit quantization
 
 #### Decision 3: Fine-tuning vs. Prompt Engineering Only
 

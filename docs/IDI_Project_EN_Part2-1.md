@@ -756,10 +756,10 @@ def add_statistical_overlays(chart_spec: ChartSpec, results: DataFrame) -> Chart
 
 #### Strategy 1: Model Size Optimization
 
-**Target Hardware**: 16GB RAM, 8GB VRAM (NVIDIA RTX 3060/3070 equivalent)
+**Target Hardware**: 16GB RAM, 4GB VRAM (NVIDIA GTX 1650 equivalent)
 
 **Model Selection Criteria**:
-1. **Parameter count**: ≤13B for primary models (fit in 8GB VRAM with 4-bit quantization)
+1. **Parameter count**: ≤3B for the primary model (fits in 4GB VRAM with 4-bit quantization)
 2. **Performance**: Match or exceed 70B prompted models after fine-tuning
 3. **Licensing**: Open-source (Apache 2.0, MIT) for commercial use
 
@@ -772,7 +772,7 @@ def add_statistical_overlays(chart_spec: ChartSpec, results: DataFrame) -> Chart
 | Phi-3 Medium | 14B | ~8GB | Efficient reasoning, small context | Alternative to Mistral |
 | DeepSeek Coder 6.7B | 6.7B | ~4GB | Strong SQL performance, fast | Alternative SQL Generator |
 
-**Rationale**: Using two specialized 7-13B models (total ~11GB VRAM) outperforms single 70B model while fitting in hardware constraints.
+**Rationale**: A single 3B base model (Qwen2.5-Coder-3B, ~2GB VRAM) with hot-swappable LoRA adapters fits within the 4GB VRAM constraint while providing specialized behavior per agent — avoiding the multi-model footprint that larger candidates would require. The 7-13B candidates above are retained as comparative reference only. (Larger candidates such as those listed assume an 8GB-class GPU and are out of scope for the GTX 1650 target.)
 
 #### Strategy 2: Quantization
 
@@ -823,7 +823,7 @@ model = AutoModelForCausalLM.from_pretrained(
 **QLoRA (Quantized Low-Rank Adaptation)**:
 - Train only small adapter layers (~0.5% of parameters)
 - Reduces training memory 60-70% vs. full fine-tuning
-- Enables fine-tuning 13B model on 8GB VRAM
+- Enables fine-tuning the 3B base model with QLoRA on a free-tier Colab T4 GPU
 
 ```python
 from peft import LoraConfig, get_peft_model

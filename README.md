@@ -11,6 +11,22 @@ IDI is a modular, multi-agent Natural Language to SQL (NL2SQL) system designed t
 
 ---
 
+## Current Implementation Status
+
+> **Milestones:** Phase 0 (Repo Skeleton & Sandbox Migration) ✅ 2026-06-26 · Day 1 (Agentic Core, DB-less) ✅ 2026-07-02 — Gate D1 **PASSED (6/8)** · Sandbox fully detached ✅ 2026-07-02.
+
+What actually runs today via `python start.py`:
+
+- **Seven-agent pipeline over `POST /query`** — Context Manager → Query Understanding → (Clarification) → SQL Generator → Verification → Orchestrator, streamed to the UI as NDJSON: a sequence of agent-progress events followed by a final result carrying the generated SQL, the 3-layer verification report, the executed rows, and a plain-language teaching summary. A WebSocket `/ws` mirror is also available.
+- **DB-less data source (REPLAN v2)** — Days 1–3 run with **no database server**. `SoundwaveFileConnector` builds an in-memory SQLite from the `soundwave/` fixture files (`01_…schema.sql` + `02_…data.sql`, transpiled MySQL→SQLite with sqlglot); the domain context (`02_soundwave_context.md`, `03_soundwave_edge_cases.md`) is embedded into ChromaDB. A real MySQL connection arrives on Day 4.
+- **Instruction-profile hot-swap (LoRA seam, not GGUF yet)** — `load_adapter()` swaps per-agent system prompts from `backend/app/prompts/<agent>.md`. This is the same API that will later load GGUF LoRA adapters; adapter *training* is deferred.
+- **Local inference, fully detached** — `llama-server` (from winget/PATH) hosts Qwen2.5-Coder-3B-Instruct (Q4_K_M) loaded from `models/`; no cloud calls. The old `sandbox/` prototype that vendored llama.cpp + the model has been **removed** — nothing references it anymore.
+- **Chat + Benchmarks UI** — React + TypeScript with **CSS Modules + design tokens** (no Tailwind, no shadcn/ui). The chat shows the live agent-progress stream, syntax-highlighted SQL, and a results table; the Benchmarks page compares CPU vs GPU on soundwave edge-case queries. Recharts visualization lands in Day 2.
+
+The sections below describe the **target** thesis architecture; where the current build differs, it is noted inline.
+
+---
+
 ## The Problem
 
 Modern executives possess strategic vision but lack SQL knowledge to validate intuitions with data. Current barriers include:
@@ -73,6 +89,8 @@ Model URL: https://huggingface.co/Triangle104/Qwen2.5-Coder-3B-Instruct-Q4_K_M-G
 
 ### LoRA Adapters (Task-Specific Fine-Tuning)
 
+> **Status:** *planned.* Today the hot-swap seam loads **instruction profiles** (`backend/app/prompts/<agent>.md`) through the same `load_adapter()` API; the GGUF adapters below are the Day 4+ target once training runs.
+
 | Adapter                      | Purpose                                  | Training Dataset                                  | Priority |
 | ---------------------------- | ---------------------------------------- | ------------------------------------------------- | -------- |
 | **query_understanding.gguf** | Intent classification, entity extraction | Synthesized from SQL datasets                     | High     |
@@ -92,13 +110,13 @@ Model URL: https://huggingface.co/Triangle104/Qwen2.5-Coder-3B-Instruct-Q4_K_M-G
 
 ### Frontend Stack
 
-| Component             | Technology                | Purpose                                      |
-| --------------------- | ------------------------- | -------------------------------------------- |
-| **Framework**         | React 18+ with TypeScript | Component-based UI with type safety          |
-| **State Management**  | Zustand                   | Minimal boilerplate, React 18 compatible     |
-| **UI Components**     | shadcn/ui                 | Accessible, customizable Tailwind components |
-| **Visualization**     | Recharts                  | React-native charts with declarative API     |
-| **Real-time Updates** | WebSocket                 | Progress indicators during query processing  |
+| Component             | Technology                          | Purpose                                                        |
+| --------------------- | ----------------------------------- | ------------------------------------------------------------- |
+| **Framework**         | React 18+ with TypeScript           | Component-based UI with type safety                           |
+| **State Management**  | React hooks *(Zustand planned)*     | Local component state today; Zustand store arrives with Day 2 |
+| **Styling**           | CSS Modules + design tokens         | Glass theme, 5 palettes; **Tailwind/shadcn removed** (locked per MASTERPLAN D1) |
+| **Visualization**     | Recharts *(Day 2)*                  | React-native charts with declarative API                     |
+| **Real-time Updates** | NDJSON stream over `/query` (+ `/ws`) | Live per-agent progress during query processing              |
 
 ### Training Infrastructure
 
@@ -155,7 +173,7 @@ Model URL: https://huggingface.co/Triangle104/Qwen2.5-Coder-3B-Instruct-Q4_K_M-G
 │  │   • Routes requests to appropriate adapter            │          │
 │  └──────────────────────────┬───────────────────────────┘           │
 └─────────────────────────────┼───────────────────────────────────────┘
-                              │ HTTP API (localhost:8080)
+                              │ HTTP API (localhost:7860)
                               ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                      llama.cpp Server                               │
@@ -177,64 +195,35 @@ Model URL: https://huggingface.co/Triangle104/Qwen2.5-Coder-3B-Instruct-Q4_K_M-G
 └───────────────────┘                    └────────────────────┘
 ```
 
-### Sandbox Setup Guide
+### Local Inference Setup Guide
 
-To set up the sandbox environment for running the Qwen2.5-Coder-3B-Instruct model using llama.cpp, follow these steps:
+The system runs a local Qwen2.5-Coder-3B-Instruct model through a `llama-server` (llama.cpp) instance.
+`start.py` locates the `llama-server` binary from your winget install or `PATH`, and loads the GGUF model
+from `models/` at the repo root.
 
-1. **Install Required Tools**:
-   - **Python 3.10 or higher**: Download and install Python from [python.org](https://www.python.org/downloads/).
-   - **Chocolatey**: If not already installed, follow the instructions at [Chocolatey Installation Guide](https://chocolatey.org/install).
-   - **CMake**: Install CMake using Chocolatey:
-     ```powershell
-     choco install cmake -y
-     ```
-   - **Git**: Install Git using Chocolatey:
-     ```powershell
-     choco install git -y
-     ```
-   - **Visual Studio Build Tools**: Download and install the [Build Tools for Visual Studio](https://visualstudio.microsoft.com/visual-cpp-build-tools/). During installation, ensure you select the "Desktop development with C++" workload.
+1. **Install Python 3.10+** from [python.org](https://www.python.org/downloads/).
 
-2. **Clone the llama.cpp Repository**:
-   - Open a terminal and navigate to the directory where you want to clone the repository.
-   - Run the following command:
-     ```powershell
-     git clone https://github.com/ggml-org/llama.cpp.git
-     ```
+2. **Install the `llama-server` binary** — the easiest route on Windows is winget:
+   ```powershell
+   winget install ggml.llamacpp
+   ```
+   (Alternatively, build llama.cpp yourself and put `llama-server` on your `PATH`.)
 
-3. **Build llama.cpp**:
-   - Navigate to the `llama.cpp` directory:
-     ```powershell
-     cd llama.cpp
-     ```
-   - Create a `build` directory and navigate into it:
-     ```powershell
-     mkdir build
-     cd build
-     ```
-   - Run CMake to configure and build the project:
-     ```powershell
-     cmake ..
-     cmake --build . --config Release
-     ```
+3. **Place the GGUF model** at the repo root under `models/`:
+   ```
+   models/qwen2.5-coder-3b-instruct-q4_k_m.gguf
+   ```
+   Download it from Hugging Face (`Qwen/Qwen2.5-Coder-3B-Instruct-GGUF`, the `q4_k_m` quant).
+   The `models/` directory and `*.gguf` files are gitignored.
 
-4. **Download the Qwen2.5-Coder-3B-Instruct Model**:
-   - Set your Hugging Face token as an environment variable:
-     ```powershell
-     $env:HUGGINGFACE_TOKEN = "your_huggingface_token"
-     ```
-   - Download the model:
-     ```powershell
-     Invoke-WebRequest -Uri "https://huggingface.co/Qwen/Qwen-2.5-Coder-3B-Instruct/resolve/main/qwen-2.5-coder-3b-instruct.q4_k_m.gguf" -Headers @{Authorization = "Bearer $env:HUGGINGFACE_TOKEN"} -OutFile "models/qwen-2.5-coder-3b-instruct.q4_k_m.gguf"
-     ```
+4. **Install project dependencies**:
+   ```powershell
+   pip install -r backend/requirements.txt
+   cd frontend; npm install
+   ```
 
-5. **Run the Sandbox Application**:
-   - Start the llama.cpp server:
-     ```powershell
-     ./server --model models/qwen-2.5-coder-3b-instruct.q4_k_m.gguf --port 8080
-     ```
-   - Run the sandbox application:
-     ```powershell
-     python sandbox_app.py
-     ```
-
-Ensure all dependencies are installed and properly configured before running the setup script or the sandbox application.
+5. **Run everything** from the repo root:
+   ```powershell
+   python start.py
+   ```
+   This launches the llama.cpp server, the FastAPI backend (port 5000), and the Vite frontend (port 5173).

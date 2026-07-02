@@ -1,1 +1,0 @@
-# Validates SQL queries for correctness

@@ -1,1 +1,0 @@
-# Parses natural language and resolves ambiguities

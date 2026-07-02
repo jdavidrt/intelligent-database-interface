@@ -4,7 +4,9 @@
 
 Universidad Nacional de Colombia — Computer and Systems Engineering Thesis — 2026
 Author: Juan David Ramírez Torres (`jdramirezt@unal.edu.co`)
-Plan window: a **Day 0** prep step (repo skeleton + sandbox migration) followed by 4 working days. Companion to `sandbox/GAP_ANALYSIS.md` and `PROJECT_BRIEF.md`.
+Plan window: a **Day 0** prep step (repo skeleton + sandbox migration) followed by 4 working days. Domain context lives in `soundwave/` (`02_soundwave_context.md`, `03_soundwave_edge_cases.md`).
+
+> **REPLAN v2 — 2026-07-02.** The sprint order was inverted to put the agentic architecture first and the physical database last. The real MySQL connection and LoRA *training* are deferred; the system boots entirely from the `soundwave/` files (schema SQL, seed data, context, edge cases) and hot-swaps **per-agent instruction profiles** through the same interface that will later hot-swap GGUF adapters. New order: **agents → frontend → instruction/adapter layer + evaluation → real DB connection**. The v1 day plans are archived in `legacydocs/DAY*_PLAN_v1.md`; code blocks there are still the implementation reference wherever a step carries over.
 
 ---
 
@@ -31,9 +33,10 @@ These four decisions were confirmed before planning and are now binding. They ar
 | # | Decision | Choice | Consequence |
 |---|---|---|---|
 | D1 | Styling layer | **CSS with classes, CSS Modules + design tokens.** Tailwind removed entirely; shadcn/ui dropped with it (it depends on Tailwind). | Zero utility-framework build dependency. We port the existing glass theme from `sandbox/.../index.css` into tokenized CSS Modules and a small in-house component kit. |
-| D2 | LoRA training | **Google Colab + Unsloth (T4/L4), ≤ 8 h per adapter.** Not the local GTX 1650. | Training runs **off the local critical path**; local machine stays free for development. Adapters are pulled as GGUF and hot-swapped into llama.cpp. |
-| D3 | DB connectivity | **MySQL now, behind a thin `DBConnector` interface.** | Concrete `MySQLConnector` against soundwave today; a clean seam to add SQLite/Postgres later without touching agent logic. |
+| D2 *(amended v2)* | LoRA training | **Deferred past the sprint.** The hot-swap *mechanism* ships now, but what it swaps are **instruction profiles** (per-agent system prompts) instead of trained adapters. Colab + Unsloth training happens post-sprint through the same seam. | `LLMService.load_adapter(name)` keeps its signature; today it activates `prompts/<name>.md`, tomorrow it activates `adapters/<name>.gguf` when the file exists. Nothing downstream changes. |
+| D3 *(amended v2)* | DB connectivity | **File-first, MySQL last.** Days 1–3 run on a `SoundwaveFileConnector` — an in-memory SQLite built from `soundwave/01_…schema.sql` + `02_…data.sql` (transpiled MySQL→SQLite via sqlglot). `MySQLConnector` lands on Day 4 behind the same `DBConnector` interface. | Zero DB setup blocks the agentic work; execution still returns real rows from the seed data, so gates stay honest. Connector choice is one config flag. |
 | D4 | Agent depth | **Full seven agents from the brief.** | Maximum thesis fidelity. Mitigated by reusing the working sandbox loop as the SQL-generation fallback so nothing regresses while agents are built. |
+| D5 *(new v2)* | Context source | **The `soundwave/` folder is the sole context feed until Day 4.** Auto-exploration = parse `01_…schema.sql` into `DBProfile` (tables, columns, FKs) + ingest `02_soundwave_context.md` and `03_soundwave_edge_cases.md` into ChromaDB. | `DBProfile` has the exact same shape as live introspection would produce, so the Day 4 swap to `information_schema` is invisible to every agent. |
 
 > Note on D1: the working sandbox **never actually used Tailwind** — it already ships raw CSS. "Eliminating Tailwind completely" therefore means closing that door in the brief, the stubs, and any future scaffold, and committing to the CSS-Modules-plus-tokens path.
 
@@ -65,13 +68,14 @@ FastAPI Backend
         │                              │
         ▼                              ▼
    LLM Service (adapter controller)   DBConnector (thin interface)
-   • llama.cpp /lora-adapters         • MySQLConnector → soundwave_db
-   • hot-swap < 100 ms                • introspection + read-only execution
-   • base-model fallback
+   • instruction hot-swap NOW         • SoundwaveFileConnector (Days 1–3):
+     (prompts/<agent>.md)               in-memory SQLite from soundwave/*.sql
+   • GGUF hot-swap LATER (same API)   • MySQLConnector (Day 4) → soundwave_db
+   • base-model fallback              • introspection + read-only execution
         │                              │
         ▼                              ▼
    llama.cpp (Qwen2.5-Coder-3B)   ChromaDB (context)   SQLite (sessions)
-   + LoRA adapters (GGUF)
+   + instruction profiles now, LoRA adapters (GGUF) post-sprint
 ```
 
 ### Canonical repository layout (target end-state)
@@ -142,19 +146,28 @@ Each agent is a pure-ish function over a shared, typed envelope (Pydantic). Keep
 
 ## 5. Day-by-Day Plan
 
-Each day ends with a **verification gate** — a concrete, failable check. The plan front-loads structure (your explicit priority: *"empecemos por las tareas más fundamentales para darle estructura al proyecto"*), then agents, then frontend, then integration.
+Each day ends with a **verification gate** — a concrete, failable check. **v2 order**: agents first (the thesis contribution), then the didactic frontend, then the adapter/instruction layer with its evaluation harness, and the physical database last — arriving behind an interface nothing above it can distinguish from the files it replaces.
 
-### Day 0 — Repo Skeleton & Sandbox Migration *(pre-sprint)*
+### Day 0 — Repo Skeleton & Sandbox Migration *(pre-sprint)* ✅ COMPLETE — 2026-06-26
+
+> **Post-migration update (2026-07-02):** the frozen `sandbox/` has since been **removed**. The
+> canonical backend no longer depends on it: the GGUF model now lives at `models/` (repo root,
+> gitignored) and `llama-server` is resolved from winget/PATH. The live frontend chat now calls the
+> agentic `/query` pipeline (grounded in `soundwave/`), and the legacy `/chat` + `/benchmark` loops
+> build their prompt from the soundwave source files. The historical Day-0 record below is kept for
+> context; references to `sandbox/…` describe the state at migration time, not the current tree.
 
 *Goal: stand up the canonical layout and prove the sandbox loop runs unchanged from its new home — with `sandbox/` frozen as a known-good fallback.*
 
 This is the structural foundation the sprint builds on (your explicit priority: *"empecemos por las tareas más fundamentales para darle estructura al proyecto"*). No new behavior is added: the proven sandbox chat loop is **copied** into the canonical paths and must answer a query identically from there. `sandbox/` is left untouched as the reference implementation and runtime fallback.
 
-- [ ] Scaffold the full canonical tree from §3 (`backend/app/...`, `frontend/src/...`, `adapters/`, `training/`, `data/`, `tests/`, `deployment/`) with package markers (`__init__.py`) and short placeholder `README`s in otherwise-empty dirs.
-- [ ] Copy the working sandbox into canonical paths per the migration map below — **copy, not move**; `sandbox/` stays frozen.
-- [ ] Resolve the top-level conflicts: delete the stray Flask `backend/app.py` (superseded by the FastAPI loop) and clear the 0-byte stubs that collide with copied files; keep a stub only where it marks a genuine Day-1+ target.
-- [ ] Port `sandbox/start.py` to a root-level `start.py` that launches llama.cpp + backend + frontend from the **canonical** paths (binary and model located as today; the heavy `llama.cpp/` build is referenced in place, not copied).
-- [ ] Smoke-test the migrated tree end-to-end.
+- [x] Scaffold the full canonical tree from §3 (`backend/app/...`, `frontend/src/...`, `adapters/`, `training/`, `data/`, `tests/`, `deployment/`) with package markers (`__init__.py`) and short placeholder `README`s in otherwise-empty dirs.
+- [x] Copy the working sandbox into canonical paths per the migration map below — **copy, not move**; `sandbox/` stays frozen.
+- [x] Resolve the top-level conflicts: delete the stray Flask `backend/app.py` (superseded by the FastAPI loop) and clear the 0-byte stubs that collide with copied files; keep a stub only where it marks a genuine Day-1+ target.
+- [x] Port `sandbox/start.py` to a root-level `start.py` that launches llama.cpp + backend + frontend from the **canonical** paths (binary and model located as today; the heavy `llama.cpp/` build is referenced in place, not copied).
+- [x] Smoke-test the migrated tree end-to-end.
+
+**Gate D0**: ✅ PASSED — `python start.py` brings up llama.cpp + canonical FastAPI backend + canonical Vite frontend from the canonical paths. `sandbox/` still runs independently via `python sandbox/start.py`.
 
 **Migration map:**
 
@@ -164,43 +177,31 @@ This is the structural foundation the sprint builds on (your explicit priority: 
 | `sandbox/backend/requirements.txt` | `backend/requirements.txt` | dependency baseline |
 | `sandbox/frontend/src/` (App, components, utils, `index.css`) | `frontend/src/` | `sqlHighlighter.ts` / `markdownRenderer.ts` carried forward verbatim |
 | `sandbox/frontend/{index.html, package.json, vite.config.ts, tsconfig.json}` | `frontend/` | build config |
-| `sandbox/context/` (`DB_context.md`, `SYSTEM_PROMPT.md`) | `backend/app/context/` | transitional home; Day 2 splits into `prompts/` + ChromaDB |
+| `sandbox/context/` (`DB_context.md`, `SYSTEM_PROMPT.md`) | `backend/app/context/` | transitional home; Day 1 (v2) splits into `prompts/` + ChromaDB |
 | `sandbox/start.py` | `start.py` (root) | launcher repointed to canonical paths |
 | `sandbox/llama.cpp/`, model GGUF | referenced in place | not copied; located by the launcher as today |
 
-**Gate D0**: from the repo root, `python start.py` brings up llama.cpp + the canonical FastAPI backend + the canonical Vite frontend, and a query the sandbox answers returns the same response — now served entirely from the canonical paths. `sandbox/` still runs independently via `python sandbox/start.py`. This parity check is the green light into Day 1.
+~~**Gate D0**: from the repo root, `python start.py` brings up llama.cpp + the canonical FastAPI backend + the canonical Vite frontend, and a query the sandbox answers returns the same response — now served entirely from the canonical paths. `sandbox/` still runs independently via `python sandbox/start.py`. This parity check is the green light into Day 1.~~ *(See completion note above — Gate D0 passed 2026-06-26.)*
 
 ---
 
-### Day 1 — Foundations & Contracts
+### Day 1 — The Agentic Core (DB-less) ✅ COMPLETE — 2026-07-02
 
-*Goal: a running skeleton that routes a request through a (stubbed) 7-agent pipeline and can talk to soundwave.*
+*Goal: the full seven-agent pipeline running end-to-end with real verification, persistent memory, and auto-exploration — fed entirely by the `soundwave/` files, no database server anywhere.*
 
-- [ ] (Day 0 already delivered the canonical skeleton.) Wrap the migrated sandbox loop as the fallback SQL path inside `services/llm_service.py` — no regression against Gate D0.
-- [ ] Stand up MySQL locally; load `soundwave/01_…sql`, `02_…sql`, `03_…sql`; confirm 19 tables and seed counts.
-- [ ] Define the typed envelope: `DBProfile`, `Intent`, `SqlCandidate`, `VerifyReport`, `AgentEvent` (Pydantic).
-- [ ] Implement `DBConnector` protocol + `MySQLConnector` (introspection + read-only execution with forced `LIMIT`).
-- [ ] Implement `LLMService`: llama.cpp client, `/lora-adapters` hot-swap wrapper, base-model fallback.
-- [ ] Orchestrator skeleton: deterministic pipeline emitting per-step `AgentEvent`s; FastAPI routes `/query`, `/session`, `/health`, `/db`; WebSocket `/ws`.
-- [ ] **Colab: kick off `sql_generator` training** (the critical adapter) so the ≤ 8 h clock starts on Day 1.
+- [x] Typed envelope: `DBProfile`, `Intent`, `SqlCandidate`, `VerifyReport`, `AgentEvent`, `QueryResult` (Pydantic) — carried verbatim from `legacydocs/DAY1_PLAN_v1.md` Step 3.
+- [x] `DBConnector` protocol + **`SoundwaveFileConnector`**: transpile `01_…schema.sql` + `02_…data.sql` MySQL→SQLite with sqlglot, load into in-memory SQLite; introspection reads the parsed schema AST; `execute_read` returns real rows from seed data with forced `LIMIT`.
+- [x] `LLMService` with **instruction hot-swap**: llama.cpp client + `load_adapter(name)` that activates `backend/app/prompts/<name>.md` as the system-prompt head (GGUF branch stubbed, wired Day 4+).
+- [x] **Context Manager + file auto-exploration** (named priority): schema graph from the parsed SQL; glossary/coded-values/source-of-truth from `02_soundwave_context.md`; edge-case taxonomy from `03_soundwave_edge_cases.md`; all embedded into ChromaDB.
+- [x] **Query Understanding, Clarification, SQL Generator, Verification** agents — full 3-layer chain (sqlglot AST + SQLite `EXPLAIN` + schema-linking + sanity heuristics).
+- [x] **Session Manager**: SQLite persistence, multi-turn memory threaded through the orchestrator.
+- [x] Orchestrator with dynamic routing (clarification branch, 1 repair loop); routes `/query`, `/session`, `/health`, `/db`; WebSocket `/ws`.
 
-**Gate D1**: `POST /query` with *"How many tracks are standalone singles?"* returns a piped response (understanding → generated SQL → executed against soundwave), and the correct answer uses `album_id IS NULL` (EC-03). Progress events visible on `/ws`.
+**Gate D1**: ✅ PASSED — 2026-07-02 — `python tests/gate_d1.py` scored **6/8** on the edge-case probes (EC-01…EC-08) against the file connector, meeting the ≥ 6/8 bar. EC-07/EC-08 were correctly stopped at the syntax-verification layer (the base 3B model emitted SQL the engine's `EXPLAIN` rejected — the fail-safe chain refusing to execute unverified SQL, exactly as designed). Adapter events fired for every LLM agent, and sessions persist across a backend restart. No MySQL process exists on the machine.
 
-### Day 2 — The Seven Agents, Memory & Auto-Exploration
+> **Sandbox detachment (2026-07-02):** with Day 1 green, the frozen `sandbox/` was **deleted**. The GGUF model moved to `models/` (repo root, gitignored), `llama-server` resolves from winget/PATH, the live chat frontend was repointed to the agentic `/query` stream, and the `/chat` + `/benchmark` prompt context now comes from the `soundwave/` source files. See the Day 0 post-migration note above.
 
-*Goal: real agents, real verification, persistent memory, and database self-characterization.*
-
-- [ ] **Context Manager + DB auto-exploration** (your named priority): schema introspection → schema graph; ingest `02_soundwave_context.md`; build the **characterization survey** (see §6); embed schema + context into ChromaDB.
-- [ ] **Query Understanding**: intent/entity/metric/filter extraction + ambiguity detection (base model until LoRA lands).
-- [ ] **Clarification**: generate follow-ups when ambiguity flags fire.
-- [ ] **SQL Generator**: NL→SQL with rationale, grounded in `DBProfile`.
-- [ ] **Verification Agent**: full 3-layer chain (`sqlglot` + `EXPLAIN` + schema-linking + sanity heuristics).
-- [ ] **Session Manager**: SQLite persistence — save/load/search, multi-turn memory threaded through the orchestrator (your named priority: *persistencia de la memoria*).
-- [ ] Orchestrator dynamic routing: clarification branch + retry-on-verify-fail (max 1 repair loop).
-
-**Gate D2**: run 8 probe queries, one per soundwave edge-case code (EC-01…EC-08); ≥ 6/8 pass verification and return correct rows. Sessions survive a backend restart.
-
-### Day 3 — Frontend Rebuild (No Tailwind) & Visualization
+### Day 2 — Frontend Rebuild (No Tailwind) & Visualization
 
 *Goal: the didactic UI — a learner sees the reasoning, the schema, the chart, and the lesson.*
 
@@ -208,29 +209,46 @@ This is the structural foundation the sprint builds on (your explicit priority: 
 - [ ] Zustand stores (query, session, db-profile, progress).
 - [ ] Components: `QueryBuilder` (keyword-guided), `ProgressIndicator` (WebSocket, per-agent steps), `Visualization` (Recharts, auto-selected), `SessionLibrary`, `DBProfileForm` (the characterization survey UI).
 - [ ] **Didactic layer**: each answer renders four panels — *What I understood*, *The SQL (highlighted)*, *Why this query* (join path + edge case), *Results + chart*. Reuse the existing `sqlHighlighter.ts` and `markdownRenderer.ts`.
-- [ ] End-to-end wire: NL → understanding → SQL → verify → execute → results → auto-chart.
+- [ ] End-to-end wire: NL → understanding → SQL → verify → execute (file connector) → results → auto-chart.
 
-**Gate D3**: a non-SQL user runs a query end-to-end in the browser, sees live per-agent progress, a rendered chart, and the plain-language "why". Lighthouse/manual check confirms no Tailwind artifacts in the bundle.
+**Gate D2**: a non-SQL user runs a query end-to-end in the browser, sees live per-agent progress, a rendered chart, and the plain-language "why". Bundle scan confirms no Tailwind artifacts. (Implementation reference: `legacydocs/DAY3_PLAN_v1.md` — carries over nearly verbatim.)
 
-### Day 4 — LoRA Hot-Swap, Evaluation & Hardening
+### Day 3 — Instruction Registry, Hot-Swap Discipline & Evaluation
 
-*Goal: adapters live, accuracy measured, the build reproducible.*
+*Goal: the "LoRA layer" without the training — a per-agent adapter registry that swaps instruction profiles today and GGUF adapters tomorrow, plus the measurement harness that will later prove the adapters' worth.*
 
-- [ ] Pull trained adapters (GGUF) from Colab into `adapters/`; wire hot-swap per agent; **A/B base vs LoRA**.
-- [ ] Evaluation harness: extend the sandbox benchmark to **execution accuracy** (now that we can execute) over the soundwave edge-case suite; record latency and tokens/sec.
-- [ ] Tests: `pytest` for connector/verification/orchestrator; frontend smoke tests; configure `ruff`, `black`, ESLint, Prettier.
+- [ ] **Adapter registry**: manifest (`adapters/registry.json`) mapping agent → active artifact (`prompt:<file>` now, `gguf:<file>` later); orchestrator calls `load_adapter(agent)` before each agent turn.
+- [ ] Author the four **instruction profiles** as first-class prompt artifacts: `sql_generator.md`, `query_understanding.md`, `verification.md`, `clarification.md` — each tuned against the soundwave edge-case taxonomy.
+- [ ] **A/B harness**: run the EC suite with generic base instructions vs specialized profiles; record the delta (this becomes the baseline the trained LoRAs must beat).
+- [ ] Evaluation harness: execution accuracy over the edge-case suite, latency, tokens/sec — persisted as a benchmark report.
+- [ ] Tests: `pytest` for connector/verification/orchestrator/registry; configure `ruff`, `black`, ESLint, Prettier.
+
+**Gate D3**: registry swap is observable per agent in the `AgentEvent` stream; A/B report exists with specialized ≥ base on the EC suite; `pytest` green; a missing profile falls back to base instructions without breaking the pipeline.
+
+### Day 4 — Real DB Connection & Hardening
+
+*Goal: the physical database arrives last and nothing above it notices.*
+
+- [ ] Stand up MySQL locally; load `soundwave/01_…sql`, `02_…sql`, `03_…sql`; confirm 19 tables and seed counts (v1 Day 1 Step 4).
+- [ ] Implement `MySQLConnector` (v1 Day 1 Step 5 code) behind the existing `DBConnector` protocol; introspection now reads `information_schema`.
+- [ ] Connector switch via config: `IDI_CONNECTOR=file|mysql` — one flag, no agent code touched.
+- [ ] **Parity check**: re-run the full EC suite on MySQL; results must match the file connector run.
 - [ ] `docker-compose` (backend + llama.cpp + MySQL) and an updated `RUN_GUIDE`.
-- [ ] **Skeptical review pass**: re-run all four gates; confirm fallback path still works if an adapter is missing.
+- [ ] **Skeptical review pass**: re-run all gates on both connectors; confirm the file connector remains the zero-setup demo path.
 
-**Gate D4**: full pipeline green on soundwave benchmark with adapters loaded; one-command bring-up works; verification never lets malformed SQL execute.
+**Gate D4**: EC suite green on MySQL with identical results to the file connector; `IDI_CONNECTOR=file` still boots with zero DB setup; one-command bring-up works; verification never lets malformed SQL execute.
+
+### Post-sprint — LoRA Training (deferred, seam already built)
+
+Colab + Unsloth per §8. Each trained adapter lands as `adapters/<agent>.gguf`; flipping the registry entry from `prompt:` to `gguf:` activates it. The Day 3 A/B report is the baseline it must beat.
 
 ---
 
 ## 6. DB Auto-Exploration & Characterization Forms
 
-This is the heart of the didactic reframe and one of your named priorities. When IDI connects to *any* MySQL database, it does two things in concert:
+This is the heart of the didactic reframe and one of your named priorities. When IDI connects to *any* source — a live MySQL server (Day 4+) or, during the sprint, the `soundwave/` files themselves — it does two things in concert:
 
-1. **Automatic introspection** (machine): read `information_schema` → tables, columns, types, PKs, FKs, nullability, indexes; infer the relationship graph; detect coded columns (low-cardinality integers/enums), nullable FKs, self-references, and pre-aggregated/cached columns — exactly the soundwave taxonomy, generalized.
+1. **Automatic introspection** (machine): Days 1–3, parse `01_soundwave_schema.sql` with sqlglot → tables, columns, types, PKs, FKs, nullability; Day 4+, read `information_schema` for the same facts. Either way: infer the relationship graph; detect coded columns (low-cardinality integers/enums), nullable FKs, self-references, and pre-aggregated/cached columns — exactly the soundwave taxonomy, generalized.
 2. **Guided characterization survey** (human): a short, progressive form where the connector/learner confirms or enriches what introspection guessed. The form *teaches while it asks*.
 
 | Survey section | What it asks | Feeds |
@@ -252,24 +270,26 @@ The output is a persisted **`DBProfile`** — a "profile card" the learner can r
 | Sessions (turns, SQL, results, charts) | **SQLite** | local-first; JSON columns for flexible payloads; save/load/search |
 | Multi-turn conversational memory | SQLite + orchestrator state | last-N turns + resolved entities threaded into Query Understanding |
 | Domain/schema context | **ChromaDB** | embeddings of schema graph + `DBProfile` + context md for semantic retrieval |
-| Adapters | filesystem `adapters/*.gguf` | hot-swapped by `LLMService` |
+| Adapters | `adapters/registry.json` + `prompts/*.md` now; `adapters/*.gguf` post-sprint | hot-swapped by `LLMService` through one `load_adapter()` seam |
 
-Memory persistence is treated as a first-class Day-2 deliverable, not an afterthought, because continuity is what turns a single answer into a learning session.
+Memory persistence is treated as a first-class Day-1 deliverable, not an afterthought, because continuity is what turns a single answer into a learning session.
 
 ---
 
-## 8. LoRA Training Schedule (Colab, ≤ 8 h Each)
+## 8. Adapter Layer — Instruction Profiles Now, LoRA Training Post-Sprint
 
-Training is off the local critical path (D2). One unattended Colab job per day; adapters land just in time for Day 4 integration. Config per brief: `r=16, alpha=32, dropout=0.05`, attention+MLP target modules, 3 epochs, lr `2e-4`, QLoRA 4-bit; export GGUF Q4_K_M.
+**v2 reframe.** The sprint ships the *hot-swap discipline*, not the training. Each agent's specialization lives in an **instruction profile** (`backend/app/prompts/<agent>.md`) activated through the same `load_adapter(name)` call that will later load GGUF adapters. The registry (`adapters/registry.json`) records which artifact each agent runs on:
 
-| Day | Adapter | Dataset | Priority | Status target |
-|---|---|---|---|---|
-| Day 1 (kick off ~9:00 AM) | `sql_generator` | `gretelai/synthetic_text_to_sql` (+ soundwave-style samples) | Critical | trained by Day 2 AM |
-| Day 2 | `query_understanding` | synthesized intent/entity set | High | trained by Day 3 AM |
-| Day 3 | `verification` | self-generated error/repair corpus | Medium | trained by Day 4 AM |
-| Day 4 (if time) | `clarification` | custom dialogue set | Optional | nice-to-have |
+| Agent | Sprint artifact (Day 3) | Post-sprint artifact | Dataset (when trained) |
+|---|---|---|---|
+| `sql_generator` | `prompt:sql_generator.md` | `gguf:sql_generator.gguf` | `gretelai/synthetic_text_to_sql` + soundwave samples |
+| `query_understanding` | `prompt:query_understanding.md` | `gguf:query_understanding.gguf` | synthesized intent/entity set |
+| `verification` | `prompt:verification.md` | `gguf:verification.gguf` | self-generated error/repair corpus |
+| `clarification` | `prompt:clarification.md` | optional | custom dialogue set |
 
-> Risk cover: every agent runs on the **base model** until its adapter arrives, so a late or weak adapter never blocks the pipeline — it only lifts accuracy.
+Training (deferred): Colab + Unsloth (T4/L4), ≤ 8 h per adapter; `r=16, alpha=32, dropout=0.05`, attention+MLP target modules, 3 epochs, lr `2e-4`, QLoRA 4-bit; export GGUF Q4_K_M.
+
+> Risk cover unchanged: every agent runs on the **base model + base instructions** if its profile (or later, adapter) is missing — a swap failure never blocks the pipeline, it only lowers accuracy. The Day 3 A/B report is the baseline any trained adapter must beat to earn its registry slot.
 
 ---
 
@@ -279,8 +299,9 @@ Training is off the local critical path (D2). One unattended Colab job per day; 
 |---|---|---|---|
 | 7 agents too ambitious for 4 days | High | High | Sandbox loop is the always-working fallback; cut-lines in §10; agents ship incrementally behind the orchestrator |
 | Colab session/quota limits | Medium | Low | ≤ 8 h budget; split across sessions; base-model fallback decouples training from delivery |
-| llama.cpp LoRA hot-swap friction | Low | Medium | Fallback to single `--lora` at launch, or Ollama Modelfiles |
-| MySQL setup friction on Windows | Medium | Medium | Document exact steps in RUN_GUIDE; Dockerized MySQL in compose as backup |
+| llama.cpp LoRA hot-swap friction | Low | Low *(deferred)* | Instruction-profile swap carries the sprint; GGUF path lands post-sprint with `--lora` fallback |
+| MySQL setup friction on Windows | Medium | Low *(moved to Day 4)* | File connector is the working default; Dockerized MySQL in compose as backup |
+| MySQL→SQLite transpile gaps in soundwave DDL/DML | Medium | Medium | sqlglot handles most dialect drift; patch remaining statements by hand once (files are frozen); parity check on Day 4 catches divergence |
 | Frontend rebuild eats the schedule | Medium | Medium | Token system first; reuse existing highlighter/renderer; keep component kit minimal |
 | Verification false-negatives execute bad SQL | Low | High | Read-only connector + forced LIMIT make execution safe even if a layer misses |
 
@@ -290,11 +311,11 @@ Training is off the local critical path (D2). One unattended Colab job per day; 
 
 Drop from the bottom up; each cut keeps a working, demoable system.
 
-1. `clarification.gguf` adapter → use base model prompting.
+1. `clarification` instruction profile → use base model prompting.
 2. ChromaDB semantic retrieval → fall back to direct `DBProfile` injection (static context, as the sandbox does today).
-3. `verification.gguf` adapter → keep the rule-based 3-layer chain (it is already non-LLM and sufficient).
+3. `verification` instruction profile → keep the rule-based 3-layer chain (it is already non-LLM and sufficient).
 4. WebSocket per-agent progress → poll a status endpoint (as the sandbox benchmark already does).
-5. Multi-engine seam exercised → ship MySQL-only; the `DBConnector` interface stays as the documented extension point.
+5. Day 4 MySQL connection → ship on the file connector only; `MySQLConnector` stays as the documented, coded-but-unwired extension point.
 
 **Never cut**: the three-layer verification chain, the read-only execution guard, and the didactic "why" panel — they are the thesis contribution and the new identity of the product.
 
@@ -325,7 +346,7 @@ Drop from the bottom up; each cut keeps a working, demoable system.
 - SQL parsing — [sqlglot](https://github.com/tobymao/sqlglot)
 - Frontend — [Recharts](https://recharts.org/), [Zustand](https://github.com/pmndrs/zustand)
 - Vector store — [ChromaDB](https://www.trychroma.com/)
-- Internal — `PROJECT_BRIEF.md`, `sandbox/GAP_ANALYSIS.md`, `soundwave/02_soundwave_context.md`, `soundwave/03_soundwave_edge_cases.md`
+- Internal — `soundwave/00_soundwave_db_documentation.md`, `soundwave/02_soundwave_context.md`, `soundwave/03_soundwave_edge_cases.md`
 
 ---
 

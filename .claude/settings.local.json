@@ -40,7 +40,9 @@
       "Bash(python sandbox/start.py)",
       "Bash(python -m pip install --force-reinstall fastapi uvicorn[standard] requests psutil)",
       "Bash(python -m venv .venv)",
-      "Bash(.venv/Scripts/pip install:*)"
+      "Bash(.venv/Scripts/pip install:*)",
+      "PowerShell(New-Item -ItemType Directory -Force \"C:\\\\dev\\\\intelligent-database-interface\\\\models\" | Out-Null; Move-Item \"C:\\\\dev\\\\intelligent-database-interface\\\\sandbox\\\\llama.cpp\\\\models\\\\qwen2.5-coder-3b-instruct-q4_k_m.gguf\" \"C:\\\\dev\\\\intelligent-database-interface\\\\models\\\\qwen2.5-coder-3b-instruct-q4_k_m.gguf\"; Get-ChildItem \"C:\\\\dev\\\\intelligent-database-interface\\\\models\" | Select-Object Name, @{n='SizeMB';e={[math]::Round\\($_.Length/1MB,1\\)}})",
+      "Bash(python -m py_compile backend/app/main.py start.py)"
     ]
   }
 }

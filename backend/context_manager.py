@@ -1,1 +1,0 @@
-# Manages enterprise-specific domain knowledge

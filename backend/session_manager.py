@@ -1,1 +1,0 @@
-# Manages query contexts and session persistence

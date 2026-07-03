@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException
 from backend.app.services.memory.sessions import (
     list_sessions, get_session, create_session,
 )
+from backend.app.services.orchestrator import orchestrator
 
 router = APIRouter()
 
@@ -22,6 +23,7 @@ def session_get(session_id: str):
 
 
 @router.post("/session")
-def session_create(db_name: str = "soundwave_db", title: str = ""):
-    sid = create_session(db_name=db_name, title=title)
+def session_create(db_name: str | None = None, title: str = ""):
+    resolved = db_name or orchestrator._active_db_name or ""
+    sid = create_session(db_name=resolved, title=title)
     return {"session_id": sid}

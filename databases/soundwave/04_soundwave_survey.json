@@ -1,0 +1,29 @@
+{
+  "domain_description": "Soundwave is a music streaming platform database. It tracks artists, albums, tracks, users, playlists, subscriptions, play events, and payments.",
+  "glossary": {
+    "trk_dur_ms": "track duration in milliseconds",
+    "is_exp": "is explicit content (1=yes, 0=no)",
+    "is_prim": "is primary artist on a track (1=yes, 0=no)",
+    "usr_acq_src": "user acquisition source code",
+    "trk_position_ms": "playback position in milliseconds"
+  },
+  "coded_value_maps": {
+    "plan_type": {
+      "1": "Free",
+      "2": "Individual Premium",
+      "3": "Student Premium",
+      "4": "Family Premium"
+    },
+    "usr_acq_src": {
+      "1": "organic",
+      "2": "referral",
+      "3": "paid_ad",
+      "4": "social"
+    }
+  },
+  "source_of_truth": {
+    "play_count": "play_events table (raw)",
+    "monthly_listeners_cached": "daily_artist_metrics (pre-aggregated — use for reports, not real-time)",
+    "total_plays": "tracks.total_plays is a cached counter; use COUNT(play_events) for accuracy"
+  }
+}

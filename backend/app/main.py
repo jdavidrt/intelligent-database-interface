@@ -65,7 +65,7 @@ REPO_ROOT = os.path.abspath(os.path.join(APP_DIR, "..", ".."))  # repo root
 # The /chat + /benchmark system prompt is grounded in the soundwave source
 # files. Only the schema DDL + domain context are loaded — the full data and
 # edge-case SQL dumps would blow the small model's prompt budget.
-SOUNDWAVE_DIR = os.path.join(settings.repo_root, settings.soundwave_dir)
+SOUNDWAVE_DIR = os.path.join(settings.repo_root, settings.databases_dir, "soundwave")
 CONTEXT_FILES = ["01_soundwave_schema.sql", "02_soundwave_context.md"]
 
 # The GGUF model lives at the repo root under models/ (gitignored). The

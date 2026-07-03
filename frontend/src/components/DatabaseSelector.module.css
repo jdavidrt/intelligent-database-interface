@@ -1,0 +1,100 @@
+.screen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4);
+    padding: var(--space-6);
+    overflow-y: auto;
+    text-align: center;
+}
+
+.heading {
+    margin: 0;
+    font-size: var(--font-xl);
+    font-weight: 600;
+    max-width: 32rem;
+}
+
+.shortcutBtn {
+    font-family: 'Outfit', sans-serif;
+    font-size: var(--font-sm);
+    font-weight: 600;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-5);
+    background: var(--primary);
+    color: var(--send-text);
+    -webkit-text-fill-color: var(--send-text);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.shortcutBtn:hover:not(:disabled) {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+.shortcutBtn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--space-3);
+    max-width: 48rem;
+    width: 100%;
+}
+
+.card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+    text-align: left;
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    background: var(--input-bg);
+    padding: var(--space-4);
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+    color: var(--text);
+    transition: all 0.2s;
+}
+
+.card:hover:not(:disabled) {
+    border-color: var(--primary);
+    background: var(--input-bg-focus);
+    transform: translateY(-1px);
+}
+
+.card:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.dbTitle {
+    font-size: var(--font-md);
+    font-weight: 600;
+}
+
+.dbDesc {
+    font-size: var(--font-xs);
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+}
+
+.error {
+    color: var(--score-bad);
+    -webkit-text-fill-color: var(--score-bad);
+    font-size: var(--font-sm);
+}
+
+.placeholder {
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+    font-style: italic;
+}

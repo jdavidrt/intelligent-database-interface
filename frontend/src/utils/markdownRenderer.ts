@@ -54,7 +54,7 @@ function renderMdText(text: string): string {
         const h3 = line.match(/^###\s+(.*)/);
         const h2 = line.match(/^##\s+(.*)/);
         const h1 = line.match(/^#\s+(.*)/);
-        const bullet = line.match(/^[\*\-]\s+(.*)/);
+        const bullet = line.match(/^[*-]\s+(.*)/);
         const numbered = line.match(/^\d+\.\s+(.*)/);
         const hr = line.match(/^---+$/);
         const trimmed = line.trim();

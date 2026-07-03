@@ -11,7 +11,7 @@
 
 ## Step 1 — MySQL Setup & Soundwave Load
 
-`[v1 → legacydocs/DAY1_PLAN_v1.md Step 4]` verbatim: install MySQL Community Server 8.x, create `soundwave_db` (utf8mb4), `SOURCE` the three soundwave SQL files, verify 19 tables and seed counts.
+`[v1 → legacydocs/DAY1_PLAN_v1.md Step 4]` verbatim: install MySQL Community Server 8.x, create `soundwave_db` (utf8mb4), `SOURCE` the three soundwave SQL files from `databases/soundwave/`, verify 19 tables and seed counts.
 
 Add the MySQL fields back into `backend/app/config.py` (they were dropped in v2 Day 1 Step 2) and extend `.env`:
 
@@ -30,27 +30,29 @@ Add `mysql-connector-python>=9.0.0` to `backend/requirements.txt` and install.
 
 ## Step 2 — `MySQLConnector`
 
-`[v1 → legacydocs/DAY1_PLAN_v1.md Step 5]` verbatim: `backend/app/services/db/mysql_connector.py` — `information_schema` introspection, read-only `execute_read` with LIMIT injection, `EXPLAIN` probe.
+`[v1 → legacydocs/DAY1_PLAN_v1.md Step 5]` largely verbatim: `backend/app/services/db/mysql_connector.py` — `information_schema` introspection, read-only `execute_read` with LIMIT injection, `EXPLAIN` probe.
 
 One v2 addition: `execute_read` does **not** transpile (agents already emit MySQL) — the transpile-at-the-boundary logic stays exclusive to the file connector.
+
+**Constructor shape (2026-07-03 update):** `FileConnector` was generalized to `FileConnector(db_name: str)` as part of the multi-database restructure (see `MASTERPLAN.md`). `MySQLConnector` must match: `MySQLConnector(db_name: str)`, using `db_name` to pick the schema/database to connect to (e.g. resolve it against `DB_NAME`, or treat `db_name` itself as the MySQL schema name if multiple physical databases are ever mapped 1:1 with `databases/` folders). This keeps `get_connector(db_name)` uniform across both connector kinds — no special-casing in the factory.
 
 ---
 
 ## Step 3 — Wire the Factory
 
-Complete `get_connector()` in `backend/app/services/db/connector.py` (the Day 1 factory left the mysql branch raising `NotImplementedError`):
+Complete `get_connector(db_name)` in `backend/app/services/db/connector.py`. The factory already takes `db_name` and wires the file branch (generalized 2026-07-03, part of the multi-database restructure — see `MASTERPLAN.md`); only the `mysql` branch remains `NotImplementedError`:
 
 ```python
-def get_connector():
+def get_connector(db_name: str):
     from backend.app.config import settings
     if settings.connector == "mysql":
         from .mysql_connector import MySQLConnector
-        return MySQLConnector()
-    from .file_connector import SoundwaveFileConnector
-    return SoundwaveFileConnector()
+        return MySQLConnector(db_name)
+    from .file_connector import FileConnector
+    return FileConnector(db_name)
 ```
 
-No agent, orchestrator, route, or frontend file changes. If any does, the seam leaked — fix the seam, not the caller.
+No agent, orchestrator, route, or frontend file changes beyond that one line. If any does, the seam leaked — fix the seam, not the caller.
 
 ---
 

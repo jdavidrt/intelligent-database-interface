@@ -9,8 +9,8 @@ from backend.app.models.envelope import DBProfile
 class DBConnector(Protocol):
     """Read-only DB access + introspection.
 
-    Concrete implementations: SoundwaveFileConnector (Days 1-3),
-    MySQLConnector (Day 4+).
+    Concrete implementations: FileConnector (Days 1-3, one instance per
+    databases/<db_name>/ folder), MySQLConnector (Day 4+).
     """
 
     def connect(self) -> None: ...
@@ -20,11 +20,11 @@ class DBConnector(Protocol):
     def explain(self, sql: str) -> bool: ...  # True if the engine accepts the query plan
 
 
-def get_connector():
-    """Return the active DBConnector implementation per settings.connector."""
+def get_connector(db_name: str):
+    """Return the active DBConnector implementation for db_name per settings.connector."""
     from backend.app.config import settings
     if settings.connector == "mysql":
-        # Day 4: from .mysql_connector import MySQLConnector; return MySQLConnector()
+        # Day 4: from .mysql_connector import MySQLConnector; return MySQLConnector(db_name)
         raise NotImplementedError("MySQLConnector arrives on Day 4.")
-    from .file_connector import SoundwaveFileConnector
-    return SoundwaveFileConnector()
+    from .file_connector import FileConnector
+    return FileConnector(db_name)

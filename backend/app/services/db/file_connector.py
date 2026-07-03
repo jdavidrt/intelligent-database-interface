@@ -1,12 +1,16 @@
-"""SoundwaveFileConnector — in-memory SQLite built from the soundwave/ SQL files.
+"""FileConnector — in-memory SQLite built from a databases/<db_name>/ folder's SQL files.
 
 Implements the DBConnector protocol without any database server:
 - Schema and seed data are transpiled MySQL -> SQLite via sqlglot at startup.
 - introspect() builds the DBProfile from the parsed schema AST (not from a live DB).
 - execute_read() returns real rows from the seed data, read-only, forced LIMIT.
+
+The schema/data files are discovered by glob (*_schema.sql / *_data.sql) within
+the database's folder, following the NN_<db_name>_<type>.ext naming convention.
 """
 
 from __future__ import annotations
+import glob
 import os
 import re
 import sqlite3
@@ -20,15 +24,25 @@ from backend.app.config import settings
 from backend.app.models.envelope import DBProfile, TableInfo, ColumnInfo
 
 
-class SoundwaveFileConnector:
-    SCHEMA_FILE = "01_soundwave_schema.sql"
-    DATA_FILE = "02_soundwave_data.sql"
-
-    def __init__(self) -> None:
+class FileConnector:
+    def __init__(self, db_name: str) -> None:
+        self.db_name = db_name
         self._conn: sqlite3.Connection | None = None
         self._lock = threading.Lock()
-        self._sw_dir = os.path.join(settings.repo_root, settings.soundwave_dir)
+        self._db_dir = os.path.join(settings.repo_root, settings.databases_dir, db_name)
         self._schema_asts: list[exp.Expression] = []
+
+    @property
+    def db_dir(self) -> str:
+        return self._db_dir
+
+    def _find_one(self, pattern: str) -> str:
+        matches = glob.glob(os.path.join(self._db_dir, pattern))
+        if len(matches) != 1:
+            raise FileNotFoundError(
+                f"Expected exactly one '{pattern}' file in {self._db_dir}, found {len(matches)}."
+            )
+        return matches[0]
 
     # -- lifecycle -------------------------------------------------------------
 
@@ -38,8 +52,8 @@ class SoundwaveFileConnector:
             return
         self._conn = sqlite3.connect(":memory:", check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
-        self._load_sql_file(self.SCHEMA_FILE, keep_asts=True)
-        self._load_sql_file(self.DATA_FILE)
+        self._load_sql_file(self._find_one("*_schema.sql"), keep_asts=True)
+        self._load_sql_file(self._find_one("*_data.sql"))
 
     def disconnect(self) -> None:
         if self._conn:
@@ -101,8 +115,8 @@ class SoundwaveFileConnector:
             schema.set("expressions", defs)
         return create.sql(dialect="sqlite")
 
-    def _load_sql_file(self, filename: str, keep_asts: bool = False) -> None:
-        path = os.path.join(self._sw_dir, filename)
+    def _load_sql_file(self, path: str, keep_asts: bool = False) -> None:
+        filename = os.path.basename(path)
         with open(path, encoding="utf-8") as f:
             raw = f.read()
         # Strip MySQL-only directives sqlglot does not need to see
@@ -185,7 +199,7 @@ class SoundwaveFileConnector:
 
             tables.append(TableInfo(name=tname, row_count=row_count, columns=columns))
 
-        return DBProfile(db_name="soundwave_db", tables=tables, relationship_edges=edges)
+        return DBProfile(db_name=self.db_name, tables=tables, relationship_edges=edges)
 
     def _table_exists(self, name: str) -> bool:
         row = self._conn.execute(

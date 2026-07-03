@@ -7,10 +7,12 @@ GGUF adapters land (post-sprint), load_adapter() will call the llama.cpp
 """
 
 from __future__ import annotations
+
 import os
-import requests
 import time
 from typing import Any
+
+import requests
 
 from backend.app.config import settings
 
@@ -35,17 +37,21 @@ class LLMService:
 
     # -- inference ---------------------------------------------------------------
 
-    def chat(
+    def _request(
         self,
         messages: list[dict[str, str]],
-        temperature: float = 0.3,
-        timeout: int = 90,
-    ) -> str:
-        """Send a chat payload to llama.cpp and return the content string."""
+        temperature: float,
+        timeout: int,
+    ) -> tuple[dict[str, Any], int]:
+        """POST to llama.cpp; return the raw JSON body and elapsed ms."""
         if self._instruction_profile:
             if messages and messages[0]["role"] == "system":
-                messages = [{"role": "system",
-                             "content": self._instruction_profile + "\n\n" + messages[0]["content"]}] + messages[1:]
+                messages = [
+                    {
+                        "role": "system",
+                        "content": self._instruction_profile + "\n\n" + messages[0]["content"],
+                    }
+                ] + messages[1:]
             else:
                 messages = [{"role": "system", "content": self._instruction_profile}] + messages
 
@@ -57,16 +63,45 @@ class LLMService:
         except requests.exceptions.Timeout:
             raise TimeoutError(f"llama.cpp timed out after {timeout}s.")
         except requests.exceptions.ConnectionError:
-            raise ConnectionError(
-                f"Cannot reach llama.cpp at {self._base_url}. Is it running?"
-            )
-        data = resp.json()
-        content: str = (
-            data.get("choices", [{}])[0].get("message", {}).get("content", "")
-        )
+            raise ConnectionError(f"Cannot reach llama.cpp at {self._base_url}. Is it running?")
         elapsed = round((time.time() - t0) * 1000)
+        return resp.json(), elapsed
+
+    def chat(
+        self,
+        messages: list[dict[str, str]],
+        temperature: float = 0.3,
+        timeout: int = 90,
+    ) -> str:
+        """Send a chat payload to llama.cpp and return the content string."""
+        data, elapsed = self._request(messages, temperature, timeout)
+        content: str = data.get("choices", [{}])[0].get("message", {}).get("content", "")
         print(f"[LLMService] {elapsed}ms — {len(content)} chars returned")
         return content
+
+    def chat_with_meta(
+        self,
+        messages: list[dict[str, str]],
+        temperature: float = 0.3,
+        timeout: int = 90,
+    ) -> tuple[str, dict[str, Any]]:
+        """Like chat(), but also returns timing/token metadata for benchmarking."""
+        data, elapsed = self._request(messages, temperature, timeout)
+        content: str = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        usage = data.get("usage", {})
+        completion_tokens = usage.get("completion_tokens", 0)
+        meta = {
+            "elapsed_ms": elapsed,
+            "prompt_tokens": usage.get("prompt_tokens", 0),
+            "completion_tokens": completion_tokens,
+            "tokens_per_sec": (
+                round(completion_tokens / (elapsed / 1000), 2)
+                if elapsed and completion_tokens
+                else None
+            ),
+        }
+        print(f"[LLMService] {elapsed}ms — {len(content)} chars returned")
+        return content, meta
 
     # -- adapter hot-swap: instruction profiles now, GGUF later ------------------
 
@@ -82,7 +117,10 @@ class LLMService:
         gguf = os.path.join(settings.repo_root, "adapters", f"{adapter_name}.gguf")
         if os.path.isfile(gguf):
             # Post-sprint branch - wired when trained adapters land.
-            print(f"[LLMService] GGUF found for {adapter_name} but hot-swap not wired yet; using instruction profile.")
+            print(
+                f"[LLMService] GGUF found for {adapter_name} but hot-swap not wired yet; "
+                "using instruction profile."
+            )
         path = os.path.join(os.path.dirname(__file__), "..", "prompts", f"{adapter_name}.md")
         if os.path.isfile(path):
             with open(path, encoding="utf-8") as f:

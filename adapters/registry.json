@@ -1,0 +1,6 @@
+{
+  "sql_generator":       { "kind": "prompt", "artifact": "sql_generator.md" },
+  "query_understanding": { "kind": "prompt", "artifact": "query_understanding.md" },
+  "verification":        { "kind": "prompt", "artifact": "verification.md" },
+  "clarification":       { "kind": "prompt", "artifact": "clarification.md" }
+}

@@ -2,6 +2,8 @@
 ## IDI Implementation Plan (v2)
 
 > **✅ COMPLETE — 2026-07-02. Gate D1 PASSED (6/8).** The seven-agent pipeline runs end-to-end over `/query`, fed by the `soundwave/` files via `SoundwaveFileConnector`. EC-07/EC-08 were correctly blocked at the syntax-verification layer (fail-safe working as designed). As a follow-on, the frozen `sandbox/` was **deleted** and the project fully detached from it — model relocated to `models/`, `llama-server` from winget/PATH, chat frontend repointed to `/query`, and `/chat` + `/benchmark` context sourced from `soundwave/`. Next: **Day 2 — Frontend** (`DAY2_PLAN.md`).
+>
+> **Post-Day-2 addendum (2026-07-03 — see `MASTERPLAN.md`'s Multi-Database Restructure note):** the `soundwave/` folder moved to `databases/soundwave/`, `SoundwaveFileConnector` was generalized and renamed `FileConnector(db_name)` (glob-based file discovery, no more hardcoded `SCHEMA_FILE`/`DATA_FILE`), `soundwave_dir`/`SOUNDWAVE_DIR` became `databases_dir`/`DATABASES_DIR`, and `get_connector()` now takes a `db_name` argument. The code blocks in Steps 2 and 4 below are kept as-written — they document what Day 1 actually shipped — but no longer match the current source; treat `backend/app/config.py`, `backend/app/services/db/connector.py`, and `backend/app/services/db/file_connector.py` as ground truth.
 
 **Goal:** The full seven-agent pipeline running end-to-end — real verification, persistent memory, auto-exploration — fed entirely by the `soundwave/` files. No MySQL, no DB server, anywhere.
 

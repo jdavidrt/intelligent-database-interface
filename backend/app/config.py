@@ -22,8 +22,8 @@ class Settings(BaseSettings):
     # Connector selection: "file" (Days 1-3) | "mysql" (Day 4+)
     connector: str = Field(default="file", alias="IDI_CONNECTOR")
 
-    # Soundwave source files (the DB-less context feed)
-    soundwave_dir: str = Field(default="soundwave", alias="SOUNDWAVE_DIR")
+    # Root folder holding one subfolder per database (the DB-less context feed)
+    databases_dir: str = Field(default="databases", alias="DATABASES_DIR")
 
     # Paths
     repo_root: str = Field(default_factory=lambda: os.path.abspath(

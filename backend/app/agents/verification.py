@@ -1,14 +1,18 @@
 """Verification Agent — 3-layer chain: Syntax -> Semantic -> Sanity."""
 
 from __future__ import annotations
+
 import re
+
 import sqlglot
 from sqlglot import exp
 
 from backend.app.models.envelope import (
-    DBProfile, SqlCandidate, VerifyReport, LayerResult,
+    DBProfile,
+    LayerResult,
+    SqlCandidate,
+    VerifyReport,
 )
-from backend.app.services.llm_service import llm_service
 
 
 class VerificationAgent:
@@ -17,9 +21,6 @@ class VerificationAgent:
         self._db = connector
 
     def verify(self, candidate: SqlCandidate, profile: DBProfile) -> VerifyReport:
-        # Adapter discipline: activate this agent's instruction profile.
-        llm_service.load_adapter("verification")
-
         sql = candidate.sql.strip()
 
         syntax = self._layer_syntax(sql)
@@ -75,8 +76,7 @@ class VerificationAgent:
         """Schema-linking: every table/column in SQL must exist in DBProfile."""
         known_tables = {t.name.lower() for t in profile.tables}
         known_cols: dict[str, set[str]] = {
-            t.name.lower(): {c.name.lower() for c in t.columns}
-            for t in profile.tables
+            t.name.lower(): {c.name.lower() for c in t.columns} for t in profile.tables
         }
 
         try:
@@ -121,7 +121,9 @@ class VerificationAgent:
         sql_upper = sql.upper()
 
         if not sql_upper.lstrip().startswith("SELECT"):
-            return LayerResult(passed=False, message="Non-SELECT statement rejected (read-only guard)")
+            return LayerResult(
+                passed=False, message="Non-SELECT statement rejected (read-only guard)"
+            )
 
         # EC-11 heuristic: = NULL instead of IS NULL
         if re.search(r"=\s*NULL\b", sql, re.IGNORECASE):

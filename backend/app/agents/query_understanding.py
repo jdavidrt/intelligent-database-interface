@@ -1,12 +1,13 @@
 """Query Understanding — intent/entity/metric extraction + ambiguity detection."""
 
 from __future__ import annotations
+
 import json
 import re
-from backend.app.models.envelope import Intent, DBProfile
+
+from backend.app.models.envelope import DBProfile, Intent
 from backend.app.services.llm_service import llm_service
 from backend.app.services.memory.vector import query_context
-
 
 SYSTEM_PROMPT = """\
 You are the Query Understanding module of IDI.
@@ -32,9 +33,6 @@ Respond with ONLY valid JSON matching this schema:
 
 class QueryUnderstanding:
     def parse(self, query: str, profile: DBProfile) -> Intent:
-        # Adapter discipline: activate this agent's instruction profile.
-        llm_service.load_adapter("query_understanding")
-
         # Retrieve relevant schema context from ChromaDB
         context_passages = query_context(query, n_results=4)
         context_str = "\n".join(context_passages)
@@ -43,10 +41,7 @@ class QueryUnderstanding:
             {"role": "system", "content": SYSTEM_PROMPT},
             {
                 "role": "user",
-                "content": (
-                    f"Schema context:\n{context_str}\n\n"
-                    f"User question: {query}"
-                ),
+                "content": (f"Schema context:\n{context_str}\n\n" f"User question: {query}"),
             },
         ]
 

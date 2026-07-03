@@ -21,6 +21,7 @@ It is deliberately adversarial: every abbreviated column, nullable foreign key, 
 | `02_soundwave_data.sql` | Seed data (~500 rows across 19 tables) |
 | `03_soundwave_edge_cases.md` | Q01–Q30 edge-case query catalog: NL question, wrong SQL, correct SQL |
 | `03_soundwave_edge_cases.sql` | Runnable versions of all 30 queries |
+| `04_soundwave_survey.json` | Machine-readable business glossary, coded-value maps, and source-of-truth notes — loaded by `ContextManager` to enrich the auto-introspected `DBProfile` (added 2026-07-03, part of the generic per-database survey-file convention) |
 
 ## 3. Deployment
 

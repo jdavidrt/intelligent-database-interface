@@ -189,12 +189,44 @@ export async function fetchSession(sessionId: string): Promise<SessionDetail> {
 }
 
 /**
- * GET /db/profile. Returns null on 404 — the profile is built lazily on the
- * first query, so "not there yet" is an expected state, not an error.
+ * GET /db/profile. Returns null on 404 — no database has been selected yet.
  */
 export async function fetchDbProfile(): Promise<DBProfile | null> {
     const response = await fetch(`${API_BASE}/db/profile`);
     if (response.status === 404) return null;
     if (!response.ok) throw new Error(`Backend returned HTTP ${response.status}`);
     return (await response.json()) as DBProfile;
+}
+
+// ── database selection wire types (backend/app/api/routes/db.py) ───────────────
+
+export interface DatabaseSummary {
+    db_name: string;
+    display_name: string;
+    description: string | null;
+    has_survey: boolean;
+}
+
+export async function fetchAvailableDatabases(): Promise<DatabaseSummary[]> {
+    const response = await fetch(`${API_BASE}/db/list`);
+    if (!response.ok) throw new Error(`Backend returned HTTP ${response.status}`);
+    const data = await response.json();
+    return data.databases as DatabaseSummary[];
+}
+
+export async function selectDatabase(dbName: string): Promise<DBProfile> {
+    const response = await fetch(`${API_BASE}/db/select`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ db_name: dbName }),
+    });
+    if (!response.ok) throw new Error(`Backend returned HTTP ${response.status}`);
+    return (await response.json()) as DBProfile;
+}
+
+export async function fetchLastUsedDatabase(): Promise<string | null> {
+    const response = await fetch(`${API_BASE}/db/last-used`);
+    if (!response.ok) throw new Error(`Backend returned HTTP ${response.status}`);
+    const data = await response.json();
+    return (data.db_name as string | null) ?? null;
 }

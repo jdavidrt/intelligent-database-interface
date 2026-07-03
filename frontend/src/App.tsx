@@ -6,8 +6,9 @@ import { BenchmarksPage } from './components/BenchmarksPage';
 import { Drawer } from './components/Drawer';
 import { SessionLibrary } from './components/SessionLibrary';
 import { DBProfileForm } from './components/DBProfileForm';
+import { DatabaseSelector } from './components/DatabaseSelector';
 import { useQueryStore } from './stores/queryStore';
-import { useDbProfileStore } from './stores/dbProfileStore';
+import { useDatabaseStore } from './stores/databaseStore';
 
 type Page = 'chat' | 'benchmarks';
 
@@ -46,14 +47,9 @@ export default function App() {
     const isWaiting = useQueryStore(s => s.isWaiting);
     const send = useQueryStore(s => s.send);
     const stop = useQueryStore(s => s.stop);
+    const activeDbName = useDatabaseStore(s => s.activeDbName);
 
     useEffect(() => { applyTheme(themeIndex); }, [themeIndex]);
-
-    // Try the profile once on mount (404 is fine until the first query runs) —
-    // autocomplete and the DB Profile card both feed off it.
-    useEffect(() => {
-        void useDbProfileStore.getState().loadProfile();
-    }, []);
 
     const cycleTheme = useCallback(() => {
         setThemeIndex(prev => (prev + 1) % THEMES.length);
@@ -62,6 +58,14 @@ export default function App() {
     const toggleDrawer = useCallback((kind: DrawerKind) => {
         setDrawer(prev => (prev === kind ? null : kind));
     }, []);
+
+    if (!activeDbName) {
+        return (
+            <div className="container">
+                <DatabaseSelector />
+            </div>
+        );
+    }
 
     return (
         <div className="container">

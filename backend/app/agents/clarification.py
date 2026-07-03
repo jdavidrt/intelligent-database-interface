@@ -1,9 +1,9 @@
 """Clarification — generates follow-up questions when ambiguity flags fire."""
 
 from __future__ import annotations
+
 from backend.app.models.envelope import Intent
 from backend.app.services.llm_service import llm_service
-
 
 SYSTEM_PROMPT = """\
 You are the Clarification module of IDI.
@@ -21,16 +21,13 @@ class Clarification:
     def generate_question(self, intent: Intent) -> str:
         if not intent.ambiguity_flags:
             return ""
-        # Adapter discipline: activate this agent's instruction profile.
-        llm_service.load_adapter("clarification")
         flags_str = "\n".join(f"- {f}" for f in intent.ambiguity_flags)
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {
                 "role": "user",
                 "content": (
-                    f"Original question: {intent.raw_query}\n"
-                    f"Ambiguities:\n{flags_str}"
+                    f"Original question: {intent.raw_query}\n" f"Ambiguities:\n{flags_str}"
                 ),
             },
         ]

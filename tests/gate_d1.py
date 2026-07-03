@@ -7,9 +7,10 @@ Run:
     python tests/gate_d1.py
 """
 
-import requests
 import json
 import sys
+
+import requests
 
 BASE_URL = "http://localhost:5000"
 

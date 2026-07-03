@@ -8,3 +8,9 @@ python-dotenv>=1.0.0
 sqlglot>=25.0.0
 chromadb>=0.5.0
 sentence-transformers>=3.0.0
+
+# Dev/test tooling
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
+ruff>=0.6.0
+black>=24.0.0

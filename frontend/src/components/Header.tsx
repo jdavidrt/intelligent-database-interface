@@ -1,13 +1,24 @@
 type Page = 'chat' | 'benchmarks';
 
+export type DrawerKind = 'sessions' | 'profile';
+
 interface HeaderProps {
     themeName: string;
     onThemeCycle: () => void;
     page: Page;
     onPageChange: (page: Page) => void;
+    drawer: DrawerKind | null;
+    onDrawerToggle: (drawer: DrawerKind) => void;
 }
 
-export function Header({ themeName, onThemeCycle, page, onPageChange }: HeaderProps) {
+export function Header({
+    themeName,
+    onThemeCycle,
+    page,
+    onPageChange,
+    drawer,
+    onDrawerToggle,
+}: HeaderProps) {
     return (
         <div className="header">
             <h1>IDI (Intelligent Database Interface)</h1>
@@ -24,6 +35,18 @@ export function Header({ themeName, onThemeCycle, page, onPageChange }: HeaderPr
                     onClick={() => onPageChange('benchmarks')}
                 >
                     📊 Benchmarks
+                </button>
+                <button
+                    className={`nav-tab ${drawer === 'sessions' ? 'nav-tab-active' : ''}`}
+                    onClick={() => onDrawerToggle('sessions')}
+                >
+                    🗂 Sessions
+                </button>
+                <button
+                    className={`nav-tab ${drawer === 'profile' ? 'nav-tab-active' : ''}`}
+                    onClick={() => onDrawerToggle('profile')}
+                >
+                    🗺 DB Profile
                 </button>
             </nav>
 

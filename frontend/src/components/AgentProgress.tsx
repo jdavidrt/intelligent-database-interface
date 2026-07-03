@@ -1,4 +1,5 @@
-import { AgentEvent, AgentName } from '../utils/queryClient';
+import { AgentEvent, AgentName } from '../services/api';
+import { ProgressStep } from '../stores/progressStore';
 
 const AGENT_LABELS: Record<AgentName, string> = {
     context_manager: 'Context Manager',
@@ -18,26 +19,7 @@ const STATUS_ICON: Record<AgentEvent['status'], string> = {
     error: '✗',
 };
 
-interface Step {
-    agent: AgentName;
-    status: AgentEvent['status'];
-    message: string;
-}
-
-/** Collapse the event stream to the latest status + message per agent, in first-seen order. */
-function collapse(events: AgentEvent[]): Step[] {
-    const order: AgentName[] = [];
-    const byAgent = new Map<AgentName, Step>();
-    for (const ev of events) {
-        if (!byAgent.has(ev.agent)) order.push(ev.agent);
-        byAgent.set(ev.agent, { agent: ev.agent, status: ev.status, message: ev.message });
-    }
-    return order.map(a => byAgent.get(a)!);
-}
-
-export function AgentProgress({ events }: { events: AgentEvent[] }) {
-    const steps = collapse(events);
-
+export function AgentProgress({ steps }: { steps: ProgressStep[] }) {
     return (
         <div className="message bot-message agent-progress">
             <div className="agent-progress-title">Working through the pipeline…</div>
@@ -49,6 +31,11 @@ export function AgentProgress({ events }: { events: AgentEvent[] }) {
                     >
                         <span className="agent-step-icon">{STATUS_ICON[step.status]}</span>
                         <span className="agent-step-label">{AGENT_LABELS[step.agent]}</span>
+                        {step.adapter !== undefined && (
+                            <span className="agent-step-adapter">
+                                profile: {step.adapter ?? 'base'}
+                            </span>
+                        )}
                         <span className="agent-step-msg">{step.message}</span>
                     </li>
                 ))}

@@ -1,0 +1,65 @@
+.drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(440px, 90vw);
+    z-index: var(--z-drawer);
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-left: 1px solid var(--glass-border);
+    box-shadow: -12px 0 32px rgba(0, 0, 0, 0.3);
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4) var(--space-5);
+    border-bottom: 1px solid var(--glass-border);
+    flex-shrink: 0;
+}
+
+.title {
+    margin: 0;
+    font-size: var(--font-lg);
+    font-weight: 600;
+    color: var(--text);
+    -webkit-text-fill-color: var(--text);
+}
+
+.closeBtn {
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-sm);
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+    font-size: var(--font-md);
+    line-height: 1;
+    padding: var(--space-1) var(--space-2);
+    cursor: pointer;
+}
+
+.closeBtn:hover {
+    color: var(--text);
+    -webkit-text-fill-color: var(--text);
+    border-color: var(--primary);
+}
+
+.body {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-4) var(--space-5);
+}
+
+.body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.body::-webkit-scrollbar-thumb {
+    background: var(--scrollbar);
+    border-radius: 3px;
+}

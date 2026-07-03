@@ -2,48 +2,30 @@ import { useEffect, useRef } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { AgentProgress } from './AgentProgress';
 import { GeneratingIndicator } from './GeneratingIndicator';
-import { AgentEvent } from '../utils/queryClient';
+import { useQueryStore } from '../stores/queryStore';
+import { useProgressStore } from '../stores/progressStore';
 
-export interface Metrics {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-    timeMs: number;
-}
+export function ChatBox() {
+    const messages = useQueryStore(s => s.messages);
+    const isWaiting = useQueryStore(s => s.isWaiting);
+    const steps = useProgressStore(s => s.steps);
 
-export interface Message {
-    id: string;
-    role: 'user' | 'bot';
-    /** For user: plain text. For bot: rendered HTML string. */
-    content: string;
-    metrics?: Metrics;
-}
-
-interface ChatBoxProps {
-    messages: Message[];
-    /** True while a /query stream is in flight. */
-    isWaiting: boolean;
-    /** Live agent events for the current stream; empty when idle. */
-    progressEvents: AgentEvent[];
-}
-
-export function ChatBox({ messages, isWaiting, progressEvents }: ChatBoxProps) {
     const bottomRef = useRef<HTMLDivElement>(null);
 
     // Auto-scroll to bottom whenever messages or progress changes
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages, isWaiting, progressEvents]);
+    }, [messages, isWaiting, steps]);
 
     return (
         <div className="chat-box">
             {messages.map(msg => (
-                <MessageBubble key={msg.id} role={msg.role} content={msg.content} metrics={msg.metrics} />
+                <MessageBubble key={msg.id} message={msg} />
             ))}
 
-            {progressEvents.length > 0 && <AgentProgress events={progressEvents} />}
+            {steps.length > 0 && <AgentProgress steps={steps} />}
 
-            {isWaiting && progressEvents.length === 0 && <GeneratingIndicator />}
+            {isWaiting && steps.length === 0 && <GeneratingIndicator />}
 
             <div ref={bottomRef} />
         </div>

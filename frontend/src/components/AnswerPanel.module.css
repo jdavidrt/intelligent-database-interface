@@ -1,0 +1,100 @@
+.answer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.section {
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    background: var(--input-bg);
+    padding: var(--space-3) var(--space-4);
+}
+
+.heading {
+    font-size: var(--font-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+    margin: 0 0 var(--space-2) 0;
+}
+
+.body {
+    font-size: var(--font-sm);
+    line-height: 1.55;
+}
+
+.body p {
+    margin: 0;
+}
+
+.restatement {
+    font-style: italic;
+}
+
+.verifyList {
+    list-style: none;
+    margin: var(--space-2) 0 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    font-size: var(--font-xs);
+}
+
+.verifyList li {
+    display: flex;
+    gap: var(--space-2);
+    align-items: baseline;
+}
+
+.verifyIcon {
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.verifyPass .verifyIcon {
+    color: var(--score-good);
+    -webkit-text-fill-color: var(--score-good);
+}
+
+.verifyFail .verifyIcon {
+    color: var(--score-bad);
+    -webkit-text-fill-color: var(--score-bad);
+}
+
+.verifyLayer {
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.verifyMsg {
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+}
+
+.repairNote {
+    margin-top: var(--space-2);
+    font-size: var(--font-xs);
+    color: var(--score-mid);
+    -webkit-text-fill-color: var(--score-mid);
+}
+
+.sqlLabel {
+    display: inline-block;
+    font-size: var(--font-xs);
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+    margin: var(--space-2) 0 var(--space-1) 0;
+}
+
+.errorBanner {
+    border: 1px solid var(--score-bad);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    color: var(--score-bad);
+    -webkit-text-fill-color: var(--score-bad);
+    font-size: var(--font-sm);
+}

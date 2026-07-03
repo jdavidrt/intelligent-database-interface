@@ -104,6 +104,14 @@ If/when a `progress` Zustand store lands (Step 3), this field moves there; until
 
 ---
 
+## Known Issues (post-implementation, 2026-07-02) — PENDING
+
+| # | Issue | Status |
+|---|---|---|
+| KI-1 | **Session restore only loads the questions, not the answers.** Reloading a session from `SessionLibrary` repopulates the chat with the user turns, but the assistant answers don't render. The restore path must be improved: check whether assistant turns are actually persisted/returned by `GET /session/{id}` (backend `append_turn` on the assistant side), and whether the frontend reconstruction (`queryStore.loadFromSession` → `AnswerPanel` `restored` branch) renders them when `sql`/`teaching_summary` come back null/empty. | **Pending** |
+
+---
+
 ## Gate D2 Verification
 
 1. `python start.py` → open the app.

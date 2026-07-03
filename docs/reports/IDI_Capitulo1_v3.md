@@ -482,6 +482,5 @@ Yu, T., Zhang, R., Yang, K., Yasunaga, M., Wang, D., Li, Z., ... y Radev, D. (20
 
 ────────────────────────────────────────────────────────────────────────
 
-Documento generado como parte del Trabajo de Grado — IDI (Intelligent Database Interface)
 Universidad Nacional de Colombia — Facultad de Ingeniería — Departamento de Sistemas e Industrial
 Período 2026-1S

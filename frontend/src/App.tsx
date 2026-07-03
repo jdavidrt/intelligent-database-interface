@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Header } from './components/Header';
-import { ChatBox, Message } from './components/ChatBox';
+import { useCallback, useEffect, useState } from 'react';
+import { Header, DrawerKind } from './components/Header';
+import { ChatBox } from './components/ChatBox';
 import { InputArea } from './components/InputArea';
 import { BenchmarksPage } from './components/BenchmarksPage';
-import { streamQuery, buildResultHTML, AgentEvent, QueryResult } from './utils/queryClient';
+import { Drawer } from './components/Drawer';
+import { SessionLibrary } from './components/SessionLibrary';
+import { DBProfileForm } from './components/DBProfileForm';
+import { useQueryStore } from './stores/queryStore';
+import { useDbProfileStore } from './stores/dbProfileStore';
 
 type Page = 'chat' | 'benchmarks';
 
@@ -34,76 +38,29 @@ function applyTheme(index: number) {
     localStorage.setItem('idi-theme', String(index));
 }
 
-const INITIAL_MESSAGE: Message = {
-    id: 'init',
-    role: 'bot',
-    content: '<p>Hello! How can I help you today?</p>',
-};
-
 export default function App() {
     const [page, setPage] = useState<Page>('chat');
     const [themeIndex, setThemeIndex] = useState<number>(loadThemeIndex);
-    const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
-    const [isWaiting, setIsWaiting] = useState(false);
-    const [progressEvents, setProgressEvents] = useState<AgentEvent[]>([]);
-    const abortControllerRef = useRef<AbortController | null>(null);
-    // Reused across turns so the pipeline gets multi-turn history + clarification replies.
-    const sessionIdRef = useRef<string | null>(null);
+    const [drawer, setDrawer] = useState<DrawerKind | null>(null);
+
+    const isWaiting = useQueryStore(s => s.isWaiting);
+    const send = useQueryStore(s => s.send);
+    const stop = useQueryStore(s => s.stop);
 
     useEffect(() => { applyTheme(themeIndex); }, [themeIndex]);
+
+    // Try the profile once on mount (404 is fine until the first query runs) —
+    // autocomplete and the DB Profile card both feed off it.
+    useEffect(() => {
+        void useDbProfileStore.getState().loadProfile();
+    }, []);
 
     const cycleTheme = useCallback(() => {
         setThemeIndex(prev => (prev + 1) % THEMES.length);
     }, []);
 
-    const pushBot = (content: string) =>
-        setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'bot', content }]);
-
-    const sendMessage = useCallback(async (userText: string) => {
-        setMessages(prev => [
-            ...prev,
-            { id: crypto.randomUUID(), role: 'user', content: userText },
-        ]);
-
-        setIsWaiting(true);
-        setProgressEvents([]);
-        abortControllerRef.current = new AbortController();
-
-        try {
-            let finalResult: QueryResult | null = null;
-            for await (const item of streamQuery(
-                userText, sessionIdRef.current, abortControllerRef.current.signal,
-            )) {
-                if (item.type === 'event') {
-                    setProgressEvents(prev => [...prev, item]);
-                } else {
-                    finalResult = item;
-                }
-            }
-
-            if (finalResult) {
-                sessionIdRef.current = finalResult.session_id;
-                pushBot(buildResultHTML(finalResult));
-            } else {
-                pushBot('<p>⚠️ The pipeline returned no result.</p>');
-            }
-        } catch (err: unknown) {
-            if (err instanceof Error && err.name === 'AbortError') {
-                pushBot('<p>⚠️ Request cancelled.</p>');
-            } else {
-                pushBot('<p>⚠️ Could not connect to the backend. Is it running on port 5000?</p>');
-            }
-        } finally {
-            setIsWaiting(false);
-            setProgressEvents([]);
-            abortControllerRef.current = null;
-        }
-    }, []);
-
-    const handleStop = useCallback(() => {
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
+    const toggleDrawer = useCallback((kind: DrawerKind) => {
+        setDrawer(prev => (prev === kind ? null : kind));
     }, []);
 
     return (
@@ -113,23 +70,33 @@ export default function App() {
                 onThemeCycle={cycleTheme}
                 page={page}
                 onPageChange={setPage}
+                drawer={drawer}
+                onDrawerToggle={toggleDrawer}
             />
 
             {page === 'chat' ? (
                 <>
-                    <ChatBox
-                        messages={messages}
-                        isWaiting={isWaiting}
-                        progressEvents={progressEvents}
-                    />
+                    <ChatBox />
                     <InputArea
                         isWaiting={isWaiting}
-                        onSend={sendMessage}
-                        onStop={handleStop}
+                        onSend={text => void send(text)}
+                        onStop={stop}
                     />
                 </>
             ) : (
                 <BenchmarksPage />
+            )}
+
+            {drawer === 'sessions' && (
+                <Drawer title="Session Library" onClose={() => setDrawer(null)}>
+                    <SessionLibrary onClose={() => setDrawer(null)} />
+                </Drawer>
+            )}
+
+            {drawer === 'profile' && (
+                <Drawer title="Database Map" onClose={() => setDrawer(null)}>
+                    <DBProfileForm />
+                </Drawer>
             )}
         </div>
     );

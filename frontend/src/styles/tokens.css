@@ -1,0 +1,159 @@
+/* ═══════════════════════════════════════════
+   DESIGN TOKENS — shared scales (theme-agnostic)
+   ═══════════════════════════════════════════ */
+
+:root {
+    /* spacing — 4px grid */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+
+    /* radii */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+
+    /* font scale (Outfit body) */
+    --font-xs: 0.78rem;
+    --font-sm: 0.9rem;
+    --font-md: 1rem;
+    --font-lg: 1.12rem;
+    --font-xl: 1.4rem;
+
+    /* z-index ladder */
+    --z-dropdown: 100;
+    --z-drawer: 200;
+
+    /* score bar colors — theme-agnostic */
+    --score-good: #4caf50;
+    --score-mid:  #ff9800;
+    --score-bad:  #f44336;
+}
+
+/* ═══════════════════════════════════════════
+   THEMES — variables per named palette
+   ═══════════════════════════════════════════ */
+
+/* Default ── Mystic Dusk */
+:root {
+    --body-bg: radial-gradient(circle at top left, #2d2b55, #22223b);
+    --card-bg: rgba(74, 78, 105, 0.45);
+    --primary: #c9ada7;
+    --primary-hover: #9a8c98;
+    --text: #f2e9e4;
+    --text-dim: #9a8c98;
+    --glass-border: rgba(201, 173, 167, 0.25);
+    --user-bubble: #4a4e69;
+    --bot-bubble: rgba(34, 34, 59, 0.75);
+    --header-grad: linear-gradient(to right, #c9ada7, #f2e9e4);
+    --input-bg: rgba(255, 255, 255, 0.06);
+    --input-bg-focus: rgba(255, 255, 255, 0.1);
+    --code-bg: rgba(0, 0, 0, 0.35);
+    --code-color: #c9ada7;
+    --scrollbar: rgba(201, 173, 167, 0.3);
+    --cursor-color: #c9ada7;
+    --send-text: #ffffff;
+    /* chart series — CVD-validated per theme (dataviz six checks) */
+    --chart-1: #c9675f;
+    --chart-2: #7678ed;
+    --chart-3: #3fa06e;
+}
+
+/* Desert Bloom */
+[data-theme="desert-bloom"] {
+    --body-bg: radial-gradient(circle at top right, #f2cc8f, #f4f1de);
+    --card-bg: rgba(255, 255, 255, 0.78);
+    --primary: #e07a5f;
+    --primary-hover: #c9674c;
+    --text: #3d405b;
+    --text-dim: #81b29a;
+    --glass-border: rgba(61, 64, 91, 0.18);
+    --user-bubble: #e07a5f;
+    --bot-bubble: rgba(242, 204, 143, 0.45);
+    --header-grad: linear-gradient(to right, #e07a5f, #f2cc8f);
+    --input-bg: rgba(0, 0, 0, 0.04);
+    --input-bg-focus: rgba(0, 0, 0, 0.07);
+    --code-bg: rgba(61, 64, 91, 0.07);
+    --code-color: #3d405b;
+    --scrollbar: rgba(224, 122, 95, 0.4);
+    --cursor-color: #e07a5f;
+    --send-text: #ffffff;
+    --chart-1: #c9674c;
+    --chart-2: #5b5fd4;
+    --chart-3: #2f8f5f;
+}
+
+/* Abyss */
+[data-theme="abyss"] {
+    --body-bg: radial-gradient(ellipse at bottom, #4d194d, #1b3a4b 55%, #006466);
+    --card-bg: rgba(11, 82, 91, 0.38);
+    --primary: #006466;
+    --primary-hover: #0b525b;
+    --text: #d4f0f0;
+    --text-dim: #5fa8a8;
+    --glass-border: rgba(0, 100, 102, 0.38);
+    --user-bubble: #065a60;
+    --bot-bubble: rgba(27, 58, 75, 0.85);
+    --header-grad: linear-gradient(to right, #5fe0e0, #b06ab3);
+    --input-bg: rgba(255, 255, 255, 0.05);
+    --input-bg-focus: rgba(255, 255, 255, 0.09);
+    --code-bg: rgba(0, 0, 0, 0.42);
+    --code-color: #5fe0e0;
+    --scrollbar: rgba(0, 100, 102, 0.5);
+    --cursor-color: #006466;
+    --send-text: #d4f0f0;
+    --chart-1: #1f9d9d;
+    --chart-2: #b06ab3;
+    --chart-3: #bf8420;
+}
+
+/* Neon Burst */
+[data-theme="neon-burst"] {
+    --body-bg: radial-gradient(circle at center, #4d2d8b, #3d348b 60%, #271d6a);
+    --card-bg: rgba(61, 52, 139, 0.55);
+    --primary: #f7b801;
+    --primary-hover: #f18701;
+    --text: #ffffff;
+    --text-dim: #b8a8ff;
+    --glass-border: rgba(118, 120, 237, 0.38);
+    --user-bubble: #7678ed;
+    --bot-bubble: rgba(243, 91, 4, 0.13);
+    --header-grad: linear-gradient(to right, #f7b801, #f35b04);
+    --input-bg: rgba(255, 255, 255, 0.06);
+    --input-bg-focus: rgba(255, 255, 255, 0.11);
+    --code-bg: rgba(0, 0, 0, 0.45);
+    --code-color: #f7b801;
+    --scrollbar: rgba(118, 120, 237, 0.5);
+    --cursor-color: #f7b801;
+    --send-text: #3d348b;
+    --chart-1: #d97706;
+    --chart-2: #7678ed;
+    --chart-3: #3fa06e;
+}
+
+/* Lavender Dream */
+[data-theme="lavender-dream"] {
+    --body-bg: radial-gradient(circle at bottom right, #ffd8be, #ffeedd 50%, #f8f7ff);
+    --card-bg: rgba(248, 247, 255, 0.88);
+    --primary: #9381ff;
+    --primary-hover: #7a68f0;
+    --text: #2d2b5e;
+    --text-dim: #9381ff;
+    --glass-border: rgba(147, 129, 255, 0.28);
+    --user-bubble: #9381ff;
+    --bot-bubble: rgba(184, 184, 255, 0.28);
+    --header-grad: linear-gradient(to right, #9381ff, #b8b8ff);
+    --input-bg: rgba(0, 0, 0, 0.04);
+    --input-bg-focus: rgba(0, 0, 0, 0.07);
+    --code-bg: rgba(147, 129, 255, 0.1);
+    --code-color: #2d2b5e;
+    --scrollbar: rgba(147, 129, 255, 0.42);
+    --cursor-color: #9381ff;
+    --send-text: #ffffff;
+    --chart-1: #7a68f0;
+    --chart-2: #c9674c;
+    --chart-3: #2e7fb8;
+}

@@ -1,0 +1,157 @@
+.card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    font-size: var(--font-sm);
+}
+
+.sectionTitle {
+    margin: 0 0 var(--space-2) 0;
+    font-size: var(--font-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+}
+
+.dbName {
+    margin: 0;
+    font-size: var(--font-lg);
+    font-weight: 600;
+}
+
+.domainText {
+    margin: var(--space-2) 0 0 0;
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+    line-height: 1.5;
+}
+
+.table {
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    background: var(--input-bg);
+    margin-bottom: var(--space-2);
+}
+
+.table summary {
+    padding: var(--space-2) var(--space-3);
+    cursor: pointer;
+    font-weight: 600;
+    list-style-position: inside;
+}
+
+.tableMeta {
+    font-weight: 400;
+    font-size: var(--font-xs);
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+    margin-left: var(--space-2);
+}
+
+.tableDesc {
+    margin: 0;
+    padding: 0 var(--space-3) var(--space-2);
+    font-size: var(--font-xs);
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+}
+
+.colTableWrap {
+    overflow-x: auto;
+    padding: 0 var(--space-3) var(--space-3);
+}
+
+.colTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-xs);
+}
+
+.colTable th,
+.colTable td {
+    text-align: left;
+    padding: var(--space-1) var(--space-2);
+    border-bottom: 1px solid var(--glass-border);
+    vertical-align: top;
+}
+
+.colTable th {
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+    font-weight: 600;
+}
+
+.badge {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    border-radius: var(--radius-sm);
+    padding: 0 var(--space-1);
+    margin-right: var(--space-1);
+    border: 1px solid var(--primary);
+    color: var(--primary);
+    -webkit-text-fill-color: var(--primary);
+}
+
+.badgeFk {
+    border-color: var(--text-dim);
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+}
+
+.colNote {
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+}
+
+.dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: minmax(100px, auto) 1fr;
+    gap: var(--space-1) var(--space-3);
+}
+
+.dl dt {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    word-break: break-all;
+}
+
+.dl dd {
+    margin: 0;
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+}
+
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin-top: var(--space-1);
+}
+
+.chip {
+    font-size: var(--font-xs);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-sm);
+    background: var(--input-bg);
+    padding: 1px var(--space-2);
+}
+
+.chipCol {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    margin-bottom: var(--space-1);
+}
+
+.codedGroup {
+    margin-bottom: var(--space-3);
+}
+
+.placeholder {
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+    font-style: italic;
+}

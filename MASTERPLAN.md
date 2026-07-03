@@ -58,8 +58,9 @@ The seven modules sit behind one FastAPI process; the orchestrator drives a dete
 
 ```
 React Frontend (CSS Modules + tokens, Zustand, Recharts)
-   QueryBuilder  Visualization  ProgressIndicator  SessionLibrary  DBProfileForm
-        │  REST + WebSocket (per-step progress)
+   InputArea(+autocomplete)  AnswerPanel(4 didactic panels)  Visualization
+   AgentProgress(+adapter badge)  SessionLibrary  DBProfileForm (read-only)
+        │  REST + NDJSON stream (per-agent progress; /ws live but unwired — Day 2 Delta 0)
         ▼
 FastAPI Backend
    Orchestrator  ──drives──▶  [1 Context Mgr] [2 Query Understanding]
@@ -101,11 +102,11 @@ backend/
     prompts/                # one template per agent
 frontend/
   src/
-    components/ QueryBuilder/ Visualization/ ProgressIndicator/
-                SessionLibrary/ DBProfileForm/
-    styles/ tokens.css + *.module.css
-    stores/                 # Zustand
-    services/ api.ts ws.ts
+    components/ AnswerPanel  Visualization  AgentProgress  InputArea(+autocomplete)
+                SessionLibrary  DBProfileForm  Drawer  ResultsTable  (+ chat MVP carryovers)
+    styles/ tokens.css + per-component *.module.css
+    stores/                 # Zustand: query, session, dbProfile, progress
+    services/ api.ts        # NDJSON stream + REST fetchers (no ws.ts — Day 2 Delta 0)
 adapters/                   # *.gguf pulled from Colab
 training/                   # Colab notebooks + data prep + lora_config
 data/ benchmarks/ synthetic/
@@ -201,17 +202,35 @@ This is the structural foundation the sprint builds on (your explicit priority: 
 
 > **Sandbox detachment (2026-07-02):** with Day 1 green, the frozen `sandbox/` was **deleted**. The GGUF model moved to `models/` (repo root, gitignored), `llama-server` resolves from winget/PATH, the live chat frontend was repointed to the agentic `/query` stream, and the `/chat` + `/benchmark` prompt context now comes from the `soundwave/` source files. See the Day 0 post-migration note above.
 
-### Day 2 — Frontend Rebuild (No Tailwind) & Visualization
+### Day 2 — Frontend Rebuild (No Tailwind) & Visualization ✅ COMPLETE — 2026-07-02
 
 *Goal: the didactic UI — a learner sees the reasoning, the schema, the chart, and the lesson.*
 
-- [ ] Styling foundation: `tokens.css` (port glass theme) + CSS Modules; small component kit (Button, Card, Dialog, Tabs). No Tailwind, no shadcn.
-- [ ] Zustand stores (query, session, db-profile, progress).
-- [ ] Components: `QueryBuilder` (keyword-guided), `ProgressIndicator` (WebSocket, per-agent steps), `Visualization` (Recharts, auto-selected), `SessionLibrary`, `DBProfileForm` (the characterization survey UI).
-- [ ] **Didactic layer**: each answer renders four panels — *What I understood*, *The SQL (highlighted)*, *Why this query* (join path + edge case), *Results + chart*. Reuse the existing `sqlHighlighter.ts` and `markdownRenderer.ts`.
-- [ ] End-to-end wire: NL → understanding → SQL → verify → execute (file connector) → results → auto-chart.
+> **As-built amendments (2026-07-02, full realignment record in `DAY2_PLAN.md`):** the sandbox
+> detachment had already left a working chat MVP in `frontend/src/`, so Day 2 was executed as an
+> evolve-in-place refactor, not a from-scratch build. Deltas vs the original step list:
+> **(0)** transport stayed **NDJSON streaming over `POST /query`** — `/ws` remains live on the
+> backend but unwired (cut-line #4 in §10 satisfied trivially); **(1)** `AgentProgress` gained the
+> **adapter badge** (`profile: <name>` / `base` from `payload.adapter`) — the same signal Day 3's
+> A/B harness reuses; **(2)** `DBProfileForm` ships **read-only** (the "map of the database" card);
+> the editable characterization survey defers to Day 4 when an unknown DB can first appear;
+> **(3)** `QueryBuilder` was **cut as a separate input mode** in favor of **inline autocomplete**
+> in the existing free-text box (curated synonyms + schema vocabulary mined from `GET /db/profile`);
+> **(4)** no formal component kit (Button/Card/Dialog/Tabs) — new components carry their own
+> `*.module.css` on the shared tokens instead; `index.css` migrates incrementally.
 
-**Gate D2**: a non-SQL user runs a query end-to-end in the browser, sees live per-agent progress, a rendered chart, and the plain-language "why". Bundle scan confirms no Tailwind artifacts. (Implementation reference: `legacydocs/DAY3_PLAN_v1.md` — carries over nearly verbatim.)
+- [x] Styling foundation: `styles/tokens.css` (shared scales + the 5 glass-theme palettes + CVD-validated `--chart-1/2/3` series colors) + per-component CSS Modules. No Tailwind, no shadcn.
+- [x] Zustand stores (query, session, db-profile, progress).
+- [x] Components: inline autocomplete in `InputArea` *(replaces `QueryBuilder`, amendment 3)*, `AgentProgress` with adapter badges *(NDJSON, amendments 0–1)*, `Visualization` (Recharts, heuristic-selected: stat tiles / line / bar / scatter, table always as complement), `SessionLibrary` (drawer), `DBProfileForm` (read-only drawer card, amendment 2).
+- [x] **Didactic layer**: each answer renders four panels — *What I understood*, *The SQL (highlighted)*, *Why this query* (rationale + 3-layer verification checklist), *Results + chart*. Reuses `sqlHighlighter.ts` and `markdownRenderer.ts`.
+- [x] End-to-end wire: NL → understanding → SQL → verify → execute (file connector) → results → auto-chart.
+
+**Gate D2**: ✅ PASSED — 2026-07-02 — a non-SQL user runs a query end-to-end in the browser, sees live per-agent progress with adapter badges, a rendered chart, and the plain-language "why" as distinct panels. Bundle scan: zero Tailwind artifacts.
+
+> **Known issue pending (KI-1, tracked in `DAY2_PLAN.md` §Known Issues):** restoring a session from
+> `SessionLibrary` loads only the user questions — the assistant answers don't render. The restore
+> path (assistant-turn persistence over `GET /session/{id}` and/or the frontend reconstruction in
+> `queryStore.loadFromSession`) must be improved.
 
 ### Day 3 — Instruction Registry, Hot-Swap Discipline & Evaluation
 

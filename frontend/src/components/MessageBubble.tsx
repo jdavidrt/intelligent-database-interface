@@ -1,24 +1,24 @@
-import { Metrics } from './ChatBox';
+import { Message } from '../stores/queryStore';
+import { AnswerPanel } from './AnswerPanel';
 
-interface MessageBubbleProps {
-    role: 'user' | 'bot';
-    /** For user messages: plain text. For bot messages: rendered HTML string. */
-    content: string;
-    metrics?: Metrics;
-}
-
-export function MessageBubble({ role, content, metrics }: MessageBubbleProps) {
-    if (role === 'user') {
+export function MessageBubble({ message }: { message: Message }) {
+    if (message.role === 'user') {
         return (
             <div className="message user-message">
-                {content}
+                {message.content}
             </div>
         );
     }
 
+    const { result, restored, content, metrics } = message;
+
     return (
         <div className="message bot-message">
-            <div dangerouslySetInnerHTML={{ __html: content }} />
+            {result ? (
+                <AnswerPanel result={result} restored={restored ?? false} />
+            ) : (
+                <div dangerouslySetInnerHTML={{ __html: content }} />
+            )}
             {metrics && (
                 <div className="message-metrics">
                     Time: {(metrics.timeMs / 1000).toFixed(2)}s |

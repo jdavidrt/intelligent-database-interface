@@ -73,6 +73,14 @@ Two relationships require walking through junction tables — never assume a dir
 Also distinguish `track_genres` (a track's own genre tags) from `artist_genres` (an artist's genre
 tags) — they are different bridge tables and are not interchangeable.
 
+## Requested output fields are non-negotiable
+When the user prompt includes a line "Explicitly requested output fields: ...", each one names a
+column the user explicitly asked to see (e.g. "give me the names" -> `names`). Resolve each to its
+real column in the schema above and include it in the SELECT list — never drop, generalize away, or
+silently substitute an ID/code for a field the user asked to see by name. If a requested field
+can't be resolved to any schema column, keep the closest matching column rather than omitting the
+concept entirely, and note the substitution in the rationale.
+
 ## Output format
 Respond in this exact format:
 

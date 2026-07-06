@@ -85,7 +85,12 @@ async def test_no_database_selected_yields_clean_error():
 
 
 async def test_clarification_branch_stops_before_sql_generation(wired_orchestrator, patched_llm):
-    patched_llm([AMBIGUOUS_INTENT_JSON, "Did you mean the artist's name or the album's name?"])
+    # "What is the name?" trips neither the SQL-signal nor meta-question heuristics,
+    # so the meta filter falls back to one LLM classification call ("NO") before intent
+    # parsing ever runs.
+    patched_llm(
+        ["NO", AMBIGUOUS_INTENT_JSON, "Did you mean the artist's name or the album's name?"]
+    )
 
     events, result = await _run_collect(wired_orchestrator, "What is the name?")
 
@@ -100,6 +105,31 @@ async def test_clarification_branch_stops_before_sql_generation(wired_orchestrat
 
     assert result is not None
     assert result.teaching_summary.startswith("**Clarification needed:**")
+
+
+async def test_meta_question_short_circuits_before_query_understanding(
+    wired_orchestrator, patched_llm
+):
+    # "What is this database about?" trips the meta-question heuristic directly, so
+    # only the answer-generation call is needed — no classification call, no intent
+    # parsing, no SQL generation.
+    patched_llm(["Soundwave is a music streaming database with artists, albums, and tracks."])
+
+    events, result = await _run_collect(wired_orchestrator, "What is this database about?")
+
+    assert not any(e.agent == "query_understanding" for e in events)
+    assert not any(e.agent == "sql_generator" for e in events)
+
+    clar_events = [e for e in events if e.agent == "clarification"]
+    assert any(e.status == "started" for e in clar_events)
+    done = next(e for e in clar_events if e.status == "done")
+    assert done.payload == {"meta_answer": True}
+
+    assert result is not None
+    assert result.teaching_summary == (
+        "Soundwave is a music streaming database with artists, albums, and tracks."
+    )
+    assert result.sql is None
 
 
 async def test_repair_loop_fixes_equals_null(wired_orchestrator, patched_llm):

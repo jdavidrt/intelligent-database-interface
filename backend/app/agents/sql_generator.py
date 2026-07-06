@@ -56,17 +56,25 @@ class SQLGenerator:
         context_passages = query_context(intent.raw_query, n_results=4)
         context_str = "\n".join(context_passages)
 
+        intent_lines = [
+            f"Schema:\n{schema_summary}",
+            f"Relevant context:\n{context_str}",
+            f"User intent: {intent.plain_restatement}",
+            f"Original query: {intent.raw_query}",
+        ]
+        if intent.requested_fields:
+            intent_lines.append(
+                "Explicitly requested output fields (MUST appear in the SELECT list, "
+                f"resolved against the schema above): {', '.join(intent.requested_fields)}"
+            )
+        if intent.entities:
+            intent_lines.append(f"Entities referenced: {', '.join(intent.entities)}")
+        if intent.filters:
+            intent_lines.append(f"Filters: {', '.join(intent.filters)}")
+
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": (
-                    f"Schema:\n{schema_summary}\n\n"
-                    f"Relevant context:\n{context_str}\n\n"
-                    f"User intent: {intent.plain_restatement}\n"
-                    f"Original query: {intent.raw_query}"
-                ),
-            },
+            {"role": "user", "content": "\n\n".join(intent_lines)},
         ]
 
         raw, self.last_meta = llm_service.chat_with_meta(messages, temperature=0.2)

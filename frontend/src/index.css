@@ -916,8 +916,8 @@ body {
 }
 
 .agent-step {
-    display: grid;
-    grid-template-columns: 18px minmax(120px, auto) 1fr;
+    display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
     gap: 8px;
     font-size: 0.8rem;
@@ -925,18 +925,23 @@ body {
 }
 
 .agent-step-icon {
+    flex: 0 0 18px;
     font-weight: 700;
     color: var(--text-dim);
     -webkit-text-fill-color: var(--text-dim);
 }
 
 .agent-step-label {
+    flex: 0 0 auto;
+    min-width: 120px;
     font-weight: 600;
     color: var(--text);
     -webkit-text-fill-color: var(--text);
 }
 
 .agent-step-msg {
+    flex: 1 1 200px;
+    min-width: 0;
     color: var(--text-dim);
     -webkit-text-fill-color: var(--text-dim);
     word-break: break-word;
@@ -944,6 +949,7 @@ body {
 
 /* Instruction-profile badge — which specialization answered this stage */
 .agent-step-adapter {
+    flex: 0 0 auto;
     font-size: var(--font-xs);
     font-family: 'Courier New', monospace;
     color: var(--text-dim);

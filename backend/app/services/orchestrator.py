@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, AsyncGenerator
 
-from backend.app.agents.clarification import Clarification
+from backend.app.agents.clarification import Clarification, MetaQuestionFilter
 from backend.app.agents.context_manager import ContextManager
 from backend.app.agents.query_understanding import QueryUnderstanding
 from backend.app.agents.sql_generator import SQLGenerator
@@ -34,6 +34,7 @@ class Orchestrator:
         self._verification: VerificationAgent | None = None
         self._query_understanding = QueryUnderstanding()
         self._clarification = Clarification()
+        self._meta_filter = MetaQuestionFilter()
         self._sql_generator = SQLGenerator()
 
     # -- database selection ----------------------------------------------------------
@@ -101,6 +102,18 @@ class Orchestrator:
             f"({len(self._db_profile.tables)} tables)",
             {"table_count": len(self._db_profile.tables)},
         )
+
+        # -- 1.5 Meta-question filter (non-SQL questions about the DB/system) ------------
+        if self._meta_filter.is_meta_question(query, self._db_profile):
+            yield self._ev(
+                sid, "clarification", "started", "Not a data question — answering directly…"
+            )
+            answer = self._meta_filter.answer(query, self._db_profile)
+            yield self._ev(sid, "clarification", "done", "Answered", {"meta_answer": True})
+            result.teaching_summary = answer
+            append_turn(sid, "assistant", result.teaching_summary)
+            yield result
+            return
 
         # -- 2. Query Understanding --------------------------------------------------
         qu_label = adapter_registry.activate("query_understanding")

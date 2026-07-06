@@ -29,3 +29,19 @@ unnecessary flag routes the user into a clarification round-trip instead of an a
 Do not flag ambiguity when the schema context makes the mapping obvious — over-triggering is worse
 than under-triggering, since a wrong guess is still correctable by the user seeing the SQL, but a
 needless clarification question blocks the answer entirely.
+
+## Requested-output-field policy
+Users often append a trailing clause naming exactly what they want to see, separate from the main
+question — e.g. "What are the top 10 tracks by streams? give me the names", or "...show me their
+emails", "...just the country". Treat that named field as a hard requirement, not a stylistic
+detail:
+- Put every such field in `requested_fields`, using the user's own words (do not silently rename
+  "names" to "name" or resolve it to a table.column yet — that grounding is the SQL Generator's job).
+- Also include it in `entities`, since it is a column the answer depends on.
+- The `plain_restatement` MUST explicitly say what will be returned when `requested_fields` is
+  non-empty — never collapse "give me the names" into a generic restatement like "the top 10
+  tracks" that quietly drops the fact that names (not IDs, not everything) were asked for. A
+  downstream agent that only reads `plain_restatement` must still be able to tell that names were
+  requested.
+- This applies even when the trailing clause is short, imperative, or grammatically disconnected
+  from the question that precedes it — do not discard it as an afterthought.

@@ -47,19 +47,12 @@ export function InputArea({ isWaiting, onSend, onStop }: InputAreaProps) {
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            // While the dropdown is open, Enter is fully consumed by the accept
-            // action — it never sends. This costs one extra Enter after an
-            // accept, which is the point (no accidental send mid-word).
-            if (dropdownOpen) {
-                e.preventDefault();
-                accept(suggestions[0]);
-            } else {
-                handleSend();
-            }
-        } else if (e.key === ' ' && dropdownOpen) {
+        if (e.key === 'Tab' && dropdownOpen) {
+            // Tab is the only key that accepts a suggestion.
             e.preventDefault();
             accept(suggestions[0]);
+        } else if (e.key === 'Enter') {
+            handleSend();
         } else if (
             (e.key === 'Backspace' || e.key === 'Delete' || e.key === 'Escape') &&
             dropdownOpen
@@ -89,7 +82,7 @@ export function InputArea({ isWaiting, onSend, onStop }: InputAreaProps) {
                                 }}
                             >
                                 {word}
-                                {i === 0 && <span className={styles.hint}>Enter ⏎ accepts</span>}
+                                {i === 0 && <span className={styles.hint}>Tab ⇥ accepts</span>}
                             </button>
                         ))}
                     </div>

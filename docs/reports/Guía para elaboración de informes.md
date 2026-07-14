@@ -116,6 +116,7 @@ Los defectos de forma erosionan la credibilidad de un contenido técnico sólido
 | Falta de conectores | Encadenar las ideas con puntuación y conectores adecuados ("[...] del trabajo de grado, **el cual corresponde al** análisis de requerimientos"). |
 | Tildes diacríticas | Distinguir "el/él", "si/sí", "mas/más", "solo/sólo" según corresponda. |
 | Inconsistencia de cifras | Las restricciones numéricas (VRAM, RAM, latencias, umbrales) deben ser idénticas en todo el documento y respecto a la propuesta. |
+| Puntuación tras el enunciado en listas y subtítulos | En todo ítem de lista o subtítulo que presente un enunciado seguido de su desarrollo, separar ambos con dos puntos (`:`) y continuar en minúscula, nunca con punto (`.`) y mayúscula. Ejemplo correcto: "OE4 — Análisis de resultados: evaluar el desempeño de IDI [...]". Ejemplo incorrecto: "OE4 — Análisis de resultados. Evaluar el desempeño de IDI [...]". |
 
 > Advertencia sobre el PDF: muchos defectos de encabezado y de tablas no viven en el archivo fuente (Markdown), sino que aparecen al **generar el PDF**. Tras cualquier corrección, regenerar el PDF y revisarlo página por página, no solo el fuente.
 
@@ -148,6 +149,7 @@ Marcar cada casilla antes de enviar el informe:
 - [ ] Cifras y restricciones coherentes en todo el documento y con la propuesta CADE.
 - [ ] Encabezados institucionales correctos en todas las páginas del PDF.
 - [ ] Sin tablas truncadas, sin bucles de texto, sin frases rotas.
+- [ ] Listas y subtítulos usan dos puntos y minúscula tras el enunciado (no punto y mayúscula).
 - [ ] PDF regenerado desde el fuente y revisado página por página.
 - [ ] (Documento final) Propuesta CADE anexada como apéndice.
 

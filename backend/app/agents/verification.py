@@ -66,7 +66,11 @@ class VerificationAgent:
         # Engine probe (SQLite EXPLAIN QUERY PLAN via the file connector today,
         # MySQL EXPLAIN on Day 4 — same protocol method).
         if not self._db.explain(sql):
-            return LayerResult(passed=False, message="Engine EXPLAIN rejected the query")
+            detail = getattr(self._db, "last_explain_error", None)
+            message = f"Engine EXPLAIN rejected the query: {detail}" if detail else (
+                "Engine EXPLAIN rejected the query"
+            )
+            return LayerResult(passed=False, message=message)
 
         return LayerResult(passed=True, message="Syntax valid (sqlglot + EXPLAIN)")
 

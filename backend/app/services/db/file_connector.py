@@ -52,8 +52,27 @@ class FileConnector:
             return
         self._conn = sqlite3.connect(":memory:", check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
+        self._register_mysql_functions(self._conn)
         self._load_sql_file(self._find_one("*_schema.sql"), keep_asts=True)
         self._load_sql_file(self._find_one("*_data.sql"))
+
+    @staticmethod
+    def _register_mysql_functions(conn: sqlite3.Connection) -> None:
+        """MySQL date functions that sqlglot leaves untranspiled for SQLite
+        (YEAR/MONTH/DAY/NOW as of sqlglot 30.x). Agents emit MySQL, so without
+        these any date-filtered query fails EXPLAIN and gets blocked by the
+        syntax-verification layer."""
+
+        def _part(value: Any, start: int, end: int) -> int | None:
+            s = str(value)
+            return int(s[start:end]) if value is not None and s[start:end].isdigit() else None
+
+        from datetime import datetime
+
+        conn.create_function("YEAR", 1, lambda v: _part(v, 0, 4), deterministic=True)
+        conn.create_function("MONTH", 1, lambda v: _part(v, 5, 7), deterministic=True)
+        conn.create_function("DAY", 1, lambda v: _part(v, 8, 10), deterministic=True)
+        conn.create_function("NOW", 0, lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
     def disconnect(self) -> None:
         if self._conn:
@@ -222,11 +241,18 @@ class FileConnector:
         return [dict(r) for r in rows]
 
     def explain(self, sql: str) -> bool:
-        """SQLite EXPLAIN QUERY PLAN as the no-execution syntax probe."""
+        """SQLite EXPLAIN QUERY PLAN as the no-execution syntax probe.
+
+        On failure the engine's actual error text is kept in
+        `last_explain_error` so the verification layer can report (and the
+        regeneration loop can correct) the real problem — e.g.
+        "no such column: t.artist_id" — instead of a generic rejection."""
         self.connect()
+        self.last_explain_error: str | None = None
         try:
             sql_lite = sqlglot.transpile(sql, read="mysql", write="sqlite")[0]
             self._conn.execute(f"EXPLAIN QUERY PLAN {sql_lite.rstrip(';')}")
             return True
-        except Exception:
+        except Exception as e:
+            self.last_explain_error = str(e)
             return False

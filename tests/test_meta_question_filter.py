@@ -48,6 +48,26 @@ def test_sql_signal_short_circuits_without_llm_call(patched_llm):
     assert f.is_meta_question("How many tracks are there?", make_profile()) is False
 
 
+def test_data_shaped_interrogative_short_circuits_without_llm_call(patched_llm):
+    # Regression test for the EC-04 benchmark failure: "Which genres have subgenres?"
+    # used to fall through to the LLM fallback, which misclassified it as a meta
+    # question — the pipeline answered with a system description instead of SQL.
+    patched_llm([])  # any chat() call would raise "ran out of canned responses"
+    f = MetaQuestionFilter()
+    profile = make_profile()
+    assert f.is_meta_question("Which genres have subgenres?", profile) is False
+    assert f.is_meta_question("What plans include high-fidelity audio?", profile) is False
+    assert f.is_meta_question("Which playlists contain tracks by Adele?", profile) is False
+
+
+def test_db_identity_nouns_still_reach_meta_regex(patched_llm):
+    # The data-interrogative SQL signal must not steal DB-identity phrasings from
+    # _META_RE — "which database..." stays a meta question.
+    patched_llm([])
+    f = MetaQuestionFilter()
+    assert f.is_meta_question("Which database has my data?", make_profile()) is True
+
+
 def test_meta_regex_short_circuits_without_llm_call(patched_llm):
     patched_llm([])
     f = MetaQuestionFilter()

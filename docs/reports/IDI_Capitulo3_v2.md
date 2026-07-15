@@ -45,7 +45,7 @@ Implementado. El agente se alimenta de una base de datos SQLite en memoria const
 
 Implementado (Día 1), con perfil de instrucción especializado (`backend/app/prompts/clarification.md`) ajustado en el Día 3 contra los casos EC-01…EC-08.
 
-Durante la fase de endurecimiento (Día 4) se añadió una salvaguarda de enrutamiento de consultas (commit `8cd337b`, 2026-07-06), cuyo diseño se documenta en el Capítulo 2 (§2.5): antes de que una pregunta llegue al parseo de intención y a la generación de SQL, un filtro basado en lista de permitidos (allowlist) determina si la pregunta se relaciona con la base de datos activa (vocabulario del dominio derivado del `DBProfile`) o si constituye una pregunta de conocimiento SQL. Las preguntas meta sobre el sistema o la base de datos se responden por una ruta separada, siempre fundamentada en hechos actuales del `DBProfile`; las preguntas personales o fuera de tema reciben una redirección cortés sin invocar el pipeline NL2SQL. La salvaguarda está cubierta por pruebas offline (`tests/test_meta_question_filter.py`, `tests/test_query_understanding.py`).
+Durante la fase de endurecimiento (Día 4) se añadió una salvaguarda de enrutamiento de consultas (commit `8cd337b`, 2026-07-06), cuyo diseño se documenta en el Capítulo 2 (§2.5): antes de que una pregunta llegue al parseo de intención y a la generación de SQL, un filtro basado en lista de permitidos (allowlist) determina si la pregunta se relaciona con la base de datos activa (vocabulario del dominio derivado del `DBProfile`) o si constituye una pregunta de conocimiento SQL. Las preguntas sobre el sistema o la base de datos seleccionada se responden por una ruta separada — las respuestas de la base de datos seleccionada —, siempre fundamentada en hechos actuales del `DBProfile`; las preguntas no relevantes para bases de datos quedan fuera del propósito de IDI y reciben una redirección cortés sin invocar el pipeline NL2SQL. La salvaguarda está cubierta por pruebas offline (`tests/test_meta_question_filter.py`, `tests/test_query_understanding.py`).
 
 [PENDIENTE: evidencia de las tres categorías de ambigüedad (temporal, de entidad, de métrica) siendo correctamente detectadas.]
 
@@ -96,7 +96,7 @@ Implementado (Día 3): `adapters/registry.json` + `backend/app/services/adapter_
 
 3.9. RECONSTRUCCIÓN DEL FRONTEND
 
-Implementado (Día 2): respuestas didácticas de 4 paneles, badges de adaptador, autocompletado inline, `SessionLibrary` + drawer de perfil de BD, Zustand stores, `styles/tokens.css`, sin artefactos de Tailwind. Landing screen de selección de base de datos (`DatabaseSelector.tsx`) añadida en la restructuración multi-base de datos. La respuesta de 4 paneles es el vehículo principal del propósito didáctico en la interfaz: la misma respuesta que el ejecutivo lee como insight, el aprendiz la lee como lección (qué se entendió, qué SQL se construyó, qué resultado produjo y cómo se visualiza).
+Implementado (Día 2): respuestas didácticas de 4 paneles, etiquetas de perfil activo, autocompletado inline, `SessionLibrary` + drawer de perfil de BD, Zustand stores, `styles/tokens.css`, sin artefactos de Tailwind. Landing screen de selección de base de datos (`DatabaseSelector.tsx`) añadida en la restructuración multi-base de datos. La respuesta de 4 paneles es el vehículo principal del propósito didáctico en la interfaz: la misma respuesta que el ejecutivo lee como insight, el aprendiz la lee como lección (qué se entendió, qué SQL se construyó, qué resultado produjo y cómo se visualiza).
 
 [PENDIENTE: capturas de pantalla del frontend actual — reemplazan las capturas del sandbox del Capítulo 1.]
 
@@ -120,7 +120,7 @@ El Capítulo 1 (§1.6) asignó un requerimiento didáctico a cada uno de los sie
 | Verification | Explicación conceptual de los fallos que llegan al usuario | [PENDIENTE: evidencia; los fallos auto-corregidos no se exponen, por la política silenciosa de UC-06] |
 | Visualization Engine | Justificación de la elección del tipo de gráfico | [PENDIENTE: verificación en el panel de visualización] |
 | Session Manager | Sesiones marcables como "ruta de aprendizaje" exportable | Pendiente — bloqueado parcialmente por KI-1 (§3.6) |
-| Orchestrator | Trazabilidad de fase y agente activo | Implementado (Día 3): etiqueta del perfil en el evento `"started"` + badges de adaptador en el frontend |
+| Orchestrator | Trazabilidad de fase y agente activo | Implementado (Día 3): etiqueta del perfil en el evento `"started"` + etiquetas de perfil activo en el frontend |
 
 
 3.12. ESTADO DE AVANCE Y PROBLEMAS CONOCIDOS
@@ -143,7 +143,7 @@ El Capítulo 1 (§1.6) asignó un requerimiento didáctico a cada uno de los sie
 
 3.13. CONCLUSIONES DEL CAPÍTULO
 
-[PENDIENTE — redactar al cierre, con al menos una conclusión rotulada "(aporta a OE3)". Candidata evidente a partir de este esqueleto: el requerimiento didáctico transversal se implementó sin módulos adicionales — donde está implementado, viaja dentro de los contratos existentes (4 paneles, badges, drawer), validando la decisión de diseño del Capítulo 2 (§2.2).]
+[PENDIENTE — redactar al cierre, con al menos una conclusión rotulada "(aporta a OE3)". Candidata evidente a partir de este esqueleto: el requerimiento didáctico transversal se implementó sin módulos adicionales — donde está implementado, viaja dentro de los contratos existentes (4 paneles, etiquetas de perfil, drawer), validando la decisión de diseño del Capítulo 2 (§2.2).]
 
 
 3.14. RECOMENDACIONES

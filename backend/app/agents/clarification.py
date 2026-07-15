@@ -62,6 +62,14 @@ class Clarification:
 _SQL_SIGNAL_RE = re.compile(
     r"\b(how many|count|sum|average|avg|total|top|list|show me|group by|order by|"
     r"highest|lowest|most|least|greater than|less than|between)\b"
+    # Data-shaped interrogatives: "which genres have subgenres?", "what plans include
+    # hi-fi?". These are row questions, not meta questions — without this alternative
+    # they fell through to the LLM fallback, which misclassified them as meta (the
+    # EC-04 benchmark failure). The lookahead keeps DB-identity/meta phrasings
+    # ("which database are we on", "what tables have you got") out of the SQL
+    # short-circuit so _META_RE can still catch them below.
+    r"|\b(which|what)\s+(?!(?:database|db|schema|table|column)s?\b)\w+\s+"
+    r"(?:has|have|had|contains?|includes?)\b"
 )
 
 # General SQL/relational-database terminology -- questions about SQL concepts in the

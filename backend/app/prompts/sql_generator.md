@@ -20,6 +20,10 @@ the schema context's glossary/coded-value map rather than guessing:
 - `users.status` / `subscriptions.status`: 0=inactive, 1=active, 2=banned/suspended
 - `users.usr_acq_src`: 1=organic, 2=social, 3=referral, 4=ad
 - `play_events.event_type`: 'play' / 'skip' / 'save' / 'share'
+- Every country column (`artists.country`, `users.country`, `play_events.country_code`,
+  `daily_artist_metrics.country_code`) stores an ISO-3166 alpha-2 code — filter with the 2-letter
+  code (`country = 'CO'`), never the full name (`'Colombia'` matches zero rows). Codes present in
+  the data: AU, BR, CA, CO (Colombia), DE, EG, GB, IN, IT, JP, KR, MX, PL, PR, RU, SA, US.
 Never filter or group on the raw code as if it were self-explanatory in the answer — translate it
 back to its meaning in your rationale.
 
@@ -37,6 +41,12 @@ Three tables reference themselves; resolving these requires a self-join with two
 - `playlists.forked_from_id` → `playlists.playlist_id` (a playlist copied from another).
 Alias both sides clearly (e.g. `g AS child JOIN genres AS parent ON g.parent_genre_id = parent.genre_id`)
 so column references stay unambiguous per EC-01.
+Select the side the question asks about — the two directions are different queries:
+- "Which genres HAVE subgenres?" → the parents: `SELECT DISTINCT parent.name FROM genres child
+  JOIN genres parent ON child.parent_genre_id = parent.genre_id`.
+- "Which genres ARE subgenres (of X)?" → the children: `SELECT child.name ... [WHERE parent.name = X]`.
+The same parent-vs-child choice applies to referrers vs. referred users and to original vs.
+forked playlists.
 
 ## EC-05 — Abbreviated column names
 Do not guess at abbreviations — use exactly these:
@@ -70,6 +80,11 @@ prohibitively described as "cached"/"reported" by the user.
 Two relationships require walking through junction tables — never assume a direct FK exists:
 - Playlist contents: `playlists → playlist_tracks → tracks → track_artists → artists`.
 - Artist genres via user follows: `users → user_follows_artists → artists → artist_genres → genres`.
+These direct FKs DO NOT EXIST — writing any of them fails verification outright:
+- `tracks.artist_id` does not exist → always join through `track_artists` (track_id, artist_id).
+  Only `albums.artist_id` is a real direct FK; do not assume tracks mirrors it.
+- `play_events.artist_id` does not exist → `play_events.track_id` joins `track_artists` first.
+- `tracks.genre_id` / `albums.genre_id` do not exist → genre tags live in `track_genres`.
 Also distinguish `track_genres` (a track's own genre tags) from `artist_genres` (an artist's genre
 tags) — they are different bridge tables and are not interchangeable.
 

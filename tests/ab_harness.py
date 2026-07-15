@@ -20,7 +20,7 @@ import time
 from datetime import date
 
 sys.path.insert(0, os.path.dirname(__file__))
-from gate_d1 import PROBES, run_query  # noqa: E402
+from gate_d1 import PROBES, run_query, select_db  # noqa: E402
 
 REGISTRY_PATH = os.path.join(os.path.dirname(__file__), "..", "adapters", "registry.json")
 REPORT_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "benchmarks")
@@ -41,6 +41,7 @@ def _keyword_hit(probe: dict, result: dict) -> bool | None:
 
 def _run_all_probes(label: str) -> dict:
     print(f"\n--- Run {label} ---")
+    select_db()
     verdicts = []
     latencies = []
     for probe in PROBES:

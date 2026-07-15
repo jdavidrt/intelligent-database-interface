@@ -1,0 +1,8 @@
+1. WTF is badges
+2. Vamos a mejorar el segundo diagrama, el de pipeline agéntico vamos a dejar la parte de salidas anticipadas (sin generar SQL) en la arte izquierda del gráfico ,para dar a entender que hacia la deracha avanza el proceso de manera correcta, también puedes hacer que el gráfico crezca de manera vertical y no horizontal para mejorar su legibilidad en un docuemnto de word
+ vamos a cambiar el término de salidas anticipadas por "Respuestas fuera del propóito de IDI"
+no vamos a decir off topic o pregunta meta, si no, pregunta relevante para bases de datos?
+y vamos a agregar un cuadro diferente para cuando el sistema empieza a hacer una clarificación al usuario sobre sobre si la pregunta está bien formulada o sobre , en ese mismo debe ir lo de "Respuestas meta anclada" pero lo vamos a llamar, "REspestas de la base de datos seleccionada" 
+vamos sumprimir "Más" gráfico automático, solo gráfico automático basta, 
+debes aplicar estas corrrecciones al segundo gráfico svg pero también a todo el documento @idi
+alguna pregunta?

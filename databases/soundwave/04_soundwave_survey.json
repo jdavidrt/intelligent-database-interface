@@ -5,20 +5,42 @@
     "is_exp": "is explicit content (1=yes, 0=no)",
     "is_prim": "is primary artist on a track (1=yes, 0=no)",
     "usr_acq_src": "user acquisition source code",
-    "trk_position_ms": "playback position in milliseconds"
+    "trk_position_ms": "playback position in milliseconds",
+    "subscription_plans.has_hifi": "plan includes high-fidelity / lossless / hi-fi audio (1=yes, 0=no) — 'high-fidelity audio' questions filter this column, it is NOT a genre or track attribute",
+    "subscription_plans.has_downloads": "plan includes offline downloads (1=yes, 0=no)",
+    "artists.country": "ISO-3166 alpha-2 country code, e.g. 'CO' for Colombia, 'US' for United States — never the full country name",
+    "users.country": "ISO-3166 alpha-2 country code, e.g. 'CO' for Colombia, 'US' for United States — never the full country name",
+    "play_events.country_code": "ISO-3166 alpha-2 code of where the event fired — distinct from users.country (VPN/travel)",
+    "daily_artist_metrics.country_code": "ISO-3166 alpha-2 country code, part of the composite primary key"
   },
   "coded_value_maps": {
     "plan_type": {
       "1": "Free",
-      "2": "Individual Premium",
-      "3": "Student Premium",
-      "4": "Family Premium"
+      "2": "Student",
+      "3": "Individual",
+      "4": "Family"
     },
     "usr_acq_src": {
       "1": "organic",
-      "2": "referral",
-      "3": "paid_ad",
-      "4": "social"
+      "2": "social",
+      "3": "referral",
+      "4": "ad"
+    },
+    "users.status": {
+      "0": "inactive",
+      "1": "active",
+      "2": "banned"
+    },
+    "subscriptions.status": {
+      "0": "inactive",
+      "1": "active",
+      "2": "suspended"
+    },
+    "event_type": {
+      "play": "play",
+      "skip": "skip",
+      "save": "save",
+      "share": "share"
     }
   },
   "source_of_truth": {

@@ -1,0 +1,8 @@
+{
+  "name": "working-style",
+  "version": "1.0.0",
+  "description": "Core working-style rules: think first, edit over rewrite, test before done, no fluff.",
+  "author": {
+    "name": "davidrt"
+  }
+}

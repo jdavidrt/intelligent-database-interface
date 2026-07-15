@@ -203,6 +203,37 @@ class Orchestrator:
                 candidate = repaired_candidate
                 result.sql = candidate
 
+        if not verify.overall_passed:
+            # One regeneration attempt: feed the failing layer's message (which now
+            # carries the engine's real error, e.g. "no such column: t.artist_id")
+            # back to the SQL Generator. A single bad generation must not be fatal
+            # when the verifier can say exactly what was wrong with it.
+            failure_msgs = "; ".join(
+                layer.message
+                for layer in (verify.syntax, verify.semantic, verify.sanity)
+                if layer and not layer.passed and not layer.message.startswith("Skipped")
+            )
+            yield self._ev(
+                sid,
+                "verification",
+                "progress",
+                f"Verification failed ({failure_msgs}) — regenerating SQL once…",
+            )
+            adapter_registry.activate("sql_generator")
+            try:
+                feedback = f"Rejected SQL:\n{candidate.sql}\nReason: {failure_msgs}"
+                regenerated = self._sql_generator.generate(
+                    intent, self._db_profile, feedback=feedback
+                )
+                adapter_registry.activate("verification")
+                reverify = self._verification.verify(regenerated, self._db_profile)
+                if reverify.overall_passed:
+                    candidate = regenerated
+                    result.sql = candidate
+                    verify = reverify
+            except Exception as e:
+                yield self._ev(sid, "verification", "progress", f"Regeneration failed: {e}")
+
         result.verify = verify
         if not verify.overall_passed:
             yield self._ev(

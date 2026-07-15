@@ -51,7 +51,9 @@ class SQLGenerator:
     def __init__(self) -> None:
         self.last_meta: dict | None = None
 
-    def generate(self, intent: Intent, profile: DBProfile) -> SqlCandidate:
+    def generate(
+        self, intent: Intent, profile: DBProfile, feedback: str | None = None
+    ) -> SqlCandidate:
         schema_summary = _build_schema_summary(profile)
         context_passages = query_context(intent.raw_query, n_results=4)
         context_str = "\n".join(context_passages)
@@ -71,6 +73,13 @@ class SQLGenerator:
             intent_lines.append(f"Entities referenced: {', '.join(intent.entities)}")
         if intent.filters:
             intent_lines.append(f"Filters: {', '.join(intent.filters)}")
+        if feedback:
+            intent_lines.append(
+                "IMPORTANT — your previous attempt was rejected by the verification "
+                f"layer:\n{feedback}\n"
+                "Generate a corrected query. Every table and column you reference must "
+                "appear in the schema above — do not repeat the rejected pattern."
+            )
 
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},

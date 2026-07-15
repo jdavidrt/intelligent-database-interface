@@ -59,6 +59,13 @@ PROBES = [
 ]
 
 
+def select_db(db_name: str = "soundwave") -> None:
+    """Select the target database — required since the multi-DB restructure
+    (2026-07-03): /query errors out unless POST /db/select ran first."""
+    resp = requests.post(f"{BASE_URL}/db/select", json={"db_name": db_name}, timeout=120)
+    resp.raise_for_status()
+
+
 def run_query(query: str) -> tuple[dict, list]:
     resp = requests.post(
         f"{BASE_URL}/query",
@@ -83,6 +90,7 @@ def main():
     failed = 0
 
     print(f"\nGate D1 — Running {len(PROBES)} edge-case probes\n{'='*60}")
+    select_db()
 
     for probe in PROBES:
         ec = probe["ec"]

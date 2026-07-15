@@ -33,7 +33,7 @@ import sys
 from datetime import date, datetime
 
 sys.path.insert(0, os.path.dirname(__file__))
-from gate_d1 import PROBES, run_query  # noqa: E402
+from gate_d1 import PROBES, run_query, select_db  # noqa: E402
 
 REPORT_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "benchmarks")
 
@@ -81,8 +81,12 @@ _EC04_GENRES = {"pop", "rock", "hip-hop", "latin", "r&b", "electronic"}
 
 def _check_ec04(result: dict) -> str | None:
     """Genres referenced as some other genre's parent_genre_id: Pop, Rock,
-    Hip-Hop, Latin, R&B, Electronic (Jazz and Classical have none)."""
+    Hip-Hop, Latin, R&B, Electronic (Jazz and Classical have none).
+    Exactly 6 rows: a superset (e.g. every genre that merely has tracks)
+    means the SQL answered a different question and passed by inclusion."""
     rows = result.get("rows") or []
+    if len(rows) != 6:
+        return f"expected exactly 6 rows (the 6 parent genres), got {len(rows)}"
     names = {str(v).lower() for row in rows for v in row.values() if isinstance(v, str)}
     missing = {g for g in _EC04_GENRES if not any(g in n for n in names)}
     if missing:
@@ -106,10 +110,12 @@ def _check_ec05(result: dict) -> str | None:
 
 
 def _check_ec06(result: dict) -> str | None:
-    """pricing_history row (plan_id=3, 9.99, '2024-01-01', NULL) is current."""
+    """pricing_history row (plan_id=3, 9.99, '2024-01-01', NULL) is current.
+    Exactly one row: 'current price' means the open-ended SCD row only — a
+    multi-row result is the full price history, i.e. the EC-06 trap itself."""
     rows = result.get("rows") or []
-    if not rows:
-        return "expected at least 1 row with the current price"
+    if len(rows) != 1:
+        return f"expected exactly 1 row (the current price), got {len(rows)}"
     values = [v for row in rows for v in row.values() if isinstance(v, (int, float))]
     if not any(abs(v - 9.99) < 0.001 for v in values):
         return f"expected price 9.99, got {values}"
@@ -117,7 +123,14 @@ def _check_ec06(result: dict) -> str | None:
 
 
 def _check_ec08(result: dict) -> str | None:
-    """No artist named 'Adele' exists in soundwave_db -> correct answer is 0 rows."""
+    """No artist named 'Adele' exists in soundwave_db -> correct answer is 0 rows.
+    The 0 rows must come from an actually-executed query: a verification-blocked
+    query also reports 0 rows, and treating that as a pass is a false positive."""
+    verify = result.get("verify") or {}
+    if not verify.get("overall_passed"):
+        return "query never executed (verification failed) — 0 rows is not a real answer"
+    if result.get("error"):
+        return f"pipeline error: {result['error']}"
     row_count = result.get("row_count", 0)
     if row_count != 0:
         return f"expected 0 rows (no artist named 'Adele' in soundwave_db), got {row_count}"
@@ -177,6 +190,7 @@ def _tokens_per_sec(events: list[dict]) -> float | None:
 
 def main() -> None:
     print(f"\nEvaluation — running {len(PROBES)} EC probes\n{'='*60}")
+    select_db()
 
     per_stage_latencies: dict[str, list[float]] = {}
     per_probe = []
@@ -196,9 +210,25 @@ def main() -> None:
             per_stage_latencies.setdefault(agent, []).append(ms)
         tps = _tokens_per_sec(events)
 
-        entry = {"ec": ec, **accuracy, "stage_latencies_ms": stages, "tokens_per_sec": tps}
+        sql = (result.get("sql") or {}).get("sql")
+        entry = {
+            "ec": ec,
+            **accuracy,
+            "sql": sql,
+            "row_count": result.get("row_count", 0),
+            "ended_in_clarification": "clarification" in stages and sql is None,
+            "pipeline_error": result.get("error"),
+            "stage_latencies_ms": stages,
+            "tokens_per_sec": tps,
+        }
         per_probe.append(entry)
         print(f"[{ec}] accuracy={accuracy['accuracy']:<11} " f"tokens/sec={tps}  stages={stages}")
+        if entry["pipeline_error"]:
+            print(f"[{ec}] pipeline error: {entry['pipeline_error']}")
+        elif entry["ended_in_clarification"]:
+            print(f"[{ec}] pipeline ended in clarification — no SQL generated")
+        else:
+            print(f"[{ec}] rows={entry['row_count']}  sql={sql}")
 
     mean_stage_latency = {
         agent: round(sum(vals) / len(vals)) for agent, vals in per_stage_latencies.items()
@@ -230,11 +260,17 @@ def main() -> None:
             f"Accuracy: {accuracy_summary['passed']}/{accuracy_summary['scored']} "
             f"scored probes passed ({accuracy_summary['not_scored']} not scored)\n\n"
         )
-        f.write("| EC | Accuracy | Detail | Tokens/sec |\n|---|---|---|---|\n")
+        f.write(
+            "| EC | Accuracy | Detail | Rows | Clarified? | Tokens/sec | SQL |\n"
+            "|---|---|---|---|---|---|---|\n"
+        )
         for p in per_probe:
+            sql_cell = (p.get("sql") or "").replace("\n", " ").replace("|", "\\|")
             f.write(
                 f"| {p['ec']} | {p['accuracy']} | {p.get('detail') or ''} | "
-                f"{p.get('tokens_per_sec')} |\n"
+                f"{p.get('row_count', '')} | "
+                f"{'yes' if p.get('ended_in_clarification') else 'no'} | "
+                f"{p.get('tokens_per_sec')} | `{sql_cell}` |\n"
             )
         f.write("\n## Mean latency per stage (ms)\n\n")
         for agent, ms in mean_stage_latency.items():

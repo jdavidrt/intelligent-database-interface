@@ -268,6 +268,11 @@ This is the structural foundation the sprint builds on (your explicit priority: 
 
 Colab + Unsloth per §8. Each trained adapter lands as `adapters/<agent>.gguf`; flipping the registry entry from `prompt:` to `gguf:` activates it. The Day 3 A/B report is the baseline it must beat.
 
+### Pending backlog (tracked, not yet scheduled — added 2026-07-14)
+
+- [ ] **Sanity-layer rejection thresholds**: formalize the result-plausibility rejection thresholds of the verification chain's sanity layer, and calibrate them during the formal evaluation (OE4). Currently the layer enforces read-only + DDL/DML blocking; plausibility checks have no formal thresholds.
+- [ ] **Didactic wait phrases**: show rotating phrases/facts about databases in the frontend while the pipeline is answering. UX decision: we do not estimate remaining time — a slow answer is acceptable if the wait itself teaches.
+
 ---
 
 ## 6. DB Auto-Exploration & Characterization Forms

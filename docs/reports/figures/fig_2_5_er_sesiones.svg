@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="470" viewBox="0 0 780 470" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="780" height="470" fill="#ffffff"/>
+  <text x="390" y="30" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">Modelo de datos de sesiones (data/sessions.db — SQLite)</text>
+  <text x="390" y="50" text-anchor="middle" font-size="12" fill="#64748b">memoria episódica: qué se conversó en cada sesión — una sesión contiene N turnos</text>
+
+  <!-- sessions entity -->
+  <rect x="60" y="110" width="280" height="140" rx="8" fill="#ffffff" stroke="#4338ca" stroke-width="1.8"/>
+  <rect x="60" y="110" width="280" height="30" rx="8" fill="#eef2ff" stroke="#4338ca" stroke-width="1.8"/>
+  <rect x="60" y="132" width="280" height="8" fill="#eef2ff"/>
+  <text x="200" y="130" text-anchor="middle" font-size="12.5" font-weight="700" fill="#312e81">sessions</text>
+  <text x="75" y="160" font-size="10.5" font-weight="700" fill="#1e293b">session_id · TEXT · PK</text>
+  <text x="75" y="182" font-size="10.5" fill="#475569">created_at · TEXT · NOT NULL</text>
+  <text x="75" y="204" font-size="10.5" fill="#475569">updated_at · TEXT · NOT NULL</text>
+  <text x="75" y="226" font-size="10.5" fill="#475569">db_name · TEXT — base de datos activa</text>
+  <text x="75" y="245" font-size="10.5" fill="#475569">title · TEXT — título de la investigación</text>
+
+  <!-- turns entity -->
+  <rect x="440" y="90" width="290" height="194" rx="8" fill="#ffffff" stroke="#059669" stroke-width="1.8"/>
+  <rect x="440" y="90" width="290" height="30" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="1.8"/>
+  <rect x="440" y="112" width="290" height="8" fill="#ecfdf5"/>
+  <text x="585" y="110" text-anchor="middle" font-size="12.5" font-weight="700" fill="#065f46">turns</text>
+  <text x="455" y="140" font-size="10.5" font-weight="700" fill="#1e293b">turn_id · TEXT · PK</text>
+  <text x="455" y="162" font-size="10.5" font-weight="700" fill="#1e293b">session_id · TEXT · FK → sessions</text>
+  <text x="455" y="184" font-size="10.5" fill="#475569">created_at · TEXT · NOT NULL</text>
+  <text x="455" y="206" font-size="10.5" fill="#475569">role · TEXT — 'user' | 'assistant'</text>
+  <text x="455" y="228" font-size="10.5" fill="#475569">content · TEXT — pregunta o respuesta final</text>
+  <text x="455" y="250" font-size="10.5" fill="#475569">sql · TEXT — SQL generado (nullable)</text>
+  <text x="455" y="272" font-size="10.5" fill="#475569">rows_json · TEXT — muestra de filas (nullable)</text>
+
+  <!-- relationship -->
+  <line x1="340" y1="180" x2="440" y2="180" stroke="#475569" stroke-width="1.5"/>
+  <text x="352" y="172" font-size="10.5" font-weight="700" fill="#334155">1</text>
+  <text x="422" y="172" font-size="10.5" font-weight="700" fill="#334155">N</text>
+  <text x="390" y="198" text-anchor="middle" font-size="10.5" font-style="italic" fill="#64748b">contiene</text>
+
+  <!-- notes -->
+  <rect x="60" y="320" width="670" height="80" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2"/>
+  <text x="75" y="343" font-size="10.5" fill="#475569">· Índice: idx_turns_session(session_id) — recuperación eficiente de los turnos de una sesión.</text>
+  <text x="75" y="363" font-size="10.5" fill="#475569">· sql y rows_json solo se pueblan en turnos del asistente: una sesión restaurada puede reconstruir la lección completa.</text>
+  <text x="75" y="383" font-size="10.5" fill="#475569">· La base se crea (o auto-repara vacía) en el arranque del backend — cero servicios que instalar.</text>
+
+  <text x="390" y="440" text-anchor="middle" font-size="10.5" fill="#94a3b8">Figura 2.5 — Modelo entidad-relación de data/sessions.db. Fuente: backend/app/services/memory/sessions.py (elaboración propia).</text>
+</svg>

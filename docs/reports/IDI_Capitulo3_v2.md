@@ -5,7 +5,7 @@ Universidad Nacional de Colombia
 Autor: Juan David Ramírez Torres (jdramirezt@unal.edu.co)
 Período: 2026-1S (Febrero 2 – Mayo 30, 2026)
 
-> **[ESQUELETO / DEMO — v2]** Armazón estructural para el Capítulo 3. La v2 alinea el capítulo con la actualización del Capítulo 1 (propósito didáctico como identidad principal del proyecto; 62 RF con 7 requerimientos didácticos transversales; auto-corrección silenciosa por UC-06), incorpora el trabajo de endurecimiento del Día 4 ya comprometido (salvaguarda de filtrado de consultas, commit `8cd337b`, 2026-07-06) y añade una sección de estado del requerimiento didáctico por módulo (3.11). Las secciones `[PENDIENTE]` requieren redacción, capturas de pantalla o evidencia de ejecución que aún no se han producido. El contenido no marcado refleja trabajo ya completado y verificable en el repositorio (Días 1–4 del plan de desarrollo, per `CLAUDE.md` e historial de commits).
+> **[ESQUELETO / DEMO — v2]** Armazón estructural para el Capítulo 3. La v2 alinea el capítulo con la actualización del Capítulo 1 (propósito didáctico como identidad principal del proyecto; 62 RF con 7 requerimientos didácticos transversales; auto-corrección silenciosa por UC-06), incorpora el trabajo de endurecimiento ya comprometido (salvaguarda de filtrado de consultas, commit `8cd337b`, 2026-07-06) y añade una sección de estado del requerimiento didáctico por módulo (3.11). Las secciones `[PENDIENTE]` requieren redacción, capturas de pantalla o evidencia de ejecución que aún no se han producido. El contenido no marcado refleja trabajo ya completado y verificable en el repositorio (fase temprana de implementación, per `CLAUDE.md` e historial de commits).
 
 
 ÍNDICE
@@ -20,7 +20,7 @@ Capítulo 3: Desarrollo de la Solución
     3.7. Orquestador Multi-Agente
     3.8. Registro de Instrucciones y Disciplina de Hot-Swap
     3.9. Reconstrucción del Frontend
-    3.10. Datos Sintéticos y Preparación para Fine-Tuning LoRA (Diferido)
+    3.10. Datos Sintéticos y Fine-Tuning LoRA (En Curso)
     3.11. Estado del Requerimiento Didáctico Transversal por Módulo
     3.12. Estado de Avance y Problemas Conocidos
     3.13. Conclusiones del Capítulo
@@ -31,7 +31,7 @@ Capítulo 3: Desarrollo de la Solución
 
 CAPÍTULO 3: DESARROLLO DE LA SOLUCIÓN
 
-Este capítulo desarrolla el tercer objetivo específico (OE3): implementar los siete módulos centrales de IDI con generación de datos sintéticos de entrenamiento, pipelines de fine-tuning, gestión de flujo conversacional y componentes de interfaz de usuario. A diferencia del Capítulo 2 (diseño), este capítulo documenta lo efectivamente construido — código en ejecución, verificado mediante pruebas y demostraciones — y es explícito sobre lo que quedó diferido o pendiente. Bajo el propósito actualizado del Capítulo 1 — IDI como compañero didáctico que responde enseñando —, la implementación de cada módulo se reporta en dos planos: su función central y el estado de su requerimiento didáctico transversal (consolidado en la Sección 3.11). El resultado alimenta el análisis de resultados (OE4, Capítulo 4).
+Este capítulo desarrolla el tercer objetivo específico (OE3): implementar los siete módulos centrales de IDI con generación de datos sintéticos de entrenamiento, pipelines de fine-tuning, gestión de flujo conversacional y componentes de interfaz de usuario. A diferencia del Capítulo 2 (diseño), este capítulo documenta lo efectivamente construido — código en ejecución, verificado mediante pruebas y demostraciones — y es explícito sobre lo que quedó pendiente o en curso. Bajo el propósito actualizado del Capítulo 1 — IDI como compañero didáctico que responde enseñando —, la implementación de cada módulo se reporta en dos planos: su función central y el estado de su requerimiento didáctico transversal (consolidado en la Sección 3.11). El resultado alimenta el análisis de resultados (OE4, Capítulo 4).
 
 
 3.1. ADQUISICIÓN DE CONTEXTO: CONTEXT MANAGER AGENT Y FileConnector
@@ -43,23 +43,23 @@ Implementado. El agente se alimenta de una base de datos SQLite en memoria const
 
 3.2. COMPRENSIÓN DE CONSULTAS, CLARIFICACIÓN Y SALVAGUARDA DE FILTRADO
 
-Implementado (Día 1), con perfil de instrucción especializado (`backend/app/prompts/clarification.md`) ajustado en el Día 3 contra los casos EC-01…EC-08.
+Implementado en la fase temprana de implementación, con perfil de instrucción especializado (`backend/app/prompts/clarification.md`) ajustado contra los casos EC-01…EC-08.
 
-Durante la fase de endurecimiento (Día 4) se añadió una salvaguarda de enrutamiento de consultas (commit `8cd337b`, 2026-07-06), cuyo diseño se documenta en el Capítulo 2 (§2.5): antes de que una pregunta llegue al parseo de intención y a la generación de SQL, un filtro basado en lista de permitidos (allowlist) determina si la pregunta se relaciona con la base de datos activa (vocabulario del dominio derivado del `DBProfile`) o si constituye una pregunta de conocimiento SQL. Las preguntas sobre el sistema o la base de datos seleccionada se responden por una ruta separada — las respuestas de la base de datos seleccionada —, siempre fundamentada en hechos actuales del `DBProfile`; las preguntas no relevantes para bases de datos quedan fuera del propósito de IDI y reciben una redirección cortés sin invocar el pipeline NL2SQL. La salvaguarda está cubierta por pruebas offline (`tests/test_meta_question_filter.py`, `tests/test_query_understanding.py`).
+Durante la fase de endurecimiento se añadió una salvaguarda de enrutamiento de consultas (commit `8cd337b`, 2026-07-06), cuyo diseño se documenta en el Capítulo 2 (§2.5): antes de que una pregunta llegue al parseo de intención y a la generación de SQL, un filtro basado en lista de permitidos (allowlist) determina si la pregunta se relaciona con la base de datos activa (vocabulario del dominio derivado del `DBProfile`) o si constituye una pregunta de conocimiento SQL. Las preguntas sobre el sistema o la base de datos seleccionada se responden por una ruta separada — las respuestas de la base de datos seleccionada —, siempre fundamentada en hechos actuales del `DBProfile`; las preguntas no relevantes para bases de datos quedan fuera del propósito de IDI y reciben una redirección cortés sin invocar el pipeline NL2SQL. La salvaguarda está cubierta por pruebas offline (`tests/test_meta_question_filter.py`, `tests/test_query_understanding.py`).
 
 [PENDIENTE: evidencia de las tres categorías de ambigüedad (temporal, de entidad, de métrica) siendo correctamente detectadas.]
 
 
 3.3. GENERADOR SQL
 
-Implementado (Día 1), instrucción especializada ajustada en el Día 3 y reforzada en el Día 4 (commit `8cd337b`: ajustes en `sql_generator.py` y su perfil de instrucción).
+Implementado en la fase temprana de implementación; la instrucción especializada fue ajustada y luego reforzada durante el endurecimiento (commit `8cd337b`: ajustes en `sql_generator.py` y su perfil de instrucción).
 
 [PENDIENTE: ejemplos representativos de SQL generado sobre SoundWave, con explicación en lenguaje natural y reporte de supuestos, tal como exige el RF del SQL Generator Agent (Capítulo 1, §1.6).]
 
 
 3.4. AGENTE DE VERIFICACIÓN
 
-Implementado (Día 1) como cadena de tres capas (sintaxis → semántica → sanidad). Validado en la Puerta D1 (Gate D1): 6/8 sondas EC pasaron; EC-07 y EC-08 fueron correctamente bloqueadas por la capa de verificación sintáctica — comportamiento fail-safe funcionando según diseño. Un hallazgo de datos del Día 3 es relevante para la evaluación (Capítulo 4): la artista referenciada en la sonda EC-08 ("Adele") no existe en los datos semilla de SoundWave, por lo que la respuesta correcta de esa sonda es 0 filas.
+Implementado en la fase temprana de implementación como cadena de tres capas (sintaxis → semántica → sanidad). Validado en la Puerta D1 (Gate D1): 6/8 sondas EC pasaron; EC-07 y EC-08 fueron correctamente bloqueadas por la capa de verificación sintáctica — comportamiento fail-safe funcionando según diseño. Un hallazgo de datos de esa fase es relevante para la evaluación (Capítulo 4): la artista referenciada en la sonda EC-08 ("Adele") no existe en los datos semilla de SoundWave, por lo que la respuesta correcta de esa sonda es 0 filas.
 
 La implementación sigue la política de auto-corrección silenciosa fijada en la actualización del Capítulo 1 (UC-06): los fallos que el reintento automático resuelve se consumen como contexto interno y no se exponen al usuario; solo los fallos no corregibles (o los bloqueos de seguridad) llegan a la interfaz, y deben llegar como explicación conceptual, no como error técnico.
 
@@ -68,44 +68,44 @@ La implementación sigue la política de auto-corrección silenciosa fijada en l
 
 3.5. MOTOR DE VISUALIZACIÓN
 
-Implementado (Día 2): selección automática de gráfico vía Recharts, integrada en la respuesta didáctica de 4 paneles.
+Implementado: selección automática de gráfico vía Recharts, integrada en la respuesta didáctica de 4 paneles.
 
 [PENDIENTE: inventario de los 8 tipos de gráfico soportados frente a los especificados en el RF del Capítulo 1; captura de pantalla del panel de visualización.]
 
 
 3.6. GESTOR DE SESIONES
 
-Implementado (Día 2): `SessionLibrary`, drawer de perfil de base de datos, Zustand stores. En la restructuración multi-base de datos (2026-07-03), `data/sessions.db` se limpió y ahora usa el nombre de carpeta de la base de datos como identificador canónico; la base se auto-repara vacía en el siguiente arranque del backend.
+Implementado: `SessionLibrary`, drawer de perfil de base de datos, Zustand stores. En la restructuración multi-base de datos (2026-07-03), `data/sessions.db` se limpió y ahora usa el nombre de carpeta de la base de datos como identificador canónico; la base se auto-repara vacía en el siguiente arranque del backend.
 
 **Defecto conocido (KI-1)**: al restaurar una sesión desde `SessionLibrary` solo se cargan las preguntas del usuario — las respuestas del asistente no se renderizan. La ruta de restauración (persistencia de turnos en backend y/o reconstrucción de `queryStore.loadFromSession`) requiere mejora. [PENDIENTE: resolver antes de congelar el capítulo, o documentar explícitamente como alcance abierto hacia OE4. KI-1 bloquea también el requerimiento didáctico del módulo (sesiones como "ruta de aprendizaje" exportable), pues una ruta de aprendizaje sin las respuestas del asistente pierde su valor de estudio.]
 
 
 3.7. ORQUESTADOR MULTI-AGENTE
 
-Implementado y extendido en el Día 3: activa el perfil de instrucción de cada agente inmediatamente antes de su ejecución e incorpora la etiqueta del perfil (`adapter`) en el payload `"started"` del `AgentEvent` correspondiente — sin requerir cambios en el frontend, que ya combinaba `payload.adapter` desde cualquier evento de estado. Esta trazabilidad de fase y agente activo constituye, además, el requerimiento didáctico del módulo ya implementado (Sección 3.11).
+Implementado y extendido durante la fase temprana de implementación: activa el perfil de instrucción de cada agente inmediatamente antes de su ejecución e incorpora la etiqueta del perfil (`adapter`) en el payload `"started"` del `AgentEvent` correspondiente — sin requerir cambios en el frontend, que ya combinaba `payload.adapter` desde cualquier evento de estado. Esta trazabilidad de fase y agente activo constituye, además, el requerimiento didáctico del módulo ya implementado (Sección 3.11).
 
 [PENDIENTE: documentar el mecanismo de reintento automático (máximo 2) y la propagación de cancelación (<500ms, UC-05) con evidencia de prueba, verificando que el reintento cumple la política de auto-corrección silenciosa (Sección 3.4).]
 
 
 3.8. REGISTRO DE INSTRUCCIONES Y DISCIPLINA DE HOT-SWAP
 
-Implementado (Día 3): `adapters/registry.json` + `backend/app/services/adapter_registry.py` externalizan el mapeo agente → perfil de instrucción. Los cuatro perfiles (`backend/app/prompts/*.md`) fueron expandidos a especializaciones reales ajustadas contra EC-01…EC-08. El servicio LLM expone además `chat_with_meta()` para reportar tokens/segundo, insumo de la evaluación de desempeño (Capítulo 4, §4.4).
+Implementado: `adapters/registry.json` + `backend/app/services/adapter_registry.py` externalizan el mapeo agente → perfil de instrucción. Los cuatro perfiles (`backend/app/prompts/*.md`) fueron expandidos a especializaciones reales ajustadas contra EC-01…EC-08. El servicio LLM expone además `chat_with_meta()` para reportar tokens/segundo, insumo de la evaluación de desempeño (Capítulo 4, §4.4).
 
 [PENDIENTE: resultados del harness A/B base-vs-especializado (`tests/ab_harness.py`) — el harness ya existe pero requiere ejecución manual contra un backend en vivo; sus resultados pertenecen propiamente al Capítulo 4 (OE4), pero su *construcción* se documenta aquí.]
 
 
 3.9. RECONSTRUCCIÓN DEL FRONTEND
 
-Implementado (Día 2): respuestas didácticas de 4 paneles, etiquetas de perfil activo, autocompletado inline, `SessionLibrary` + drawer de perfil de BD, Zustand stores, `styles/tokens.css`, sin artefactos de Tailwind. Landing screen de selección de base de datos (`DatabaseSelector.tsx`) añadida en la restructuración multi-base de datos. La respuesta de 4 paneles es el vehículo principal del propósito didáctico en la interfaz: la misma respuesta que el ejecutivo lee como insight, el aprendiz la lee como lección (qué se entendió, qué SQL se construyó, qué resultado produjo y cómo se visualiza).
+Implementado: respuestas didácticas de 4 paneles, etiquetas de perfil activo, autocompletado inline, `SessionLibrary` + drawer de perfil de BD, Zustand stores, `styles/tokens.css`, sin artefactos de Tailwind. Landing screen de selección de base de datos (`DatabaseSelector.tsx`) añadida en la restructuración multi-base de datos. La respuesta de 4 paneles es el vehículo principal del propósito didáctico en la interfaz: la misma respuesta que el ejecutivo lee como insight, el aprendiz la lee como lección (qué se entendió, qué SQL se construyó, qué resultado produjo y cómo se visualiza).
 
 [PENDIENTE: capturas de pantalla del frontend actual — reemplazan las capturas del sandbox del Capítulo 1.]
 
 
-3.10. DATOS SINTÉTICOS Y PREPARACIÓN PARA FINE-TUNING LoRA (DIFERIDO)
+3.10. DATOS SINTÉTICOS Y FINE-TUNING LoRA (EN CURSO)
 
-Esta sección debe ser explícita sobre una brecha frente al plan original: el Capítulo 1 (§1.10) especificó el entrenamiento de 4 adaptadores LoRA vía QLoRA/Unsloth sobre datasets de 15,000–20,000 ejemplos. Ese entrenamiento **no se ha ejecutado** — el seam de hot-swap está construido y probado (§3.8) pero opera hoy sobre perfiles de instrucción, no sobre pesos LoRA entrenados.
+Esta sección debe ser explícita sobre una desviación frente al plan original: el Capítulo 1 (§1.10) especificó el entrenamiento de 4 adaptadores LoRA vía QLoRA/Unsloth sobre datasets de 15,000–20,000 ejemplos. Para avanzar rápidamente en el desarrollo, toda la lógica del backend se levantó — y sus pruebas se ejecutan — usando únicamente perfiles de instrucción sobre el mismo seam de hot-swap (§3.8); el entrenamiento LoRA quedó pendiente de esa fase y **actualmente se está llevando a cabo**, con un objetivo delimitado por la evidencia de los benchmarks: cerrar los huecos que el prompting no cierra (Capítulo 2, §2.9).
 
-[PENDIENTE: cronograma real de generación de datos sintéticos y entrenamiento LoRA post-sprint; o, alternativamente, una justificación registrada de por qué el entrenamiento LoRA se excluye del alcance evaluado en OE4 y se traslada a trabajo futuro.]
+[PENDIENTE: reportar el resultado del entrenamiento LoRA en curso y su comparación A/B contra los perfiles de instrucción.]
 
 
 3.11. ESTADO DEL REQUERIMIENTO DIDÁCTICO TRANSVERSAL POR MÓDULO
@@ -114,31 +114,31 @@ El Capítulo 1 (§1.6) asignó un requerimiento didáctico a cada uno de los sie
 
 | Módulo | Requerimiento didáctico (Capítulo 1, §1.6) | Estado |
 |---|---|---|
-| Context Manager | Mini-glosario navegable del dominio, con ejemplos por término | Parcial: el drawer de perfil de BD (Día 2) expone esquema y contexto de la base activa; [PENDIENTE: ejemplos de consulta por término] |
+| Context Manager | Mini-glosario navegable del dominio, con ejemplos por término | Parcial: el drawer de perfil de BD expone esquema y contexto de la base activa; [PENDIENTE: ejemplos de consulta por término] |
 | Query Understanding | Cada clarificación explica por qué la ambigüedad importa | [PENDIENTE: evidencia de ejecución] |
 | SQL Generator | Anotación por cláusula del SQL generado | Parcial: la respuesta de 4 paneles incluye el SQL y su explicación; [PENDIENTE: verificar cobertura cláusula a cláusula] |
 | Verification | Explicación conceptual de los fallos que llegan al usuario | [PENDIENTE: evidencia; los fallos auto-corregidos no se exponen, por la política silenciosa de UC-06] |
 | Visualization Engine | Justificación de la elección del tipo de gráfico | [PENDIENTE: verificación en el panel de visualización] |
 | Session Manager | Sesiones marcables como "ruta de aprendizaje" exportable | Pendiente — bloqueado parcialmente por KI-1 (§3.6) |
-| Orchestrator | Trazabilidad de fase y agente activo | Implementado (Día 3): etiqueta del perfil en el evento `"started"` + etiquetas de perfil activo en el frontend |
+| Orchestrator | Trazabilidad de fase y agente activo | Implementado: etiqueta del perfil en el evento `"started"` + etiquetas de perfil activo en el frontend |
 
 
 3.12. ESTADO DE AVANCE Y PROBLEMAS CONOCIDOS
 
 | Artefacto | Estado |
 |---|---|
-| Pipeline de 7 agentes end-to-end sobre `/query` | Completado (Día 1) |
-| Frontend didáctico de 4 paneles | Completado (Día 2) |
-| Registro de adaptadores/instrucciones + hot-swap | Completado (Día 3) |
-| Suite de pruebas offline (`pytest`) | Completado (Día 3), extendida en Día 4 con las pruebas de filtrado de consultas |
-| `ruff`/`black`, `eslint`/`prettier` | Completado (Día 3) |
-| Salvaguarda de filtrado de consultas (allowlist) | Completado (Día 4, commit `8cd337b`, 2026-07-06) |
+| Pipeline de 7 agentes end-to-end sobre `/query` | Completado (fase temprana de implementación) |
+| Frontend didáctico de 4 paneles | Completado (fase temprana de implementación) |
+| Registro de adaptadores/instrucciones + hot-swap | Completado (fase temprana de implementación) |
+| Suite de pruebas offline (`pytest`) | Completado (fase temprana de implementación), extendida con las pruebas de filtrado de consultas |
+| `ruff`/`black`, `eslint`/`prettier` | Completado (fase temprana de implementación) |
+| Salvaguarda de filtrado de consultas (allowlist) | Completado (commit `8cd337b`, 2026-07-06) |
 | Requerimientos didácticos transversales (7) | Parcial — ver Sección 3.11 |
 | Restauración de sesión (respuestas del asistente) | **Pendiente — KI-1** |
-| Conexión a base de datos real (MySQL) | **Pendiente — Día 4, en curso (al 2026-07-13)** |
-| Entrenamiento LoRA | **Diferido — post-sprint** |
+| Conexión a base de datos real (MySQL) | **En curso (al 2026-07-13)** |
+| Entrenamiento LoRA | **En curso** |
 
-[PENDIENTE: incorporar el estado del Día 4 (Real DB Connection & Hardening) una vez cerrado.]
+[PENDIENTE: incorporar el estado de la fase de conexión a base de datos real (Real DB Connection & Hardening) una vez cerrada.]
 
 
 3.13. CONCLUSIONES DEL CAPÍTULO

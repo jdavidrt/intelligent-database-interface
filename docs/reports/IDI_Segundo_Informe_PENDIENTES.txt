@@ -1,0 +1,33 @@
+PENDIENTES — IDI Segundo Informe (Capítulo 2: Diseño del Sistema)
+Extraídos del documento el 2026-07-15. Estos ítems fueron removidos del
+IDI_Segundo_Informe.html y se rastrean aquí.
+
+1. (§2.6, Gestión de Sesiones — OE4)
+   Documentar el defecto conocido KI-1: la restauración de sesión actualmente
+   solo recupera las preguntas del usuario, no las respuestas del asistente.
+   Debe documentarse como una brecha de diseño a cerrar antes de la
+   evaluación (Capítulo 4).
+
+2. (§2.7, Comunicación de Progreso)
+   Incorporar frases didácticas sobre bases de datos que se muestren mientras
+   el sistema responde — la espera deja de ser un costo si también enseña,
+   aun cuando la respuesta sea lenta.
+
+3. (REFERENCIAS)
+   Extender la bibliografía según se citen nuevas fuentes de diseño
+   arquitectónico. (Parcialmente resuelto el 2026-07-15: se incorporaron del
+   Capítulo 1 las cuatro referencias más relevantes al diseño — Hu et al. 2022
+   [LoRA, §2.9], Liu et al. 2025a [NL2SQL-BUGs, verificación §2.4],
+   Liu et al. 2025b [survey NL2SQL, arquitectura §2.1] y
+   Pourreza & Rafiei 2023 [DIN-SQL, descomposición y auto-corrección §2.4].)
+
+4. (Anexo — Quinta recomendación, §2.12)
+   Incluir como anexo del informe final la especificación OpenAPI exportada
+   del backend (/openapi.json) para que los contratos de la Sección 2.3
+   queden documentados de forma verificable.
+
+Nota: las 5 capturas de pantalla fueron tomadas del sistema en ejecución
+local e incrustadas en el HTML el 2026-07-15 (Capturas 2.1-2.5, serie
+propia; los PNG fuente quedaron en figures/shot_2_*.png). El PDF
+IDI_Segundo_Informe.pdf quedó desactualizado a propósito — regenerarlo
+desde el HTML cuando se desee.

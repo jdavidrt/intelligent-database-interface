@@ -308,7 +308,7 @@ Estos siete escenarios constituyen, además, el instrumento de evaluación cuali
 
 Esta es la decisión arquitectónica que hace viable todo el sistema sobre hardware de consumidor. IDI no usa múltiples modelos de IA. Usa un solo modelo base (Qwen2.5-Coder-3B-Instruct, cuantizado a Q4_K_M, ~2GB de VRAM) al que se le intercambian adaptadores LoRA en tiempo real según la fase del proceso.
 
-LoRA (Low-Rank Adaptation) es una técnica de fine-tuning introducida por Hu et al. (2022) que permite entrenar adaptadores ligeros — del orden del 1–5% de los parámetros del modelo base — para especializar el comportamiento de un LLM en tareas específicas sin modificar los pesos originales. En la práctica, esto significa que un solo modelo en memoria puede adquirir habilidades diferentes según el adaptador que se le aplique. Es como un profesional que cambia de sombrero: el mismo cerebro, pero con especialización instantánea para cada tarea.
+LoRA (Low-Rank Adaptation) es una técnica de fine-tuning introducida por Hu et al. (2022) que permite entrenar adaptadores ligeros — del orden del 1–5% de los parámetros del modelo base — para especializar el comportamiento de un LLM en tareas específicas sin modificar los pesos originales. En la práctica, esto significa que un solo modelo en memoria puede adquirir habilidades diferentes según el adaptador que se le aplique. Es como un profesional que cambia la habilidad que está usando según la tarea: el mismo cerebro, pero con especialización instantánea para cada tarea.
 
 La arquitectura funciona así:
 
@@ -435,7 +435,7 @@ Cuarta (aporta a OE1 y habilita OE4) — Los artefactos de evaluación están li
 
 Quinta (proyecta OE3) — El sistema es alcanzable en el cronograma del semestre. El sandbox ya cubre el 15–20% del sistema final, los benchmarks están seleccionados, los requerimientos están especificados con umbrales cuantitativos, y la arquitectura está validada. Los tres sprints restantes tienen un camino claro: infraestructura (Sprint 2), pipeline completo (Sprint 3), evaluación (Sprint 4).
 
-Sexta (proyecta OE2) — Lo que queda por hacer está bien definido. El Capítulo 2 tomará esta base para construir el diseño detallado: los diagramas UML, la especificación formal de la encuesta de onboarding, los contratos de API entre módulos, la selección y justificación final del stack tecnológico, y el diseño de los datasets de entrenamiento para cada adaptador LoRA.
+Sexta (proyecta OE2) — Lo que queda por hacer está bien definido. El Capítulo 2 tomará esta base para construir el diseño detallado: los diagramas UML, los contratos de API entre módulos, la selección y justificación final del stack tecnológico, y el diseño de los datasets de entrenamiento para cada adaptador LoRA.
 
 Nota sobre el complemento de alcance — La retroalimentación del director de trabajo de grado, recibida durante la elaboración de este capítulo, amplió el público objetivo declarado sin alterar el artefacto técnico: el mismo pipeline que sirve a un ejecutivo sirve, sin modificación alguna, a quien aprende. Esta ampliación se incorporó de forma trazable en las Secciones 1.1, 1.6 a 1.9 (la sexta brecha competitiva, los siete requerimientos didácticos transversales, la persona Camilo Vargas, el escenario UC-07 y la métrica de Claridad Didáctica), y no afecta el Objetivo General ni los objetivos específicos aprobados ante el CADE, que se conservan íntegros en la Introducción.
 

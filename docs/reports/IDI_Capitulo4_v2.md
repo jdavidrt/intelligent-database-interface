@@ -39,7 +39,7 @@ Este capítulo desarrolla el cuarto objetivo específico (OE4): evaluar el desem
 
 4.2. PRECISIÓN DE EJECUCIÓN (PATRONES SIMULADOS ESTILO SPIDER Y BIRD, SOUNDWAVE, IDI-EXEC-75)
 
-Instrumentación disponible: `tests/evaluate.py` (Día 3) calcula Execution Accuracy a partir de la data semilla de SoundWave; reutiliza los clientes de streaming de `gate_d1.py`. [PENDIENTE: extender el harness para correr también los subconjuntos simulados estilo Spider/BIRD una vez construidos (Capítulo 3), y ejecutar todo contra un backend en vivo.]
+Instrumentación disponible: `tests/evaluate.py` calcula Execution Accuracy a partir de la data semilla de SoundWave; reutiliza los clientes de streaming de `gate_d1.py`. [PENDIENTE: extender el harness para correr también los subconjuntos simulados estilo Spider/BIRD una vez construidos (Capítulo 3), y ejecutar todo contra un backend en vivo.]
 
 | Métrica | Umbral Mínimo | Objetivo | Resultado Obtenido |
 |---|---|---|---|
@@ -68,12 +68,12 @@ Precedente disponible: la Puerta D1 ya reportó 6/8 sondas EC correctamente resu
 |---|---|---|---|
 | P50 Latency (GPU) | < 5s | < 3s | [PENDIENTE] |
 | P50 Latency (CPU-only) | — | — | [PENDIENTE] |
-| Tokens/s (`chat_with_meta()`, Día 3) | — | — | [PENDIENTE] |
+| Tokens/s (`chat_with_meta()`) | — | — | [PENDIENTE] |
 
 
 4.5. A/B: MODELO BASE VS. PERFILES DE INSTRUCCIÓN ESPECIALIZADOS
 
-Instrumentación disponible: `tests/ab_harness.py` (Día 3) compara el modelo base sin perfil contra el modelo con perfil de instrucción especializado activado — el sustituto actual de la comparación "sin adaptador LoRA vs. con adaptador LoRA" que pedía el Capítulo 1. [PENDIENTE: ejecución real; y nota explícita de que esta A/B mide el efecto de los *perfiles de instrucción* (Capítulo 2, §2.9), no de adaptadores LoRA entrenados — la comparación LoRA real queda pendiente hasta que el entrenamiento diferido (Capítulo 3, §3.10) se ejecute.]
+Instrumentación disponible: `tests/ab_harness.py` compara el modelo base sin perfil contra el modelo con perfil de instrucción especializado activado — el sustituto actual de la comparación "sin adaptador LoRA vs. con adaptador LoRA" que pedía el Capítulo 1. [PENDIENTE: ejecución real; y nota explícita de que esta A/B mide el efecto de los *perfiles de instrucción* (Capítulo 2, §2.9), no de adaptadores LoRA entrenados — la comparación LoRA real queda pendiente hasta que el entrenamiento en curso (Capítulo 3, §3.10) concluya.]
 
 
 4.6. EVALUACIÓN CUALITATIVA: REVISIÓN EXPERTA HEURÍSTICA DE LOS SIETE ESCENARIOS DE USO
@@ -125,7 +125,7 @@ Métrica incorporada tras el complemento de alcance del Capítulo 1 (§1.8): mid
 
 4.10. RECOMENDACIONES
 
-[PENDIENTE — al menos una recomendación rotulada "(OE4)". Candidatas evidentes a partir de este esqueleto: (i) si el entrenamiento LoRA (diferido, Capítulo 3 §3.10) no se completa a tiempo, recomendar explícitamente el alcance con el que se cerrará el documento final — evaluación solo sobre perfiles de instrucción, con el entrenamiento LoRA documentado como trabajo futuro; (ii) si se decide en el futuro correr Spider/BIRD reales, documentar como ADR separado el costo de ingesta identificado en el Capítulo 1 (§1.3) antes de comprometer tiempo de sprint a esa extensión; (iii) heredada del Capítulo 1 (recomendación OE1): contrastar el escenario UC-07 y la métrica de Claridad Didáctica con al menos un usuario real en fase de aprendizaje de SQL, como validación externa mínima de la dimensión didáctica.]
+[PENDIENTE — al menos una recomendación rotulada "(OE4)". Candidatas evidentes a partir de este esqueleto: (i) si el entrenamiento LoRA (en curso, Capítulo 3 §3.10) no se completa a tiempo, recomendar explícitamente el alcance con el que se cerrará el documento final — evaluación solo sobre perfiles de instrucción, con el entrenamiento LoRA documentado como trabajo futuro; (ii) si se decide en el futuro correr Spider/BIRD reales, documentar como ADR separado el costo de ingesta identificado en el Capítulo 1 (§1.3) antes de comprometer tiempo de sprint a esa extensión; (iii) heredada del Capítulo 1 (recomendación OE1): contrastar el escenario UC-07 y la métrica de Claridad Didáctica con al menos un usuario real en fase de aprendizaje de SQL, como validación externa mínima de la dimensión didáctica.]
 
 
 ────────────────────────────────────────────────────────────────────────

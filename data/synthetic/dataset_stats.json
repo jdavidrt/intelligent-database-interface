@@ -1,0 +1,25 @@
+{
+  "db": "soundwave",
+  "files": {
+    "sql_generator_train": {
+      "examples": 243,
+      "execution_validated": 243,
+      "mysql_only": 0
+    },
+    "sql_generator_eval": {
+      "examples": 91,
+      "execution_validated": 91,
+      "mysql_only": 0
+    },
+    "query_understanding_train": {
+      "examples": 255,
+      "execution_validated": 243,
+      "mysql_only": 0
+    },
+    "query_understanding_eval": {
+      "examples": 94,
+      "execution_validated": 91,
+      "mysql_only": 0
+    }
+  }
+}

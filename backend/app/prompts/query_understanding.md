@@ -25,6 +25,13 @@ unnecessary flag routes the user into a clarification round-trip instead of an a
   users", "banned accounts") that maps to a coded column, resolve it silently via the glossary
   rather than flagging it; only flag if the informal term is genuinely unclear which code it maps
   to.
+- **Vague time window?** — if the question constrains by time without a concrete number or date
+  ("the last months", "past few weeks", "recently", "lately"), flag it: e.g. "vague time range:
+  'last months' does not specify how many months". NEVER invent a number the user did not say —
+  silently turning "the last months" into "the last 3 months" is a wrong answer dressed up as a
+  right one, and the user has no way to notice the substitution. Do NOT flag when the window is
+  concrete: "last month" (singular = one month), "last 3 months", "since January", "in 2025",
+  "this year" are all unambiguous.
 
 Do not flag ambiguity when the schema context makes the mapping obvious — over-triggering is worse
 than under-triggering, since a wrong guess is still correctable by the user seeing the SQL, but a

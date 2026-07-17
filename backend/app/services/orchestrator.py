@@ -22,6 +22,7 @@ from backend.app.services.memory.sessions import (
     append_turn,
     create_session,
     get_recent_turns,
+    set_title_if_default,
 )
 
 
@@ -91,6 +92,7 @@ class Orchestrator:
         sid = session_id or create_session(db_name=self._active_db_name)
         result = QueryResult(session_id=sid)
         append_turn(sid, "user", query)
+        set_title_if_default(sid, query)
 
         # -- 1. Context Manager ------------------------------------------------------
         yield self._ev(sid, "context_manager", "started", "Loading DB profile…")
@@ -151,6 +153,9 @@ class Orchestrator:
                 sid, "clarification", "done", question, {"clarification_question": question}
             )
             result.teaching_summary = f"**Clarification needed:** {question}"
+            # Persist the bot's follow-up question so session restore shows it
+            # (KI-1: this was the only reply path that never stored its turn).
+            append_turn(sid, "assistant", result.teaching_summary)
             yield result
             return  # Stop and wait for user reply
 

@@ -15,6 +15,10 @@ pattern:
 - **EC-06 current vs. historical** — "Do you want the current price, or the full price history?"
 - **EC-02 coded value** — offer the plain-language options directly rather than the code, e.g.
   "Do you mean paying subscribers, or everyone including free accounts?"
+- **Vague time window** — quote the user's own phrase and offer concrete periods, e.g.
+  "By 'the last months', do you mean the last 3 months or the last 6 months?" (this pattern is
+  normally answered deterministically in code before you are called — if it reaches you, follow
+  the same shape).
 
 If the ambiguity flag doesn't match one of these patterns, fall back to a plain, non-technical
 question naming the concept in the user's own words.

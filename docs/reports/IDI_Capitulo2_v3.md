@@ -6,6 +6,8 @@ Autor: Juan David Ramírez Torres (jdramirezt@unal.edu.co)
 Período: 2026-1S (Febrero 2 – Mayo 30, 2026)
 
 > **[v3 — 2026-07-14]** Esta versión consolida el Capítulo 2 sobre la v2: incorpora los cinco diagramas de diseño (solución general, pipeline agéntico, verificación tripartita, enrutamiento de tres rutas y modelo entidad-relación de sesiones — `figures/fig_2_1` a `fig_2_5`), completa la especificación de contratos de API (§2.3), consolida la justificación del stack tecnológico (§2.8, FastAPI / ChromaDB / SQLite) y redacta las conclusiones y recomendaciones del capítulo (§2.11, §2.12). Las marcas `[PENDIENTE]` restantes señalan trabajo aún no producido. Las marcas `[PANTALLAZO: ...]` reservan el espacio para insertar capturas de pantalla de la solución al generar el documento final.
+>
+> **[Sincronización — 2026-07-16]** Se incorpora al contenido lo materializado en `IDI_Segundo_Informe.html` durante su generación (2026-07-15): las cinco capturas de pantalla del sistema en ejecución local reemplazan las marcas `[PANTALLAZO: ...]` (Capturas 2.1–2.5, serie propia intercalada con las Figuras 2.1–2.5; PNG fuente en `figures/shot_2_*.png`) y se redactan las Referencias (§ REFERENCIAS) con las cuatro fuentes del Capítulo 1 más relevantes al diseño. Dos marcas `[PENDIENTE]` (§2.6 KI-1, §2.7 frases didácticas de espera) se retiran del cuerpo del texto por seguir siendo ítems abiertos, no resueltos — quedan rastreadas en `IDI_Segundo_Informe_PENDIENTES.txt` en lugar de interrumpir la prosa; las recomendaciones correspondientes (§2.12, tercera y cuarta) ya las cubren.
 
 
 ÍNDICE
@@ -38,7 +40,10 @@ La Figura 2.1 presenta la vista general de la solución: un frontend React conve
 
 ![Figura 2.1 — Arquitectura general de la solución IDI](figures/fig_2_1_solucion_general.svg)
 
-[PANTALLAZO: pantalla de selección de base de datos (DatabaseSelector) y vista general del chat con el drawer "DB Info" abierto.]
+![Captura 2.1a — Pantalla de selección de base de datos (DatabaseSelector)](figures/shot_2_1a_selector.png)
+![Captura 2.1b — Vista general del chat con el drawer "DB Info" (Database Map) abierto](figures/shot_2_1b_chat_drawer.png)
+
+Captura 2.1 — Pantalla de selección de base de datos (DatabaseSelector, arriba) y vista general del chat con el drawer "DB Info" (Database Map) abierto (abajo). Fuente: sistema IDI en ejecución local.
 
 El sistema orquesta siete agentes especializados — Context Manager, Query Understanding, SQL Generator, Verification, Visualization Engine, Session Manager y Multi-Agent Orchestrator — coordinados por un orquestador central que activa el perfil de instrucción correspondiente antes de invocar a cada agente. La Figura 2.2 muestra el recorrido de una consulta a través del pipeline, incluidas sus rutas de respuesta sin generación de SQL: las respuestas fuera del propósito de IDI (filtro de rutas, Sección 2.5), las respuestas de la base de datos seleccionada (respuesta directa anclada al `DBProfile` y pregunta de clarificación al usuario) y el ciclo de verificación (si el SQL no pasa las tres capas, se genera un nuevo `SqlCandidate` con un único reintento de reparación silenciosa). La arquitectura fue validada de forma incremental: el pipeline agéntico completo corre de extremo a extremo sobre `/query` desde la fase temprana de implementación (DB-less, alimentado por `FileConnector`).
 
@@ -61,13 +66,18 @@ El Capítulo 1 (§1.6) asignó a cada módulo un requerimiento didáctico transv
 
 1. La respuesta didáctica de 4 paneles como formato canónico de salida: toda respuesta expone qué entendió el sistema, qué SQL construyó y por qué, qué resultado obtuvo y cómo se visualiza — el vehículo de los requerimientos didácticos del SQL Generator y del Visualization Engine.
 
-[PANTALLAZO: una respuesta completa de 4 paneles en el chat, mostrando "Qué entendí / Por qué este SQL / Verificación / Resultado".]
+![Captura 2.2 — Respuesta completa de cuatro paneles en el chat](figures/shot_2_2_four_panels.png)
+
+Captura 2.2 — Respuesta completa de cuatro paneles en el chat: "What I understood / The SQL / Why this query / Results" (qué entendí, el SQL generado, por qué esta consulta con la verificación tripartita, y el resultado). Fuente: sistema IDI en ejecución local.
 
 2. La trazabilidad del perfil activo: el orquestador incorpora la etiqueta del perfil de instrucción activo en el evento `"started"` de cada agente, y el frontend la muestra como etiqueta de perfil activo — el aprendiz puede ver qué habilidad está usando el modelo en cada fase del pipeline (requerimiento didáctico del Multi-Agent Orchestrator; escenario UC-07).
 
 3. El perfil de base de datos como material de estudio: la decisión de exponer una pestaña "DB Info" (drawer de perfil de BD) responde a una constatación de diseño — el mismo contexto que el sistema construye para sí mismo (esquema introspectado, glosario de negocio, descripciones de tablas) es exactamente el material que un aprendiz necesita para orientarse en una base de datos desconocida. En lugar de mantener ese contexto como un artefacto interno del pipeline, se publicó en la interfaz: el usuario puede leer y explorar la base de datos activa antes o durante la conversación — semilla del mini-glosario navegable exigido al Context Manager Agent.
 
-[PANTALLAZO: pestaña/drawer "DB Info" mostrando el esquema de SoundWave con sus descripciones y glosario.]
+![Captura 2.3a — Drawer "DB Info" con el esquema de SoundWave](figures/shot_2_3a_schema.png)
+![Captura 2.3b — Glosario de términos crípticos del dominio](figures/shot_2_3b_glossary.png)
+
+Captura 2.3 — Drawer "DB Info" (Database Map) con el esquema de SoundWave: tablas expandidas con columnas, tipos y claves (arriba) y glosario de términos crípticos del dominio con su significado (abajo). Fuente: sistema IDI en ejecución local.
 
 4. Las respuestas no-SQL también enseñan: bajo el enrutamiento de tres rutas (Sección 2.5), una pregunta conceptual ("¿qué es un JOIN?") no se responde en abstracto sino ilustrada con las tablas y columnas reales de la base conectada, y una pregunta sobre la propia base de datos ("¿qué tablas tienes?") se responde siempre desde los hechos actuales del `DBProfile` — la lección usa el terreno de práctica del estudiante, no un ejemplo genérico.
 
@@ -119,7 +129,11 @@ c) preguntas no relevantes para bases de datos (personales o de conocimiento gen
 
 La pertenencia a la ruta (a) se decide por lista de permitidos (allowlist) — intersección de los tokens de la pregunta con el vocabulario del dominio derivado del `DBProfile` (nombres de tablas y columnas, glosario, valores codificados), o señal de pregunta de conocimiento SQL — y no por una lista negra de patrones. La razón: una blocklist de formulaciones fuera de tema siempre queda un caso por detrás de las formulaciones imprevistas ("what's the weather" no atrapa "how is the weather"), mientras que la allowlist falla de forma segura — lo que no se reconoce como pertinente no genera SQL, en coherencia con el principio fail-safe del proyecto. Para la zona gris (preguntas que rozan el vocabulario del dominio pero no son claramente de datos), el diseño añade un clasificador LLM de respaldo con temperatura 0.0 que decide de forma binaria entre respuesta directa y pipeline.
 
-[PANTALLAZO: ejemplo real de las tres rutas en el chat — una consulta de datos respondida con SQL, una pregunta sobre la base seleccionada respondida desde el perfil, y una pregunta fuera del propósito de IDI redirigida cortésmente.]
+![Captura 2.4a — Consulta de datos respondida con SQL verificado](figures/shot_2_4a_route_data.png)
+![Captura 2.4b — Pregunta sobre la base seleccionada respondida desde el perfil](figures/shot_2_4b_route_meta.png)
+![Captura 2.4c — Pregunta fuera del propósito de IDI redirigida cortésmente](figures/shot_2_4c_route_offtopic.png)
+
+Captura 2.4 — Ejemplo real de las tres rutas de enrutamiento en el chat: una consulta de datos respondida con SQL verificado (arriba), una pregunta sobre la base seleccionada respondida directamente desde el perfil (centro) y una pregunta fuera del propósito de IDI redirigida cortésmente (abajo). Fuente: sistema IDI en ejecución local.
 
 
 2.6. GESTIÓN DE SESIONES: MODELO DE DATOS Y CICLO DE VIDA
@@ -128,14 +142,16 @@ La Figura 2.5 presenta el modelo entidad-relación de `data/sessions.db`: una en
 
 ![Figura 2.5 — Modelo entidad-relación de data/sessions.db](figures/fig_2_5_er_sesiones.svg)
 
-El diseño soporta guardar, retomar, buscar y exportar sesiones investigativas (UC-03 del Capítulo 1), incluyendo la marcación de una sesión como "ruta de aprendizaje" exportable como material de estudio (requerimiento didáctico del Session Manager Agent). Cada turno persiste la pregunta del usuario y, para las respuestas del asistente, el resumen didáctico, el SQL generado y una muestra de las filas obtenidas — de modo que una sesión restaurada pueda reconstruir la lección completa, no solo el diálogo. [PENDIENTE: documentar el defecto conocido KI-1 — la restauración de sesión actualmente solo recupera las preguntas del usuario, no las respuestas del asistente — como una brecha de diseño a cerrar antes de la evaluación (OE4).]
+El diseño soporta guardar, retomar, buscar y exportar sesiones investigativas (UC-03 del Capítulo 1), incluyendo la marcación de una sesión como "ruta de aprendizaje" exportable como material de estudio (requerimiento didáctico del Session Manager Agent). Cada turno persiste la pregunta del usuario y, para las respuestas del asistente, el resumen didáctico, el SQL generado y una muestra de las filas obtenidas — de modo que una sesión restaurada pueda reconstruir la lección completa, no solo el diálogo.
 
 
 2.7. ESTRATEGIA DE COMUNICACIÓN DE PROGRESO
 
-El diseño usa WebSockets para emitir `AgentEvent`s de progreso en tiempo real, con el perfil de instrucción activo (`adapter`) incorporado en el evento `"started"` de cada agente — de modo que el frontend puede mostrar qué habilidad está usando el modelo en cada fase, sin requerir cambios adicionales en el store del frontend. Esta trazabilidad cumple una doble función fijada en el Capítulo 1: comunicación de progreso para el ejecutivo (RNF de desempeño, consultas de hasta 30 segundos con progreso informado) y transparencia arquitectónica para el aprendiz (requerimiento didáctico del Multi-Agent Orchestrator, escenario UC-07). Como decisión de experiencia de usuario frente a las consultas largas, el diseño no persigue estimar el tiempo restante: la espera se acompaña con contenido. [PENDIENTE: incorporar frases didácticas sobre bases de datos que se muestren mientras el sistema responde — la espera deja de ser un costo si también enseña, aun cuando la respuesta sea lenta.]
+El diseño usa WebSockets para emitir `AgentEvent`s de progreso en tiempo real, con el perfil de instrucción activo (`adapter`) incorporado en el evento `"started"` de cada agente — de modo que el frontend puede mostrar qué habilidad está usando el modelo en cada fase, sin requerir cambios adicionales en el store del frontend. Esta trazabilidad cumple una doble función fijada en el Capítulo 1: comunicación de progreso para el ejecutivo (RNF de desempeño, consultas de hasta 30 segundos con progreso informado) y transparencia arquitectónica para el aprendiz (requerimiento didáctico del Multi-Agent Orchestrator, escenario UC-07). Como decisión de experiencia de usuario frente a las consultas largas, el diseño no persigue estimar el tiempo restante: la espera se acompaña con contenido.
 
-[PANTALLAZO: barra de progreso del pipeline con las etiquetas de perfil activo por agente durante una consulta en curso.]
+![Captura 2.5 — Barra de progreso del pipeline durante una consulta en curso](figures/shot_2_5_progress.png)
+
+Captura 2.5 — Barra de progreso del pipeline durante una consulta en curso: cada agente muestra su estado y la etiqueta del perfil de instrucción activo ("profile: …") aplicado por el registro de adaptadores. Fuente: sistema IDI en ejecución local.
 
 
 2.8. SELECCIÓN Y JUSTIFICACIÓN DEL STACK TECNOLÓGICO
@@ -199,7 +215,13 @@ Quinta (OE2) — incluir como anexo del informe final la especificación OpenAPI
 
 REFERENCIAS
 
-[PENDIENTE: heredar y extender la bibliografía del Capítulo 1 según se citen nuevas fuentes de diseño arquitectónico.]
+Hu, E. J., Shen, Y., Wallis, P., Allen-Zhu, Z., Li, Y., Wang, S., Wang, L., y Chen, W. (2022). LoRA: Low-rank adaptation of large language models. En *Proceedings of the International Conference on Learning Representations (ICLR)*.
+
+Liu, X., Shen, S., Li, B., Ma, P., Jiang, R., Zhang, Y., Fan, J., Li, G., Tang, N., y Luo, Y. (2025a). NL2SQL-BUGs: A benchmark for detecting semantic errors in NL2SQL translation. En *Proceedings of the 31st ACM SIGKDD Conference on Knowledge Discovery and Data Mining (KDD)*. arXiv:2503.11984.
+
+Liu, X., Shen, S., Li, B., Tang, N., y Luo, Y. (2025b). A survey of NL2SQL with large language models: Where are we, and where are we going? *IEEE Transactions on Knowledge and Data Engineering*. arXiv:2408.05109.
+
+Pourreza, M., y Rafiei, D. (2023). DIN-SQL: Decomposed in-context learning of text-to-SQL with self-correction. En *Advances in Neural Information Processing Systems (NeurIPS)*, 36.
 
 
 ────────────────────────────────────────────────────────────────────────

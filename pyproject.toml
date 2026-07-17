@@ -12,6 +12,11 @@ exclude = ["frontend", "legacydocs", ".venv"]
 [tool.ruff.lint]
 select = ["E", "F", "I"]
 
+[tool.ruff.lint.per-file-ignores]
+# Colab notebooks: cell-by-cell flow legitimately interleaves shell magics,
+# sys.path setup and imports; module-level lint rules don't apply.
+"*.ipynb" = ["E401", "E402", "E501", "E741", "I001"]
+
 [tool.black]
 line-length = 100
 target-version = ["py313"]

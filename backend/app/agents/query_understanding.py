@@ -20,7 +20,9 @@ Given a user question and relevant schema context, extract:
   Empty list if the user never named a specific output field. Never drop one of these —
   a value in requested_fields is a hard requirement on the final SELECT list, not a
   suggestion.
-- time_range: any time constraint (or null)
+- time_range: any time constraint (or null). NEVER invent a number the user did not say:
+  a vague window like "the last months" or "recently" must NOT become "last 3 months" —
+  add an ambiguity flag instead and leave time_range as the user's literal words.
 - ambiguity_flags: list of ambiguities (e.g. "column 'name' exists in multiple tables")
 - plain_restatement: one sentence restating what the user is asking. If requested_fields
   is non-empty, the restatement MUST name those fields explicitly (do not generalize them
@@ -48,6 +50,63 @@ _REQUESTED_FIELD_TRIGGER_RE = re.compile(
     r"([a-z][a-z\s]*?)\s*(?:please)?\s*[.?!]?\s*$",
     re.IGNORECASE,
 )
+
+
+# Vague-time safety net: a time constraint with no concrete number or date ("the last
+# months", "past few weeks", "recently"). Small local LLMs tend to silently invent a
+# number ("last 3 months") instead of flagging the vagueness, so — same regex-first
+# discipline as above — this is caught deterministically and forced into ambiguity_flags,
+# which routes the pipeline into the clarification branch before any SQL is generated.
+VAGUE_TIME_FLAG_PREFIX = "vague time range:"
+
+_NUMBER_WORD = (
+    r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|"
+    r"twenty|thirty|sixty|ninety)"
+)
+
+# "last months", "past few weeks", "recent days" — plural unit with no number in front.
+# The lookahead rejects "last 3 months"; the plural-only unit group rejects "last month"
+# (singular = concretely one month).
+_VAGUE_TIME_UNIT_RE = re.compile(
+    rf"\b(?:last|past|previous|recent)\s+"
+    rf"(?!{_NUMBER_WORD}\b)"
+    rf"(?:(?:few|couple(?:\s+of)?|several)\s+)?"
+    rf"(months|weeks|days|years)\b",
+    re.IGNORECASE,
+)
+
+# Bare vague time words with no unit at all. These only count as vague when they are the
+# query's ONLY time constraint (see _CONCRETE_TIME_RE below).
+_VAGUE_TIME_BARE_RE = re.compile(
+    r"\b(recently|lately|these\s+days|not\s+long\s+ago|in\s+recent\s+times)\b",
+    re.IGNORECASE,
+)
+
+# Concrete time signals that make a bare vague word redundant rather than ambiguous
+# (e.g. "recently, since January 2026" — the explicit part wins, no clarification).
+_CONCRETE_TIME_RE = re.compile(
+    rf"\b(?:last|past|previous)\s+{_NUMBER_WORD}\s+(?:day|week|month|year)s?\b"
+    r"|\b(?:last|past|previous|this|current)\s+(?:day|week|month|year|quarter)\b"
+    r"|\b(?:yesterday|today)\b"
+    r"|\b(?:since|until|before|after)\s+\S"
+    r"|\b(?:january|february|march|april|may|june|july|august|september|october|"
+    r"november|december)\b"
+    r"|\b\d{4}\b|\b\d{1,2}[/-]\d{1,2}\b",
+    re.IGNORECASE,
+)
+
+
+def _detect_vague_time_range(query: str) -> tuple[str, str] | None:
+    """Return (matched phrase, unit) when the query constrains by time without a
+    concrete number or date, else None. Unit defaults to "months" for bare vague
+    words like "recently" that name no unit themselves."""
+    match = _VAGUE_TIME_UNIT_RE.search(query)
+    if match:
+        return match.group(0).strip(), match.group(1).lower()
+    match = _VAGUE_TIME_BARE_RE.search(query)
+    if match and not _CONCRETE_TIME_RE.search(query):
+        return match.group(0).strip(), "months"
+    return None
 
 
 def _extract_requested_fields(query: str) -> list[str]:
@@ -115,6 +174,22 @@ class QueryUnderstanding:
         if missing:
             plain_restatement = plain_restatement.rstrip(".") + f" — returning: {', '.join(missing)}."
 
+        # Vague-time safety net (see _detect_vague_time_range). Only the [Current] segment
+        # is inspected: when the orchestrator injects [History], a vague phrase in an
+        # already-clarified earlier turn must not re-trigger the clarification loop.
+        ambiguity_flags: list[str] = list(data.get("ambiguity_flags", []) or [])
+        current_query = query.split("[Current]", 1)[-1] if "[Current]" in query else query
+        vague = _detect_vague_time_range(current_query)
+        if vague:
+            phrase, unit = vague
+            already_flagged = any(
+                phrase.lower() in f.lower() or "time" in f.lower() for f in ambiguity_flags
+            )
+            if not already_flagged:
+                ambiguity_flags.append(
+                    f"{VAGUE_TIME_FLAG_PREFIX} '{phrase}' does not specify how many {unit}"
+                )
+
         return Intent(
             raw_query=query,
             entities=entities,
@@ -122,6 +197,6 @@ class QueryUnderstanding:
             filters=data.get("filters", []),
             requested_fields=requested_fields,
             time_range=data.get("time_range"),
-            ambiguity_flags=data.get("ambiguity_flags", []),
+            ambiguity_flags=ambiguity_flags,
             plain_restatement=plain_restatement,
         )

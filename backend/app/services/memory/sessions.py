@@ -58,6 +58,19 @@ def create_session(db_name: str = "", title: str = "") -> str:
     return sid
 
 
+def set_title_if_default(session_id: str, title: str) -> None:
+    """Set the session title only if it's still the auto-generated default."""
+    clean = title.strip()[:60]
+    if not clean:
+        return
+    with _conn() as con:
+        con.execute(
+            "UPDATE sessions SET title = ? "
+            "WHERE session_id = ? AND (title IS NULL OR title = '' OR title LIKE 'Session %')",
+            (clean, session_id),
+        )
+
+
 def append_turn(
     session_id: str,
     role: str,

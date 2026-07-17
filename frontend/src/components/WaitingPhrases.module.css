@@ -1,0 +1,38 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3) var(--space-4);
+    background: var(--input-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    max-width: 80%;
+}
+
+.label {
+    font-size: var(--font-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    -webkit-text-fill-color: var(--text-dim);
+}
+
+.phrase {
+    margin: 0;
+    font-size: var(--font-sm);
+    color: var(--text);
+    -webkit-text-fill-color: var(--text);
+    animation: phraseIn 0.35s ease;
+}
+
+@keyframes phraseIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

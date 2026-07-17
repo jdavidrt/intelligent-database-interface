@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { AgentProgress } from './AgentProgress';
 import { GeneratingIndicator } from './GeneratingIndicator';
+import { WaitingPhrases } from './WaitingPhrases';
 import { useQueryStore } from '../stores/queryStore';
 import { useProgressStore } from '../stores/progressStore';
 
@@ -26,6 +27,8 @@ export function ChatBox() {
             {steps.length > 0 && <AgentProgress steps={steps} />}
 
             {isWaiting && steps.length === 0 && <GeneratingIndicator />}
+
+            {isWaiting && <WaitingPhrases />}
 
             <div ref={bottomRef} />
         </div>

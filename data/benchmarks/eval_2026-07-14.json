@@ -1,0 +1,144 @@
+{
+  "date": "2026-07-14",
+  "base_url": "http://localhost:5000",
+  "accuracy_summary": {
+    "scored": 7,
+    "passed": 5,
+    "not_scored": 1
+  },
+  "mean_stage_latency_ms": {
+    "context_manager": 0,
+    "query_understanding": 18205,
+    "sql_generator": 34833,
+    "verification": 1961
+  },
+  "probes": [
+    {
+      "ec": "EC-01",
+      "accuracy": "pass",
+      "detail": null,
+      "sql": "SELECT a.name FROM artists a WHERE a.country = 'CO';",
+      "row_count": 1,
+      "ended_in_clarification": false,
+      "pipeline_error": null,
+      "stage_latencies_ms": {
+        "context_manager": 1,
+        "query_understanding": 15552,
+        "sql_generator": 34178,
+        "verification": 3
+      },
+      "tokens_per_sec": 2.66
+    },
+    {
+      "ec": "EC-02",
+      "accuracy": "fail",
+      "detail": "expected 2 rows (Individual, Family), got 0",
+      "sql": "SELECT DISTINCT sp.name AS plan_name\nFROM subscription_plans sp\nJOIN track_artists ta ON sp.plan_id = ta.plan_id\nJOIN tracks t ON ta.track_id = t.track_id\nJOIN track_genres tg ON t.track_id = tg.track_id\nJOIN genres g ON tg.genre_id = g.genre_id\nWHERE sp.has_hifi = 1;",
+      "row_count": 0,
+      "ended_in_clarification": false,
+      "pipeline_error": "Verification failed.",
+      "stage_latencies_ms": {
+        "context_manager": 1,
+        "query_understanding": 16924,
+        "sql_generator": 11810,
+        "verification": 7032
+      },
+      "tokens_per_sec": 28.15
+    },
+    {
+      "ec": "EC-03",
+      "accuracy": "pass",
+      "detail": null,
+      "sql": "SELECT COUNT(*) AS total_singles\nFROM tracks\nWHERE album_id IS NULL;",
+      "row_count": 1,
+      "ended_in_clarification": false,
+      "pipeline_error": null,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 20519,
+        "sql_generator": 38035,
+        "verification": 2
+      },
+      "tokens_per_sec": 2.74
+    },
+    {
+      "ec": "EC-04",
+      "accuracy": "fail",
+      "detail": "expected exactly 6 rows (the 6 parent genres), got 0",
+      "sql": "SELECT DISTINCT g.name FROM genres g\nJOIN genres p ON g.parent_genre_id = p.genre_id\nWHERE p.parent_genre_id IS NOT NULL;",
+      "row_count": 0,
+      "ended_in_clarification": false,
+      "pipeline_error": null,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 17725,
+        "sql_generator": 37823,
+        "verification": 2
+      },
+      "tokens_per_sec": 6.48
+    },
+    {
+      "ec": "EC-05",
+      "accuracy": "pass",
+      "detail": null,
+      "sql": "SELECT AVG(trk_dur_ms / 60000.0) AS avg_track_duration_minutes\nFROM tracks;",
+      "row_count": 1,
+      "ended_in_clarification": false,
+      "pipeline_error": null,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 18044,
+        "sql_generator": 37442,
+        "verification": 5
+      },
+      "tokens_per_sec": 2.97
+    },
+    {
+      "ec": "EC-06",
+      "accuracy": "pass",
+      "detail": null,
+      "sql": "SELECT ph.monthly_price AS current_price\nFROM pricing_history ph\nJOIN subscription_plans sp ON ph.plan_id = sp.plan_id\nWHERE sp.plan_type = 3 AND ph.effective_to IS NULL;",
+      "row_count": 1,
+      "ended_in_clarification": false,
+      "pipeline_error": null,
+      "stage_latencies_ms": {
+        "context_manager": 1,
+        "query_understanding": 19495,
+        "sql_generator": 38651,
+        "verification": 5
+      },
+      "tokens_per_sec": 3.65
+    },
+    {
+      "ec": "EC-07",
+      "accuracy": "not_scored",
+      "sql": "SELECT a.name AS artist_name, SUM(pe.total_plays) AS total_plays\nFROM artists a\nJOIN play_events pe ON a.artist_id = pe.artist_id\nWHERE pe.event_type = 'play' AND YEAR(pe.played_at) = 2024\nGROUP BY a.artist_id, a.name\nORDER BY total_plays DESC\nLIMIT 1;",
+      "row_count": 0,
+      "ended_in_clarification": false,
+      "pipeline_error": "Verification failed.",
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 19544,
+        "sql_generator": 39921,
+        "verification": 8632
+      },
+      "tokens_per_sec": 5.39
+    },
+    {
+      "ec": "EC-08",
+      "accuracy": "pass",
+      "detail": null,
+      "sql": "SELECT DISTINCT p.playlist_id, p.name\nFROM playlists p\nJOIN playlist_tracks pt ON p.playlist_id = pt.playlist_id\nJOIN tracks t ON pt.track_id = t.track_id\nJOIN track_artists ta ON t.track_id = ta.track_id\nJOIN artists a ON ta.artist_id = a.artist_id\nWHERE a.name = 'Adele';",
+      "row_count": 0,
+      "ended_in_clarification": false,
+      "pipeline_error": null,
+      "stage_latencies_ms": {
+        "context_manager": 1,
+        "query_understanding": 17837,
+        "sql_generator": 40804,
+        "verification": 4
+      },
+      "tokens_per_sec": 6.33
+    }
+  ]
+}

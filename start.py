@@ -17,11 +17,12 @@ One-time setup (run once before first launch):
     cd frontend && npm install
 """
 
+import glob
 import importlib.util
+import os
 import shutil
 import subprocess
 import sys
-import os
 import time
 import urllib.request
 
@@ -38,6 +39,7 @@ PYTHON = _venv_python if os.path.isfile(_venv_python) else sys.executable
 MODEL_PATH = os.path.join(
     ROOT, "models", "qwen2.5-coder-3b-instruct-q4_k_m.gguf"
 )
+ADAPTERS_DIR = os.path.join(ROOT, "adapters")
 LLAMA_PORT = os.getenv("LLAMA_CPP_SERVER_PORT", "7860")
 LLAMA_LOG = os.path.join(ROOT, "llama_server.log")
 
@@ -149,6 +151,21 @@ def llama_already_running() -> bool:
         return False
 
 
+def lora_args() -> list[str]:
+    """One --lora flag per trained adapter in adapters/*.gguf.
+
+    --lora-init-without-apply loads them at scale 0; the backend activates the
+    right one per agent via POST /lora-adapters (llm_service.load_gguf_adapter).
+    """
+    args: list[str] = []
+    for path in sorted(glob.glob(os.path.join(ADAPTERS_DIR, "*.gguf"))):
+        args += ["--lora", path]
+        print(f"  LoRA adapter: {os.path.basename(path)}")
+    if args:
+        args += ["--lora-init-without-apply"]
+    return args
+
+
 def start_llama_server(binary: str) -> subprocess.Popen:
     if llama_already_running():
         print(f"  llama.cpp server already running on port {LLAMA_PORT}.")
@@ -157,7 +174,8 @@ def start_llama_server(binary: str) -> subprocess.Popen:
     print(f"  Starting llama.cpp server (log -> {LLAMA_LOG}) ...", flush=True)
     log_f = open(LLAMA_LOG, "w")
     proc = subprocess.Popen(
-        [binary, "--model", MODEL_PATH, "--port", LLAMA_PORT, "-ngl", "99"],
+        [binary, "--model", MODEL_PATH, "--port", LLAMA_PORT, "-ngl", "99"]
+        + lora_args(),
         stdout=log_f,
         stderr=log_f,
     )

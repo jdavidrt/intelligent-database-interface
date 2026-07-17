@@ -480,6 +480,13 @@ body {
     -webkit-text-fill-color: var(--text);
 }
 
+.nav-tab-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+}
+
 .nav-tab-active {
     background: var(--input-bg-focus);
     border-color: var(--primary);

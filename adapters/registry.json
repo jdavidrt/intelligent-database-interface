@@ -1,6 +1,6 @@
 {
-  "sql_generator":       { "kind": "prompt", "artifact": "sql_generator.md" },
-  "query_understanding": { "kind": "prompt", "artifact": "query_understanding.md" },
+  "sql_generator":       { "kind": "gguf",   "artifact": "sql_generator.gguf" },
+  "query_understanding": { "kind": "gguf",   "artifact": "query_understanding.gguf" },
   "verification":        { "kind": "prompt", "artifact": "verification.md" },
   "clarification":       { "kind": "prompt", "artifact": "clarification.md" }
 }

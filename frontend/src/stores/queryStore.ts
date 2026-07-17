@@ -32,6 +32,10 @@ const INITIAL_MESSAGE: Message = {
 // Non-reactive request handle — lives outside the store state on purpose.
 let abortController: AbortController | null = null;
 
+// Bumped by newChat() so an aborted in-flight send() can't push stale
+// bubbles (e.g. "Request cancelled") into the freshly reset feed.
+let chatEpoch = 0;
+
 function safeParseRows(json: string | null): Array<Record<string, unknown>> {
     if (!json) return [];
     try {
@@ -48,6 +52,8 @@ interface QueryState {
     isWaiting: boolean;
     send: (text: string) => Promise<void>;
     stop: () => void;
+    /** Reset the chat feed and detach from the active session (no page reload needed). */
+    newChat: () => void;
     /** Replace the chat feed with a previously stored session's turns. */
     loadFromSession: (detail: SessionDetail) => void;
 }
@@ -57,13 +63,16 @@ export const useQueryStore = create<QueryState>(set => ({
     isWaiting: false,
 
     send: async text => {
-        const pushBot = (msg: Omit<Message, 'id' | 'role'>) =>
+        const epoch = chatEpoch;
+        const pushBot = (msg: Omit<Message, 'id' | 'role'>) => {
+            if (epoch !== chatEpoch) return; // chat was reset mid-flight
             set(state => ({
                 messages: [
                     ...state.messages,
                     { id: crypto.randomUUID(), role: 'bot' as const, ...msg },
                 ],
             }));
+        };
 
         set(state => ({
             messages: [
@@ -89,7 +98,7 @@ export const useQueryStore = create<QueryState>(set => ({
                 }
             }
 
-            if (finalResult) {
+            if (finalResult && epoch === chatEpoch) {
                 useSessionStore.getState().setActiveSession(finalResult.session_id);
                 pushBot({ content: '', result: finalResult });
                 // The first query also builds the backend DBProfile — fetch it
@@ -119,10 +128,19 @@ export const useQueryStore = create<QueryState>(set => ({
         abortController?.abort();
     },
 
-    // TODO(KI-1, DAY2_PLAN.md §Known Issues): restored sessions currently show
-    // only the user questions — assistant answers don't render. Improve the
-    // restore path (verify assistant turns arrive from GET /session/{id} and
-    // that this reconstruction renders them).
+    newChat: () => {
+        chatEpoch += 1;
+        // Cancel any in-flight stream first — its finally block clears isWaiting.
+        abortController?.abort();
+        useSessionStore.getState().setActiveSession(null);
+        useProgressStore.getState().reset();
+        set({ messages: [INITIAL_MESSAGE], isWaiting: false });
+    },
+
+    // KI-1 resolved: assistant turns (answers *and* clarification questions) are
+    // persisted by the backend and reconstructed here as restored bot messages.
+    // Sessions recorded before that persistence landed only contain user turns
+    // and will restore as questions-only — expected for legacy data.
     loadFromSession: detail => {
         const messages: Message[] = detail.turns.map(turn =>
             turn.role === 'user'

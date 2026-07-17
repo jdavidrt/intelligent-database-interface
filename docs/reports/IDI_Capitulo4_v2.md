@@ -34,7 +34,7 @@ Este capítulo desarrolla el cuarto objetivo específico (OE4): evaluar el desem
 
 4.1. PROTOCOLO DE EVALUACIÓN
 
-[PENDIENTE: fijar y versionar — semilla aleatoria y criterio de muestreo usados para construir los subconjuntos simulados estilo Spider y estilo BIRD sobre SoundWave (Capítulo 1, §1.3; construcción en Capítulo 3), criterio exacto de Execution Accuracy (comparación de conjuntos de resultados, orden, tolerancia numérica), guion de la revisión experta heurística sobre los siete escenarios de uso (UC-01–UC-07), y checklist de claridad didáctica con su criterio de muestreo de explicaciones (§4.7). Este protocolo debe congelarse antes de §4.2. Nota de datos ya conocida (Capítulo 3, §3.4): la sonda EC-08 referencia una artista ("Adele") que no existe en los datos semilla de SoundWave, por lo que su respuesta correcta es 0 filas — el protocolo debe registrar este ground truth para no puntuar como fallo una respuesta vacía correcta.]
+[PENDIENTE: fijar y versionar — semilla aleatoria y criterio de muestreo usados para construir los subconjuntos simulados estilo Spider y estilo BIRD sobre SoundWave (Capítulo 1, §1.3; construcción en Capítulo 3), criterio exacto de Execution Accuracy (comparación de conjuntos de resultados, orden, tolerancia numérica), guion de la revisión experta heurística sobre los siete escenarios de uso (UC-01–UC-07), y checklist de claridad didáctica con su criterio de muestreo de explicaciones (§4.7). Este protocolo debe congelarse antes de §4.2. Nota de datos ya conocida (Capítulo 3, §3.4): la query de la prueba de ejecución de casos límite 8 referencia una artista ("Adele") que no existe en los datos semilla de SoundWave, por lo que su respuesta correcta es 0 filas — el protocolo debe registrar este ground truth para no puntuar como fallo una respuesta vacía correcta.]
 
 
 4.2. PRECISIÓN DE EJECUCIÓN (PATRONES SIMULADOS ESTILO SPIDER Y BIRD, SOUNDWAVE, IDI-EXEC-75)
@@ -53,7 +53,7 @@ Instrumentación disponible: `tests/evaluate.py` calcula Execution Accuracy a pa
 
 4.3. EFECTIVIDAD DE LA VERIFICACIÓN (ERROR DETECTION RATE)
 
-Precedente disponible: la Puerta D1 ya reportó 6/8 sondas EC correctamente resueltas, con EC-07/EC-08 bloqueadas por la capa sintáctica (fail-safe funcionando). [PENDIENTE: consolidar esta cifra en un Error Detection Rate formal frente al umbral de 90%/95% del Capítulo 1, y extenderla a las 30 consultas de SoundWave, las 75 de IDI-EXEC-75, y los dos subconjuntos simulados.]
+Precedente disponible: la Puerta D1 ya reportó 6 de 8 queries correctamente resueltas, con las queries de las pruebas de ejecución de casos límite 7 y 8 bloqueadas por la capa sintáctica (fail-safe funcionando). [PENDIENTE: consolidar esta cifra en un Error Detection Rate formal frente al umbral de 90%/95% del Capítulo 1, y extenderla a las 30 consultas de SoundWave, las 75 de IDI-EXEC-75, y los dos subconjuntos simulados.]
 
 | Métrica | Umbral Mínimo | Objetivo | Resultado Obtenido |
 |---|---|---|---|
@@ -62,12 +62,13 @@ Precedente disponible: la Puerta D1 ya reportó 6/8 sondas EC correctamente resu
 
 4.4. DESEMPEÑO Y LATENCIA EN HARDWARE OBJETIVO
 
-[PENDIENTE: medición de P50 latency de extremo a extremo sobre GTX 1650 (4GB VRAM) y en modo CPU-only, sobre consultas de una sola tabla.]
+[PENDIENTE: medición de P50 latency de extremo a extremo sobre GTX 1650 (4GB VRAM) y en modo CPU-only, sobre consultas de una sola tabla. Incluye el pendiente trasladado desde el Capítulo 3 (§3.4): medición real del tiempo de la cadena de verificación de extremo a extremo frente a su umbral de <2s.]
 
 | Métrica | Umbral Mínimo | Objetivo | Resultado Obtenido |
 |---|---|---|---|
 | P50 Latency (GPU) | < 5s | < 3s | [PENDIENTE] |
 | P50 Latency (CPU-only) | — | — | [PENDIENTE] |
+| Tiempo de verificación de extremo a extremo | — | < 2s | [PENDIENTE — trasladado del Capítulo 3, §3.4] |
 | Tokens/s (`chat_with_meta()`) | — | — | [PENDIENTE] |
 
 
@@ -86,7 +87,7 @@ Esta sección reemplaza el estudio de usuario formal (SUS, participantes externo
 |---|---|---|
 | UC-01 | Consulta simple con visualización | [PENDIENTE] |
 | UC-02 | Consulta ambigua con clarificación | [PENDIENTE] |
-| UC-03 | Investigación multi-turno persistente | [PENDIENTE — bloqueado por KI-1, Capítulo 3 §3.6] |
+| UC-03 | Investigación multi-turno persistente | [PENDIENTE — bloqueado por KI-1, ver nota de alcance de esta sección] |
 | UC-04 | Bloqueo de consulta peligrosa | [PENDIENTE] |
 | UC-05 | Timeout con progreso informado | [PENDIENTE] |
 | UC-06 | Auto-corrección silenciosa | [PENDIENTE] |
@@ -99,14 +100,14 @@ Esta sección reemplaza el estudio de usuario formal (SUS, participantes externo
 
 Nota sobre el criterio de UC-06: bajo la política de auto-corrección silenciosa fijada en la actualización del Capítulo 1, el criterio de éxito del walkthrough es que el usuario nunca vea un resultado erróneo ni el detalle del reintento; la evidencia de que la auto-corrección efectivamente ocurrió se busca en los `AgentEvent`s y logs del backend, no en la interfaz.
 
-Nota de alcance: el defecto conocido KI-1 (restauración de sesión, Capítulo 3 §3.6) afecta directamente UC-03. [PENDIENTE: decidir si UC-03 se pospone hasta resolver KI-1, o si se documenta como hallazgo crítico dentro de este mismo walkthrough — bajo esta metodología, a diferencia de un estudio SUS con calendario de participantes, no hay una razón logística para posponer: puede simplemente reportarse como falla conocida.]
+Nota de alcance — defecto conocido KI-1 (restauración de sesión): al restaurar una sesión desde `SessionLibrary` solo se cargan las preguntas del usuario — las respuestas del asistente no se renderizan. El defecto afecta directamente UC-03 y está siendo atendido. [PENDIENTE: verificar su cierre antes de la revisión experta heurística; si persistiera, documentarlo como hallazgo crítico dentro de este mismo walkthrough — bajo esta metodología, a diferencia de un estudio SUS con calendario de participantes, no hay una razón logística para posponer: puede simplemente reportarse como falla conocida.]
 
 
 4.7. CLARIDAD DIDÁCTICA DE LAS EXPLICACIONES
 
 Métrica incorporada tras el complemento de alcance del Capítulo 1 (§1.8): mide el porcentaje de explicaciones generadas por el sistema — anotación de SQL, glosario de dominio, justificación de la elección de gráfico — juzgadas comprensibles para un principiante sin conocimiento previo de SQL, mediante revisión heurística sobre una muestra tomada de las cuatro fuentes de evaluación (subconjuntos simulados estilo Spider y BIRD, SoundWave-30, IDI-EXEC-75).
 
-[PENDIENTE: definir en §4.1 el tamaño y criterio de la muestra y la checklist de comprensibilidad, y ejecutar la revisión. Prerrequisito honesto registrado en el Capítulo 3 (§3.11): varios requerimientos didácticos por módulo (clarificación como lección, justificación de gráfico, explicación conceptual de fallos) aún no tienen evidencia de implementación — la medición debe hacerse después de cerrar esas brechas, o reportar explícitamente qué fuentes de explicación quedaron fuera y por qué.]
+[PENDIENTE: definir en §4.1 el tamaño y criterio de la muestra y la checklist de comprensibilidad, y ejecutar la revisión. Según el estado registrado en el Capítulo 3 (§3.11), los requerimientos didácticos están completos en los módulos donde aplican (Verificación y Orquestador se reclasificaron como mecanismos internos sin objetivo didáctico); la justificación de la elección de gráfico mantiene una implementación básica, para casos muy generales, y la medición debe tener presente ese alcance.]
 
 | Métrica | Umbral Mínimo | Objetivo | Resultado Obtenido |
 |---|---|---|---|

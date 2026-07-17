@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import re
 
+from backend.app.agents.query_understanding import VAGUE_TIME_FLAG_PREFIX
 from backend.app.models.envelope import DBProfile, Intent
 from backend.app.services.llm_service import llm_service
 
@@ -16,6 +17,12 @@ The question should be phrased for a non-technical user.
 Respond with ONLY the question text, no preamble.
 """
 
+# Matches the flag format emitted by query_understanding's vague-time safety net:
+#   "vague time range: 'last months' does not specify how many months"
+_VAGUE_TIME_FLAG_RE = re.compile(
+    re.escape(VAGUE_TIME_FLAG_PREFIX) + r"\s+'([^']+)' does not specify how many (\w+)"
+)
+
 
 class Clarification:
     def needs_clarification(self, intent: Intent) -> bool:
@@ -24,6 +31,14 @@ class Clarification:
     def generate_question(self, intent: Intent) -> str:
         if not intent.ambiguity_flags:
             return ""
+        # Vague time range gets a deterministic canned question — no LLM call. The phrase
+        # and unit come straight from the flag, so the question always names the user's own
+        # words and offers a concrete choice instead of an open-ended "what did you mean?".
+        for flag in intent.ambiguity_flags:
+            match = _VAGUE_TIME_FLAG_RE.match(flag)
+            if match:
+                phrase, unit = match.group(1), match.group(2)
+                return f'By "{phrase}", do you mean the last 3 {unit} or the last 6 {unit}?'
         flags_str = "\n".join(f"- {f}" for f in intent.ambiguity_flags)
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},

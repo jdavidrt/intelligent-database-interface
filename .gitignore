@@ -87,8 +87,17 @@ embeddings/
 *.tsv
 *.parquet
 *.jsonl
-data/
+data/*
 datasets/
+
+# ...but keep the curated LoRA training datasets (built by training/build_dataset.py,
+# consumed by training/colab_train_adapter.ipynb via git clone in Colab)
+!data/synthetic/
+data/synthetic/*
+!data/synthetic/*.jsonl
+!data/synthetic/dataset_stats.json
+!data/synthetic/README.md
+!data/benchmarks/
 
 # Vector Databases / App Storage
 chroma_db/

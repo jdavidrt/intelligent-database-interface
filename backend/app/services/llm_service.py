@@ -1,13 +1,18 @@
 """LLM Service — wraps llama.cpp and exposes adapter hot-swap + base fallback.
 
-v2 semantics: an "adapter" is an instruction profile markdown file at
-backend/app/prompts/<name>.md, prepended to the system message. When trained
-GGUF adapters land (post-sprint), load_adapter() will call the llama.cpp
-/lora-adapters endpoint instead — same signature, same call sites.
+Two adapter kinds coexist (selected per agent by adapters/registry.json):
+- instruction profile: backend/app/prompts/<name>.md, prepended to the system
+  message (load_adapter).
+- trained GGUF LoRA: adapters/<name>.gguf, served by llama.cpp (started with
+  one --lora flag per file, see start.py) and activated per agent by setting
+  its scale to 1.0 via POST /lora-adapters (load_gguf_adapter). While a GGUF
+  adapter is active the .md profile is NOT prepended — the specialization is
+  in the weights, and the adapter was trained on the bare agent SYSTEM_PROMPT.
 """
 
 from __future__ import annotations
 
+import glob
 import os
 import time
 from typing import Any
@@ -24,6 +29,9 @@ class LLMService:
         self._base_url: str = settings.llama_cpp_server_url
         self._active_adapter: str | None = None
         self._instruction_profile: str = ""
+        # GGUF-name -> server-side adapter id, filled by the first successful
+        # GET /lora-adapters (None = never fetched; failures are not cached).
+        self._lora_ids: dict[str, int] | None = None
 
     # -- health ------------------------------------------------------------------
 
@@ -103,24 +111,81 @@ class LLMService:
         print(f"[LLMService] {elapsed}ms — {len(content)} chars returned")
         return content, meta
 
-    # -- adapter hot-swap: instruction profiles now, GGUF later ------------------
+    # -- adapter hot-swap: instruction profiles + trained GGUF LoRAs --------------
 
-    def load_adapter(self, adapter_name: str) -> None:
-        """Activate the adapter for the next chat() calls.
+    def _server_root(self) -> str:
+        return self._base_url.replace("/v1/chat/completions", "")
 
-        v2 semantics: an adapter is an instruction profile at
-        backend/app/prompts/<adapter_name>.md. Its content is prepended
-        to the system message of subsequent calls. When a real GGUF file
-        exists at adapters/<adapter_name>.gguf (post-sprint), this method
-        will call llama.cpp /lora-adapters instead - same signature.
+    def _gguf_server_adapters(self) -> dict[str, int]:
+        """GGUF basename stem -> server-side adapter id (GET /lora-adapters).
+
+        Cached after the first successful query; an unreachable server returns
+        {} without caching, so a late-starting llama.cpp still gets picked up.
+        """
+        if self._lora_ids is not None:
+            return self._lora_ids
+        # No trained adapters on disk -> nothing to query or scale. This keeps
+        # profile-only deployments (and the offline test suite) fully off the
+        # network: the glob is microseconds, a connect attempt is not.
+        if not glob.glob(os.path.join(settings.repo_root, "adapters", "*.gguf")):
+            return {}
+        try:
+            r = requests.get(f"{self._server_root()}/lora-adapters", timeout=3)
+            r.raise_for_status()
+            mapping: dict[str, int] = {}
+            for entry in r.json():
+                stem = os.path.splitext(os.path.basename(entry.get("path", "")))[0]
+                mapping[stem] = entry["id"]
+            self._lora_ids = mapping
+            return mapping
+        except Exception:
+            return {}
+
+    def _set_lora_scales(self, active: str | None) -> bool:
+        """Scale the active adapter to 1.0 and every other served adapter to 0.0."""
+        mapping = self._gguf_server_adapters()
+        if not mapping:
+            return False
+        if active is not None and active not in mapping:
+            return False
+        payload = [
+            {"id": aid, "scale": 1.0 if name == active else 0.0} for name, aid in mapping.items()
+        ]
+        try:
+            r = requests.post(f"{self._server_root()}/lora-adapters", json=payload, timeout=5)
+            r.raise_for_status()
+            return True
+        except Exception as e:
+            print(f"[LLMService] POST /lora-adapters failed: {e}")
+            return False
+
+    def load_gguf_adapter(self, adapter_name: str) -> bool:
+        """Activate the trained LoRA at adapters/<adapter_name>.gguf.
+
+        Returns False (caller falls back to the instruction profile) when the
+        file is absent or the llama.cpp server isn't serving that adapter.
         """
         gguf = os.path.join(settings.repo_root, "adapters", f"{adapter_name}.gguf")
-        if os.path.isfile(gguf):
-            # Post-sprint branch - wired when trained adapters land.
+        if not os.path.isfile(gguf):
+            return False
+        if not self._set_lora_scales(adapter_name):
             print(
-                f"[LLMService] GGUF found for {adapter_name} but hot-swap not wired yet; "
-                "using instruction profile."
+                f"[LLMService] {adapter_name}.gguf exists but the server is not serving "
+                "it (restart via start.py to pass --lora); using instruction profile."
             )
+            return False
+        # Trained on the bare agent SYSTEM_PROMPT — never double-prompt with the .md.
+        self._instruction_profile = ""
+        self._active_adapter = adapter_name
+        return True
+
+    def load_adapter(self, adapter_name: str) -> None:
+        """Activate the instruction profile at backend/app/prompts/<adapter_name>.md.
+
+        Its content is prepended to the system message of subsequent calls. Any
+        GGUF LoRA scale left active by a previous agent is zeroed so profile-only
+        agents always run against the base model.
+        """
         path = os.path.join(os.path.dirname(__file__), "..", "prompts", f"{adapter_name}.md")
         if os.path.isfile(path):
             with open(path, encoding="utf-8") as f:
@@ -131,10 +196,12 @@ class LLMService:
             self._instruction_profile = ""
             self._active_adapter = None
             print(f"[LLMService] no profile for '{adapter_name}' - base instructions.")
+        self._set_lora_scales(None)
 
     def unload_adapter(self) -> None:
         self._instruction_profile = ""
         self._active_adapter = None
+        self._set_lora_scales(None)
 
     def active_adapter(self) -> str | None:
         return self._active_adapter

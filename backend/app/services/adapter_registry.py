@@ -30,13 +30,12 @@ def activate(agent_name: str) -> str:
         llm_service.unload_adapter()
         return "base"
     if entry["kind"] == "gguf":
-        # Post-sprint: llm_service will call llama.cpp /lora-adapters here.
-        # Until wired, fall through to the prompt profile of the same name.
-        pass
-    # Note: both branches above fall through to load_adapter(agent_name), so
-    # entry["artifact"] is never actually read — the filename is always
-    # re-derived as "<agent_name>.md" / "<agent_name>.gguf". Harmless today
-    # since every artifact value coincides with that, but a trap if an
-    # artifact is ever renamed independently of its agent key.
+        artifact = entry.get("artifact", f"{agent_name}.gguf")
+        stem = os.path.splitext(os.path.basename(artifact))[0]
+        if llm_service.load_gguf_adapter(stem):
+            return f"lora:{agent_name}"
+        # Fail-safe: GGUF missing or not served -> same-named instruction profile.
+    # Prompt kind (and every fallback) re-derives the filename as
+    # "<agent_name>.md" — entry["artifact"] is only honored for gguf entries.
     llm_service.load_adapter(agent_name)
     return llm_service.active_adapter() or "base"

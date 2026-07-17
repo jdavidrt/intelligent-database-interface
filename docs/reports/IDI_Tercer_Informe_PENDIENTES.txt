@@ -1,0 +1,93 @@
+PENDIENTES — IDI Tercer Informe (Capítulo 3: Desarrollo de la Solución)
+Extraídos del documento el 2026-07-16. Estos ítems fueron removidos del
+IDI_Tercer_Informe.html y se rastrean aquí.
+
+[Actualización 2026-07-16 · Fine-tuning LoRA] La §3.10 del capítulo (v2) se
+reescribió a partir del pipeline de entrenamiento ya construido y verificable
+en el repositorio (datasets validados por ejecución, receta QLoRA/Unsloth,
+integración GGUF); en consecuencia se ajustaron los ítems 8 y 14 abajo. El
+IDI_Tercer_Informe.html debe regenerarse para incorporar la §3.10 expandida y
+la rama GGUF de §3.8.
+
+1. (§3.1, Context Manager Agent — RNF de desempeño)
+   Medición real de latencia de generación de embeddings frente al umbral
+   de <200ms especificado en el RF del Capítulo 1.
+
+2. (§3.2, Query Understanding — evidencia de ejecución)
+   Evidencia de las tres categorías de ambigüedad (temporal, de entidad,
+   de métrica) siendo correctamente detectadas. Ver también el hueco
+   correspondiente en la tabla de la Sección 3.11.
+
+3. (§3.3, SQL Generator — evidencia de ejecución)
+   Ejemplos representativos de SQL generado sobre SoundWave, con
+   explicación en lenguaje natural y reporte de supuestos, tal como
+   exige el RF del SQL Generator Agent (Capítulo 1, §1.6).
+
+4. (§3.4, Verification Agent — RNF de desempeño)
+   Medición real del tiempo de verificación de extremo a extremo frente
+   al umbral de <2s.
+
+5. (§3.5, Visualization Engine — cobertura de RF)
+   Inventario de los 8 tipos de gráfico soportados frente a los
+   especificados en el RF del Capítulo 1.
+
+6. (§3.7, Multi-Agent Orchestrator — evidencia de prueba)
+   Documentar el mecanismo de reintento automático (máximo 2) y la
+   propagación de cancelación (<500ms, UC-05), verificando que el
+   reintento cumple la política de auto-corrección silenciosa (§3.4).
+
+7. (§3.8, Registro de Instrucciones — pertenece a OE4/Capítulo 4)
+   Resultados del harness A/B base-vs-especializado (tests/ab_harness.py)
+   — el harness ya existe pero requiere ejecución manual contra un
+   backend en vivo; sus resultados pertenecen propiamente al Capítulo 4,
+   la construcción del harness ya quedó documentada en §3.8.
+
+8. (§3.10, Datos Sintéticos y Fine-Tuning LoRA — pertenece a OE4/Capítulo 4)
+   Resuelto en construcción (2026-07-16): el pipeline de datos, los
+   datasets train/eval validados por ejecución, la receta de entrenamiento
+   (QLoRA/Unsloth, 2 adaptadores) y la integración GGUF quedaron
+   construidos y documentados en §3.10 y §3.8. Lo pendiente es solo el
+   resultado de evaluación: precisión de ejecución sobre el conjunto
+   reservado y la comparación A/B del adaptador entrenado frente al perfil
+   de instrucción, contra la línea base de 5/7 estricto
+   (data/benchmarks/eval_2026-07-14.md), con foco en el cierre de EC-02 y
+   EC-04. El entrenamiento está en ejecución; los números pertenecen al
+   Capítulo 4.
+
+9. (§3.11, tabla — Query Understanding)
+   Evidencia de ejecución de por qué cada clarificación explica la
+   ambigüedad (mismo hueco que el ítem 2).
+
+10. (§3.11, tabla — Verification)
+    Evidencia de un fallo no corregible comunicado como explicación
+    conceptual (los fallos auto-corregidos no se exponen, por diseño
+    UC-06 — no hay nada que mostrar ahí; el hueco es del otro caso).
+
+11. (§3.11, tabla — SQL Generator y Visualization Engine)
+    Verificación de cobertura cláusula a cláusula del SQL generado, y
+    verificación específica de la justificación del tipo de gráfico
+    elegido (más allá del panel visible en la Captura 2.2 del Capítulo 2).
+
+12. (§3.11, tabla — Context Manager)
+    Ejemplos de consulta por término dentro del mini-glosario navegable.
+
+13. (§3.12, Estado de Avance)
+    Incorporar el estado de la fase de conexión a base de datos real
+    (Real DB Connection & Hardening, Día 4) una vez cerrada.
+
+14. (REFERENCIAS)
+    Parcialmente resuelto (2026-07-16): se añadieron el modelo base
+    (Qwen2.5-Coder, arXiv:2409.12186 — verificar el identificador antes de
+    imprimir) y la fuente de datos externa del fine-tuning
+    (gretelai/synthetic_text_to_sql). Queda extender con las fuentes de la
+    evaluación de datasets sintéticos y del harness A/B cuando se redacten
+    sus resultados en el Capítulo 4.
+
+Nota: este capítulo no incorpora figuras ni capturas propias — remite por
+puntero a las Figuras 2.2–2.4 y Capturas 2.1–2.5 ya producidas para el
+Capítulo 2 (IDI_Segundo_Informe.html, 2026-07-15). Las Secciones 3.13
+(Conclusiones) y 3.14 (Recomendaciones) se redactaron a partir de las
+candidatas que el propio esqueleto v2 del capítulo ya proponía entre
+corchetes — no son evidencia nueva, sino la promoción de esas candidatas
+a prosa final. No se generó PDF para este informe; regenerarlo desde el
+HTML (imprimir a PDF, tamaño carta) cuando se desee.

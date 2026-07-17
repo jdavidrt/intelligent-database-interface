@@ -104,11 +104,11 @@ If/when a `progress` Zustand store lands (Step 3), this field moves there; until
 
 ---
 
-## Known Issues (post-implementation, 2026-07-02) — PENDING
+## Known Issues (post-implementation, 2026-07-02)
 
 | # | Issue | Status |
 |---|---|---|
-| KI-1 | **Session restore only loads the questions, not the answers.** Reloading a session from `SessionLibrary` repopulates the chat with the user turns, but the assistant answers don't render. The restore path must be improved: check whether assistant turns are actually persisted/returned by `GET /session/{id}` (backend `append_turn` on the assistant side), and whether the frontend reconstruction (`queryStore.loadFromSession` → `AnswerPanel` `restored` branch) renders them when `sql`/`teaching_summary` come back null/empty. | **Pending** |
+| KI-1 | **Session restore only loads the questions, not the answers.** Reloading a session from `SessionLibrary` repopulates the chat with the user turns, but the assistant answers don't render. The restore path must be improved: check whether assistant turns are actually persisted/returned by `GET /session/{id}` (backend `append_turn` on the assistant side), and whether the frontend reconstruction (`queryStore.loadFromSession` → `AnswerPanel` `restored` branch) renders them when `sql`/`teaching_summary` come back null/empty. | **Resolved 2026-07-16.** Diagnosis: the reconstruction path (`loadFromSession` → `AnswerPanel` `restored` branch) and the `GET /session/{id}` types were already correct; the actual gaps were (a) sessions recorded before assistant-turn persistence landed contain only user turns (legacy data — restores as questions-only, expected), and (b) the **clarification branch never persisted its assistant turn**, so those replies vanished on restore. Fixed (b) in `orchestrator.py` (`append_turn` after the clarification question). Regression-covered by `tests/test_session_restore.py` (full query persists `sql`+`rows_json`; clarification turn now present in the restore contract). |
 
 ---
 

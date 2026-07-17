@@ -47,6 +47,7 @@ export default function App() {
     const isWaiting = useQueryStore(s => s.isWaiting);
     const send = useQueryStore(s => s.send);
     const stop = useQueryStore(s => s.stop);
+    const newChat = useQueryStore(s => s.newChat);
     const activeDbName = useDatabaseStore(s => s.activeDbName);
 
     useEffect(() => { applyTheme(themeIndex); }, [themeIndex]);
@@ -58,6 +59,11 @@ export default function App() {
     const toggleDrawer = useCallback((kind: DrawerKind) => {
         setDrawer(prev => (prev === kind ? null : kind));
     }, []);
+
+    const handleNewChat = useCallback(() => {
+        newChat();
+        setPage('chat'); // jump back to the fresh chat if on Benchmarks
+    }, [newChat]);
 
     if (!activeDbName) {
         return (
@@ -76,6 +82,7 @@ export default function App() {
                 onPageChange={setPage}
                 drawer={drawer}
                 onDrawerToggle={toggleDrawer}
+                onNewChat={handleNewChat}
             />
 
             {page === 'chat' ? (

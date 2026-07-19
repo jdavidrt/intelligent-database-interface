@@ -143,7 +143,7 @@ def test_history_segment_does_not_retrigger_vague_time(patched_llm, patched_vect
     contextualised = (
         "[History]\n"
         "user: most reproduced song of the last months?\n"
-        "assistant: By \"last months\", do you mean the last 3 months or the last 6 months?\n"
+        'assistant: By "last months", do you mean the last 3 months or the last 6 months?\n'
         "[Current] the last 3 months"
     )
     intent = QueryUnderstanding().parse(contextualised, make_profile())
@@ -154,6 +154,33 @@ def test_llm_time_flag_is_not_duplicated(patched_llm, patched_vector_context):
     patched_llm([_intent_json(ambiguity_flags=["time range 'last months' is vague"])])
     intent = QueryUnderstanding().parse("top songs of the last months", make_profile())
     assert len(intent.ambiguity_flags) == 1  # LLM's own flag kept, no regex duplicate
+
+
+def test_misspelled_vague_unit_is_still_flagged(patched_llm, patched_vector_context):
+    """The reported bug: 'the last mosths' (typo for months) slipped past the literal
+    unit list, so no clarification fired and the pipeline answered a vague question."""
+    patched_llm([_intent_json(plain_restatement="Most reproduced artists of the last months.")])
+    intent = QueryUnderstanding().parse(
+        "who are the most reproduced artist of the last mosths?", make_profile()
+    )
+    flags = [f for f in intent.ambiguity_flags if f.startswith(VAGUE_TIME_FLAG_PREFIX)]
+    assert len(flags) == 1
+    assert "last mosths" in flags[0]  # user's literal words, for the follow-up question
+    assert "months" in flags[0]  # canonical unit, for the concrete 3-vs-6 choice
+
+
+def test_detector_tolerates_unit_typos():
+    assert _detect_vague_time_range("most played artist of the last mosths") == (
+        "last mosths",
+        "months",
+    )
+    assert _detect_vague_time_range("top tracks of the past monhts") == ("past monhts", "months")
+    assert _detect_vague_time_range("signups in the last wekks") == ("last wekks", "weeks")
+    # Non-time words in unit position must not fuzz into a unit
+    assert _detect_vague_time_range("what are the most recent songs") is None
+    assert _detect_vague_time_range("show the last albums released") is None
+    # Singulars stay concrete even though they're 1 edit away from the plural
+    assert _detect_vague_time_range("top songs of the last month") is None
 
 
 def test_detector_units_and_phrases():

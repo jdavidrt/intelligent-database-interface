@@ -1,9 +1,11 @@
 """Context Manager — DB introspection, survey, ChromaDB embedding."""
 
 from __future__ import annotations
+
 import glob
 import json
 import os
+
 from backend.app.models.envelope import DBProfile
 from backend.app.services.memory.vector import embed_db_profile, embed_text
 

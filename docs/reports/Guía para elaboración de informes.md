@@ -131,6 +131,15 @@ Para garantizar compatibilidad universal del archivo fuente:
 3. El texto se redacta en prosa; las listas y tablas se reservan para enumeraciones, comparaciones o datos estructurados.
 4. Todo el código y sus comentarios se escriben en inglés. El cuerpo del informe va en español.
 5. Para las horas usar siempre el formato AM / PM.
+6. **Imágenes siempre por referencia, nunca en base64** (regla adoptada el 2026-07-17):
+   en los `.md` de capítulo y en el HTML del informe, toda captura o figura se inserta
+   como ruta relativa a la carpeta de figuras (`![...](figures/shot_N_M_<slug>.png)`).
+   Incrustar base64 infla el archivo, lo vuelve ineditable y entorpece la edición
+   asistida (humana o con Claude).
+7. **Los bloques grandes que no son prosa van en archivos aparte**: SVG de diagramas en
+   `figures/*.svg` (referenciados, no pegados), CSS y fuentes del informe HTML en
+   `assets/informe.css`. El archivo que se redacta y se itera debe contener solo el
+   texto del informe. El detalle técnico está en `GUIA_GENERACION_INFORMES_HTML.md` (§1).
 
 ---
 
@@ -150,6 +159,8 @@ Marcar cada casilla antes de enviar el informe:
 - [ ] Encabezados institucionales correctos en todas las páginas del PDF.
 - [ ] Sin tablas truncadas, sin bucles de texto, sin frases rotas.
 - [ ] Listas y subtítulos usan dos puntos y minúscula tras el enunciado (no punto y mayúscula).
+- [ ] Sin base64 en los fuentes (`.md`/HTML): imágenes referenciadas desde `figures/`,
+      estilos y fuentes en `assets/` (reglas 6 y 7 de la Sección 8).
 - [ ] PDF regenerado desde el fuente y revisado página por página.
 - [ ] (Documento final) Propuesta CADE anexada como apéndice.
 

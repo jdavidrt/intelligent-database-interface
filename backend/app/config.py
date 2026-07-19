@@ -1,8 +1,9 @@
 """Centralised settings for the IDI backend."""
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
 import os
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -26,9 +27,14 @@ class Settings(BaseSettings):
     databases_dir: str = Field(default="databases", alias="DATABASES_DIR")
 
     # Paths
-    repo_root: str = Field(default_factory=lambda: os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "..")
-    ))
+    repo_root: str = Field(
+        default_factory=lambda: os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    )
+
+    # Freeze the pipeline clock (services/clock.py) to a fixed ISO timestamp,
+    # e.g. "2026-07-17T12:00:00" — empty = real time. Used by tests/evals so
+    # date-dependent SQL ("last 8 months") gives identical results on any day.
+    freeze_now: str = Field(default="", alias="IDI_FREEZE_NOW")
 
     # Backend
     backend_port: int = Field(default=5000, alias="BACKEND_PORT")

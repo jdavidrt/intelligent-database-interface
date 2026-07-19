@@ -87,6 +87,44 @@ These direct FKs DO NOT EXIST — writing any of them fails verification outrigh
 - `tracks.genre_id` / `albums.genre_id` do not exist → genre tags live in `track_genres`.
 Also distinguish `track_genres` (a track's own genre tags) from `artist_genres` (an artist's genre
 tags) — they are different bridge tables and are not interchangeable.
+Junction-table join keys, spelled out — copy these ON clauses verbatim, never guess a key
+(`artists` has NO `user_id`, `track_id`, or `genre_id` column; its PK is `artist_id`):
+- `user_follows_artists.user_id = users.user_id` AND `user_follows_artists.artist_id = artists.artist_id`
+- `track_artists.track_id = tracks.track_id` AND `track_artists.artist_id = artists.artist_id`
+- `playlist_tracks.playlist_id = playlists.playlist_id` AND `playlist_tracks.track_id = tracks.track_id`
+- `track_genres.track_id = tracks.track_id` AND `track_genres.genre_id = genres.genre_id`
+- `artist_genres.artist_id = artists.artist_id` AND `artist_genres.genre_id = genres.genre_id`
+"Most played / most reproduced artists" needs only `play_events → track_artists → artists`
+(count events, e.g. `COUNT(*)`). Do NOT drag in `user_follows_artists` unless the question is
+about followers — extra junction tables multiply rows and invite invented join keys.
+
+## Temporal grounding — relative time windows
+A relative window is defined by the *current date*, which the model does not know — the training
+data's "now" is stale. Any phrase like "last 8 months", "past 2 weeks", "previous 3 years",
+"last month", "this year", "yesterday" MUST become date arithmetic anchored to `CURDATE()` /
+`NOW()`, never a guessed literal:
+- "last 8 months" → `col >= DATE_SUB(CURDATE(), INTERVAL 8 MONTH)`
+- "past 2 weeks" → `col >= DATE_SUB(CURDATE(), INTERVAL 14 DAY)`
+- "last month" (the single previous month) → `col >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)`
+- "this year" → `YEAR(col) = YEAR(CURDATE())`
+- "yesterday" → `DATE(col) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)`
+Emitting `YEAR(col) = 2024` for "the last 8 months" is a **wrong answer**: it filters a fixed
+calendar year (the wrong one, and a 12-month span besides) instead of a rolling window ending
+today. Hardcoded years/dates are ONLY correct when the user names them explicitly ("in 2024",
+"since January 2025", "between March and May 2026"). The verification layer rejects relative-
+window questions whose SQL has no CURDATE()/NOW() anchor.
+
+**Unit fidelity is STRICT.** The INTERVAL must carry the question's own number and unit —
+"last 7 months" means `INTERVAL 7 MONTH`, nothing else. All of these are **wrong answers**
+for a 7-month window, even though they are anchored to CURDATE():
+- `YEAR(col) >= YEAR(CURDATE()) - 7` — a 7-**YEAR** calendar filter, ~12x too much data.
+- `col >= DATE_SUB(CURDATE(), INTERVAL 7 YEAR)` — wrong unit.
+- `col >= DATE_SUB(CURDATE(), INTERVAL 210 DAY)` — months are never convertible to days.
+Never rewrite a month window with `YEAR()`/`MONTH()` arithmetic at all: `MONTH(CURDATE()) - 7`
+goes negative across a year boundary and silently returns garbage. The only accepted unit
+conversions are exact: N weeks may be written as 7·N days, N years as 12·N months. The
+verification layer rejects any date filter whose INTERVAL number or unit differs from the
+question's.
 
 ## Requested output fields are non-negotiable
 When the user prompt includes a line "Explicitly requested output fields: ...", each one names a

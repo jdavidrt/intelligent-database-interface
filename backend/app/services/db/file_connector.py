@@ -10,6 +10,7 @@ the database's folder, following the NN_<db_name>_<type>.ext naming convention.
 """
 
 from __future__ import annotations
+
 import glob
 import os
 import re
@@ -21,7 +22,40 @@ import sqlglot
 from sqlglot import exp
 
 from backend.app.config import settings
-from backend.app.models.envelope import DBProfile, TableInfo, ColumnInfo
+from backend.app.models.envelope import ColumnInfo, DBProfile, TableInfo
+from backend.app.services import clock
+
+
+def _mysql_to_sqlite(sql: str) -> str:
+    """Transpile agent-emitted MySQL to SQLite for execution/EXPLAIN.
+
+    sqlglot (30.x) leaves MySQL date arithmetic untranspiled for SQLite —
+    `DATE_SUB(CURDATE(), INTERVAL 8 MONTH)` becomes a nonexistent 3-arg
+    DATE_SUB() call — so any "last N months/days" query would fail EXPLAIN
+    and be blocked by the syntax-verification layer. Rewrite DATE_SUB/DATE_ADD
+    at the AST level into SQLite date-modifier form: DATE(x, '-8 month').
+
+    CURDATE()/CURRENT_TIMESTAMP are kept as calls to the registered CURDATE/NOW
+    functions (see _register_mysql_functions) rather than transpiled to SQLite's
+    CURRENT_DATE keyword: the registered functions read services/clock.py, so a
+    frozen clock (IDI_FREEZE_NOW) governs executed SQL too — the keyword would
+    silently read the system clock instead.
+    """
+    tree = sqlglot.parse_one(sql, read="mysql")
+
+    def rewrite(node: exp.Expression) -> exp.Expression:
+        if isinstance(node, (exp.DateSub, exp.DateAdd)):
+            sign = "-" if isinstance(node, exp.DateSub) else "+"
+            qty = node.expression.name
+            unit = (node.text("unit") or "day").lower()
+            return exp.func("DATE", node.this, exp.Literal.string(f"{sign}{qty} {unit}"))
+        if isinstance(node, exp.CurrentDate):
+            return exp.func("CURDATE")
+        if isinstance(node, exp.CurrentTimestamp):
+            return exp.func("NOW")
+        return node
+
+    return tree.transform(rewrite).sql(dialect="sqlite")
 
 
 class FileConnector:
@@ -61,18 +95,21 @@ class FileConnector:
         """MySQL date functions that sqlglot leaves untranspiled for SQLite
         (YEAR/MONTH/DAY/NOW as of sqlglot 30.x). Agents emit MySQL, so without
         these any date-filtered query fails EXPLAIN and gets blocked by the
-        syntax-verification layer."""
+        syntax-verification layer.
+
+        NOW/CURDATE read services/clock.py (evaluated at query time, not
+        registration time), so the whole pipeline — prompts and executed SQL —
+        shares one clock and honors an IDI_FREEZE_NOW override."""
 
         def _part(value: Any, start: int, end: int) -> int | None:
             s = str(value)
             return int(s[start:end]) if value is not None and s[start:end].isdigit() else None
 
-        from datetime import datetime
-
         conn.create_function("YEAR", 1, lambda v: _part(v, 0, 4), deterministic=True)
         conn.create_function("MONTH", 1, lambda v: _part(v, 5, 7), deterministic=True)
         conn.create_function("DAY", 1, lambda v: _part(v, 8, 10), deterministic=True)
-        conn.create_function("NOW", 0, lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        conn.create_function("NOW", 0, clock.now_str)
+        conn.create_function("CURDATE", 0, clock.today_str)
 
     def disconnect(self) -> None:
         if self._conn:
@@ -105,7 +142,9 @@ class FileConnector:
                 defn.name
                 for defn in schema.expressions
                 if isinstance(defn, exp.ColumnDef)
-                and any(isinstance(c.kind, exp.AutoIncrementColumnConstraint) for c in defn.constraints)
+                and any(
+                    isinstance(c.kind, exp.AutoIncrementColumnConstraint) for c in defn.constraints
+                )
             }
             defs = []
             for defn in schema.expressions:
@@ -113,23 +152,31 @@ class FileConnector:
                 if isinstance(defn, (exp.UniqueColumnConstraint, exp.IndexColumnConstraint)):
                     continue
                 # Drop the table-level PK of an auto-increment column (moved inline).
-                if isinstance(defn, exp.PrimaryKey) and {c.name for c in defn.expressions} <= auto_inc_cols:
+                if (
+                    isinstance(defn, exp.PrimaryKey)
+                    and {c.name for c in defn.expressions} <= auto_inc_cols
+                ):
                     continue
                 if isinstance(defn, exp.ColumnDef):
                     if defn.name in auto_inc_cols:
                         defn.set("kind", exp.DataType.build("INTEGER"))
-                        defn.set("constraints", [
-                            exp.ColumnConstraint(kind=exp.PrimaryKeyColumnConstraint())
-                        ])
+                        defn.set(
+                            "constraints",
+                            [exp.ColumnConstraint(kind=exp.PrimaryKeyColumnConstraint())],
+                        )
                         defs.append(defn)
                         continue
                     kind = defn.args.get("kind")
                     if kind is not None and kind.this == exp.DataType.Type.ENUM:
                         defn.set("kind", exp.DataType.build("TEXT"))
-                    defn.set("constraints", [
-                        c for c in defn.constraints
-                        if not isinstance(c.kind, self._SQLITE_INCOMPATIBLE_CONSTRAINTS)
-                    ])
+                    defn.set(
+                        "constraints",
+                        [
+                            c
+                            for c in defn.constraints
+                            if not isinstance(c.kind, self._SQLITE_INCOMPATIBLE_CONSTRAINTS)
+                        ],
+                    )
                 defs.append(defn)
             schema.set("expressions", defs)
         return create.sql(dialect="sqlite")
@@ -139,7 +186,9 @@ class FileConnector:
         with open(path, encoding="utf-8") as f:
             raw = f.read()
         # Strip MySQL-only directives sqlglot does not need to see
-        raw = re.sub(r"(?ims)^\s*(SET|USE|CREATE\s+DATABASE|DROP\s+DATABASE|LOCK|UNLOCK)\b.*?;", "", raw)
+        raw = re.sub(
+            r"(?ims)^\s*(SET|USE|CREATE\s+DATABASE|DROP\s+DATABASE|LOCK|UNLOCK)\b.*?;", "", raw
+        )
         statements = sqlglot.parse(raw, dialect="mysql")
         cur = self._conn.cursor()
         for stmt in statements:
@@ -170,7 +219,9 @@ class FileConnector:
         edges: list[tuple[str, str]] = []
 
         for create in self._schema_asts:
-            tname = create.this.this.name if isinstance(create.this, exp.Schema) else create.this.name
+            tname = (
+                create.this.this.name if isinstance(create.this, exp.Schema) else create.this.name
+            )
             schema = create.this if isinstance(create.this, exp.Schema) else None
             columns: list[ColumnInfo] = []
             pks: set[str] = set()
@@ -182,15 +233,22 @@ class FileConnector:
                         constraints = [c.kind for c in defn.constraints]
                         if any(isinstance(k, exp.PrimaryKeyColumnConstraint) for k in constraints):
                             pks.add(defn.name)
-                        columns.append(ColumnInfo(
-                            name=defn.name,
-                            data_type=defn.args["kind"].sql(dialect="mysql") if defn.args.get("kind") else "unknown",
-                            # An explicit NULL is a NotNullColumnConstraint with allow_null=True.
-                            is_nullable=not any(
-                                isinstance(k, exp.NotNullColumnConstraint) and not k.args.get("allow_null")
-                                for k in constraints
-                            ),
-                        ))
+                        columns.append(
+                            ColumnInfo(
+                                name=defn.name,
+                                data_type=(
+                                    defn.args["kind"].sql(dialect="mysql")
+                                    if defn.args.get("kind")
+                                    else "unknown"
+                                ),
+                                # An explicit NULL is a NotNullColumnConstraint with allow_null=True.
+                                is_nullable=not any(
+                                    isinstance(k, exp.NotNullColumnConstraint)
+                                    and not k.args.get("allow_null")
+                                    for k in constraints
+                                ),
+                            )
+                        )
                     elif isinstance(defn, exp.PrimaryKey):
                         pks.update(c.name for c in defn.expressions)
                     elif isinstance(defn, (exp.ForeignKey, exp.Constraint)):
@@ -212,9 +270,11 @@ class FileConnector:
                     col.references = fks[col.name]
 
             # Real row count from the loaded seed data
-            row_count = self._conn.execute(
-                f"SELECT COUNT(*) FROM '{tname}'"
-            ).fetchone()[0] if self._table_exists(tname) else 0
+            row_count = (
+                self._conn.execute(f"SELECT COUNT(*) FROM '{tname}'").fetchone()[0]
+                if self._table_exists(tname)
+                else 0
+            )
 
             tables.append(TableInfo(name=tname, row_count=row_count, columns=columns))
 
@@ -233,7 +293,7 @@ class FileConnector:
         if not sql.strip().upper().startswith("SELECT"):
             raise ValueError("Only SELECT statements are permitted.")
         # Agents emit MySQL; the engine is SQLite. Transpile at the boundary.
-        sql = sqlglot.transpile(sql, read="mysql", write="sqlite")[0]
+        sql = _mysql_to_sqlite(sql)
         if not re.search(r"\bLIMIT\b", sql, re.IGNORECASE):
             sql = sql.rstrip().rstrip(";") + f" LIMIT {limit}"
         with self._lock:
@@ -250,7 +310,7 @@ class FileConnector:
         self.connect()
         self.last_explain_error: str | None = None
         try:
-            sql_lite = sqlglot.transpile(sql, read="mysql", write="sqlite")[0]
+            sql_lite = _mysql_to_sqlite(sql)
             self._conn.execute(f"EXPLAIN QUERY PLAN {sql_lite.rstrip(';')}")
             return True
         except Exception as e:

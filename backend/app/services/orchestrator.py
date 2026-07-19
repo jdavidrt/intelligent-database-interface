@@ -191,7 +191,7 @@ class Orchestrator:
             "Verifying SQL (3-layer chain)…",
             {"adapter": verify_label},
         )
-        verify = self._verification.verify(candidate, self._db_profile)
+        verify = self._verification.verify(candidate, self._db_profile, intent)
 
         if not verify.overall_passed and verify.repaired_sql:
             # One repair attempt
@@ -203,7 +203,7 @@ class Orchestrator:
                 rationale=candidate.rationale,
                 generation_method=candidate.generation_method,
             )
-            verify = self._verification.verify(repaired_candidate, self._db_profile)
+            verify = self._verification.verify(repaired_candidate, self._db_profile, intent)
             if verify.overall_passed:
                 candidate = repaired_candidate
                 result.sql = candidate
@@ -231,7 +231,7 @@ class Orchestrator:
                     intent, self._db_profile, feedback=feedback
                 )
                 adapter_registry.activate("verification")
-                reverify = self._verification.verify(regenerated, self._db_profile)
+                reverify = self._verification.verify(regenerated, self._db_profile, intent)
                 if reverify.overall_passed:
                     candidate = regenerated
                     result.sql = candidate

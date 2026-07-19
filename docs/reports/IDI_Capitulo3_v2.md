@@ -46,7 +46,7 @@ Este capítulo desarrolla el tercer objetivo específico (OE3): implementar los 
 
 Implementado. El agente se alimenta de una base de datos SQLite en memoria construida a partir de archivos fuente por base de datos (`databases/<db_name>/*.sql`), a través de `FileConnector` (generalizado desde `SoundwaveFileConnector`) y `backend/app/services/db/discovery.py`. El glosario de negocio se extrajo del código a un archivo `NN_<db>_survey.json` por base de datos — un aporte directo al propósito didáctico: el contexto que el sistema usa para entender el dominio es el mismo que el aprendiz puede consultar como material de estudio.
 
-La Captura 2.3 del Capítulo 2 (§2.2, drawer "DB Info") documenta el paquete de contexto generado — esquema de SoundWave con columnas, tipos y claves, y el glosario de términos crípticos del dominio con su significado. [PENDIENTE: medición real de latencia de generación de embeddings frente al umbral de <200ms del RF del Capítulo 1.]
+La Captura 2.3 del Capítulo 2 (§2.2, drawer "DB Info") documenta el paquete de contexto generado — esquema de SoundWave con columnas, tipos y claves, y el glosario de términos crípticos del dominio con su significado.
 
 
 3.2. COMPRENSIÓN DE CONSULTAS, CLARIFICACIÓN Y SALVAGUARDA DE FILTRADO
@@ -55,7 +55,9 @@ Implementado en la fase temprana de implementación, con perfil de instrucción 
 
 Durante la fase de endurecimiento se añadió una salvaguarda de enrutamiento de consultas (2026-07-06), cuyo diseño se documenta en el Capítulo 2 (§2.5): antes de que una pregunta llegue al parseo de intención y a la generación de SQL, un filtro basado en lista de permitidos (allowlist) determina si la pregunta se relaciona con la base de datos activa (vocabulario del dominio derivado del `DBProfile`) o si constituye una pregunta de conocimiento SQL. Las preguntas sobre el sistema o la base de datos seleccionada se responden por una ruta separada — las respuestas de la base de datos seleccionada —, siempre fundamentada en hechos actuales del `DBProfile`; las preguntas no relevantes para bases de datos quedan fuera del propósito de IDI y reciben una redirección cortés sin invocar el pipeline NL2SQL. La salvaguarda está cubierta por pruebas offline (`tests/test_meta_question_filter.py`, `tests/test_query_understanding.py`).
 
-[PENDIENTE: evidencia de las tres categorías de ambigüedad (temporal, de entidad, de métrica) siendo correctamente detectadas.]
+![Captura 3.1 — El filtro de clarificación detecta una ambigüedad temporal antes de generar SQL](figures/shot_3_3.2.png)
+
+Captura 3.1 — Ejemplo real del filtro de clarificación: ante la pregunta "who are the most reproduced artists in the last months?", el agente de comprensión de consultas detecta la ambigüedad temporal de "the last months" y pide precisión ("¿los últimos 3 meses o los últimos 6 meses?") antes de generar SQL. Fuente: sistema IDI en ejecución local.
 
 
 3.3. GENERADOR SQL
@@ -64,7 +66,19 @@ Implementado en la fase temprana de implementación. El Generador SQL es el trad
 
 La instrucción especializada del agente fue ajustada en la fase temprana y reforzada durante el endurecimiento (ajustes en `sql_generator.py` y su perfil de instrucción). Ese perfil es, además, la línea base que el adaptador LoRA entrenado para este agente busca superar: el conjunto de entrenamiento sobre-muestra deliberadamente los modos de fallo que el perfil no cerró — los casos límite 2 y 4 —, como se detalla en la §3.10.
 
-[PENDIENTE: ejemplos representativos de SQL generado sobre SoundWave, con explicación en lenguaje natural y reporte de supuestos, tal como exige el RF del SQL Generator Agent (Capítulo 1, §1.6).]
+Las Capturas 3.2 a 3.4 recorren, sobre una misma pregunta, los paneles con que la respuesta expone el trabajo del Generador SQL: la pregunta tal como el sistema la entendió junto al SQL que produjo, el razonamiento en lenguaje natural seguido del resultado de la cadena de verificación, y las filas devueltas.
+
+![Captura 3.2 — Paneles "What I understood" y "The SQL"](figures/shot_3_3.3.1.png)
+
+Captura 3.2 — Paneles "What I understood" y "The SQL" de la respuesta a la pregunta "Who are the most reproduced artists in the last 8 months?": el agente reformula la pregunta tal como la entendió y muestra la consulta SQL generada, con los JOIN entre `track_artists`, `play_events` y `artists`. Fuente: sistema IDI en ejecución local.
+
+![Captura 3.3 — Panel "Why this query" y cadena de verificación de tres capas](figures/shot_3_3.3.2.png)
+
+Captura 3.3 — Panel "Why this query": el Generador SQL explica en lenguaje natural el razonamiento de la consulta — qué tablas usa y por qué, y los pasos de unión, filtrado, conteo y ordenamiento — seguido del resultado de la cadena de verificación de tres capas (sintaxis, semántica y sanidad). Fuente: sistema IDI en ejecución local.
+
+![Captura 3.4 — Panel "Results" con las filas devueltas por la consulta](figures/shot_3_3.3.3.png)
+
+Captura 3.4 — Panel "Results": el conjunto de filas devuelto por la consulta, con el identificador y el nombre de cada artista junto a su número de reproducciones. Fuente: sistema IDI en ejecución local.
 
 
 3.4. AGENTE DE VERIFICACIÓN
@@ -87,7 +101,9 @@ Implementado: selección automática de gráfico vía Recharts, integrada en la 
 
 Implementado. El gestor de sesiones guarda las conversaciones para poder retomarlas después: una biblioteca de sesiones (`SessionLibrary`) lista las conversaciones anteriores y permite reabrirlas, y un panel lateral muestra la información de la base de datos con la que se está trabajando. Desde la restructuración multi-base de datos (2026-07-03), cada sesión queda asociada a su base de datos por el nombre de la carpeta que la contiene; el historial guardado hasta ese momento se reinició, y el archivo de sesiones se vuelve a crear vacío, de forma automática, la próxima vez que arranca el backend.
 
-[PANTALLAZO: gestor de sesiones — biblioteca de sesiones y panel de información de la base de datos]
+![Captura 3.5 — Biblioteca de sesiones (SessionLibrary)](figures/shot_3_3.6.png)
+
+Captura 3.5 — Biblioteca de sesiones (SessionLibrary): lista las conversaciones anteriores, cada una asociada a su base de datos por el nombre de la carpeta ("soundwave") y con su marca de tiempo, y permite reabrirlas. Fuente: sistema IDI en ejecución local.
 
 
 3.7. ORQUESTADOR MULTI-AGENTE
@@ -108,11 +124,15 @@ El mecanismo acepta dos tipos de especialización por la misma interfaz: perfile
 
 Implementado. Durante la reconstrucción se pasó de Tailwind a CSS puro para mejorar el mantenimiento y la modularidad de los estilos. La interfaz ofrece respuestas didácticas de 4 paneles, etiquetas del perfil activo de cada agente, autocompletado inline, la biblioteca de sesiones y el panel de información de la base de datos. En la primera vista podemos seleccionar una base de datos, funcionalidad añadida en la restructuración multi-base de datos. La respuesta de 4 paneles es el vehículo principal del propósito didáctico en la interfaz: la misma respuesta que el ejecutivo lee como insight, el aprendiz la lee como lección (qué se entendió, qué SQL se construyó, qué resultado produjo y cómo se visualiza).
 
-[PANTALLAZO: selección de base de datos en la primera vista]
+![Captura 3.6 — Pantalla de selección de base de datos en la primera vista (DatabaseSelector)](figures/shot_3_3.9.1.png)
 
-[PANTALLAZO: respuesta didáctica de 4 paneles]
+Captura 3.6 — Pantalla de selección de base de datos en la primera vista (DatabaseSelector): lista las bases de datos disponibles y ofrece el atajo "usar la última base de datos utilizada" (soundwave), añadida en la restructuración multi-base de datos. Fuente: sistema IDI en ejecución local.
 
-[PANTALLAZO: barra de progreso con etiquetas de perfil activo]
+La respuesta didáctica de 4 paneles se documenta en la Captura 2.2 del Capítulo 2 (§2.2).
+
+![Captura 3.7 — Frase didáctica de espera mientras el pipeline procesa la consulta](figures/shot_3_3.9.3.png)
+
+Captura 3.7 — Frase didáctica de espera ("WHILE YOU WAIT"): mientras el pipeline procesa la consulta, la interfaz muestra el estado "Thinking…" junto a una micro-lección relacionada con la pregunta (aquí, qué hace un JOIN). Fuente: sistema IDI en ejecución local.
 
 
 3.10. DATOS SINTÉTICOS Y FINE-TUNING LoRA

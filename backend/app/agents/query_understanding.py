@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import difflib
 import json
 import re
 
 from backend.app.models.envelope import DBProfile, Intent
+from backend.app.services import clock
 from backend.app.services.llm_service import llm_service
 from backend.app.services.memory.vector import query_context
 
@@ -64,16 +66,36 @@ _NUMBER_WORD = (
     r"twenty|thirty|sixty|ninety)"
 )
 
-# "last months", "past few weeks", "recent days" — plural unit with no number in front.
-# The lookahead rejects "last 3 months"; the plural-only unit group rejects "last month"
-# (singular = concretely one month).
-_VAGUE_TIME_UNIT_RE = re.compile(
+# "last months", "past few weeks", "recent days" — a word in unit position with no
+# number in front. The lookahead rejects "last 3 months". The unit is captured as ANY
+# word and validated by _fuzzy_unit below: matching the unit list literally let the
+# typo "last mosths" sail straight past the safety net (the LLM didn't flag it either),
+# so misspelled units are fuzzy-matched against the canonical plurals instead.
+_VAGUE_TIME_CANDIDATE_RE = re.compile(
     rf"\b(?:last|past|previous|recent)\s+"
     rf"(?!{_NUMBER_WORD}\b)"
     rf"(?:(?:few|couple(?:\s+of)?|several)\s+)?"
-    rf"(months|weeks|days|years)\b",
+    rf"([a-z]+)\b",
     re.IGNORECASE,
 )
+
+_TIME_UNITS = ("months", "weeks", "days", "years")
+# Exact singulars are concrete ("last month" = exactly one) — never fuzzed into vague.
+_CONCRETE_SINGULAR_UNITS = {"month", "week", "day", "year", "quarter"}
+
+
+def _fuzzy_unit(token: str) -> str | None:
+    """Map a captured unit-position word to a canonical plural time unit, tolerating
+    typos ("mosths" -> "months", "wekks" -> "weeks"). Returns None for singular units
+    (concrete) and for words that aren't time units at all ("recent songs")."""
+    t = token.lower()
+    if t in _CONCRETE_SINGULAR_UNITS:
+        return None
+    if t in _TIME_UNITS:
+        return t
+    close = difflib.get_close_matches(t, _TIME_UNITS, n=1, cutoff=0.8)
+    return close[0] if close else None
+
 
 # Bare vague time words with no unit at all. These only count as vague when they are the
 # query's ONLY time constraint (see _CONCRETE_TIME_RE below).
@@ -97,12 +119,15 @@ _CONCRETE_TIME_RE = re.compile(
 
 
 def _detect_vague_time_range(query: str) -> tuple[str, str] | None:
-    """Return (matched phrase, unit) when the query constrains by time without a
-    concrete number or date, else None. Unit defaults to "months" for bare vague
-    words like "recently" that name no unit themselves."""
-    match = _VAGUE_TIME_UNIT_RE.search(query)
-    if match:
-        return match.group(0).strip(), match.group(1).lower()
+    """Return (matched phrase, canonical unit) when the query constrains by time
+    without a concrete number or date, else None. The phrase keeps the user's
+    literal words (typos included — "last mosths"); the unit is canonicalized so
+    downstream clarification can offer concrete choices. Unit defaults to "months"
+    for bare vague words like "recently" that name no unit themselves."""
+    for match in _VAGUE_TIME_CANDIDATE_RE.finditer(query):
+        unit = _fuzzy_unit(match.group(1))
+        if unit:
+            return match.group(0).strip(), unit
     match = _VAGUE_TIME_BARE_RE.search(query)
     if match and not _CONCRETE_TIME_RE.search(query):
         return match.group(0).strip(), "months"
@@ -130,7 +155,11 @@ class QueryUnderstanding:
             {"role": "system", "content": SYSTEM_PROMPT},
             {
                 "role": "user",
-                "content": (f"Schema context:\n{context_str}\n\n" f"User question: {query}"),
+                "content": (
+                    f"Schema context:\n{context_str}\n\n"
+                    f"{clock.date_context()}\n\n"
+                    f"User question: {query}"
+                ),
             },
         ]
 
@@ -168,17 +197,29 @@ class QueryUnderstanding:
                 entity_seen.add(field.lower())
 
         # Fail-safe: if the model's restatement dropped a requested field, append it rather
-        # than silently losing it — this is the text the SQL Generator and the didactic UI both read.
+        # than silently losing it — this is the text the SQL Generator and the didactic UI
+        # both read.
         plain_restatement = data.get("plain_restatement", f"You asked: '{query}'")
         missing = [f for f in requested_fields if f.lower() not in plain_restatement.lower()]
         if missing:
-            plain_restatement = plain_restatement.rstrip(".") + f" — returning: {', '.join(missing)}."
+            suffix = f" — returning: {', '.join(missing)}."
+            plain_restatement = plain_restatement.rstrip(".") + suffix
+
+        # Concrete-time safety net: if the model dropped a concrete time constraint
+        # ("last 8 months", "since January", "in 2024") from time_range, capture it
+        # deterministically — the SQL Generator and the verification layer's temporal-
+        # grounding check both read this field, so losing it to model inattention
+        # would let a hardcoded-year filter slip through unchallenged.
+        current_query = query.split("[Current]", 1)[-1] if "[Current]" in query else query
+        if not data.get("time_range"):
+            concrete = _CONCRETE_TIME_RE.search(current_query)
+            if concrete:
+                data["time_range"] = concrete.group(0).strip()
 
         # Vague-time safety net (see _detect_vague_time_range). Only the [Current] segment
         # is inspected: when the orchestrator injects [History], a vague phrase in an
         # already-clarified earlier turn must not re-trigger the clarification loop.
         ambiguity_flags: list[str] = list(data.get("ambiguity_flags", []) or [])
-        current_query = query.split("[Current]", 1)[-1] if "[Current]" in query else query
         vague = _detect_vague_time_range(current_query)
         if vague:
             phrase, unit = vague

@@ -1183,6 +1183,49 @@ TARGETED: list[dict] = [
             "side would return the copies instead of the sources."
         ),
     },
+    # ---- EC-07 + EC-08: production failure 2026-07-16 — the model hallucinated a
+    # `monthly_listeners_cached` TABLE (it is a column on artists) with an invented
+    # `metric_date` column instead of counting play_events for a time-windowed
+    # "most played" question. Both verification layers rejected it and the one
+    # regeneration retry repeated the pattern. This pair trains the correct path.
+    {
+        "id": "T07-01",
+        "ec": "EC-07",
+        "nl": "Who are the most reproduced artists in the last 8 months?",
+        "paraphrases": [
+            "Which artists were played the most over the past 8 months?",
+            "Rank the artists by plays in the last eight months.",
+            "Most listened-to artists across the previous 8 months?",
+        ],
+        "sql": (
+            "SELECT a.name AS artist_name, COUNT(*) AS plays\n"
+            "FROM play_events pe\n"
+            "JOIN track_artists ta ON pe.track_id = ta.track_id\n"
+            "JOIN artists a ON ta.artist_id = a.artist_id\n"
+            "WHERE pe.event_type = 'play'\n"
+            "  AND pe.played_at >= DATE_SUB(CURDATE(), INTERVAL 8 MONTH)\n"
+            "GROUP BY a.artist_id, a.name\n"
+            "ORDER BY plays DESC;"
+        ),
+        "restatement": (
+            "The user wants artists ranked by how many times their tracks were played "
+            "during the last 8 months."
+        ),
+        "filters": [
+            "play_events.event_type = 'play'",
+            "play_events.played_at within the last 8 months",
+        ],
+        # Seed play_events end 2025-01-20, so "last 8 months" relative to today
+        # correctly returns 0 rows (same class of quirk as the EC-08 Adele probe).
+        "min_rows": 0,
+        "rationale": (
+            "EC-07: a time-windowed play count must be computed fresh from play_events — "
+            "artists.monthly_listeners_cached is a cached COLUMN on artists (not a table) with "
+            "no date dimension, so it cannot answer a 'last N months' question. EC-08: "
+            "play_events has no artist_id, so the join walks play_events -> track_artists -> "
+            "artists. Filtering event_type = 'play' excludes skips/saves/shares."
+        ),
+    },
 ]
 
 

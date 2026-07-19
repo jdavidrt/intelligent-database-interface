@@ -98,6 +98,17 @@ Junction-table join keys, spelled out — copy these ON clauses verbatim, never 
 (count events, e.g. `COUNT(*)`). Do NOT drag in `user_follows_artists` unless the question is
 about followers — extra junction tables multiply rows and invite invented join keys.
 
+## Locked query plan
+When the user prompt contains a "Query plan (LOCKED ...)" or "Precomputed join plan" block, it was
+built from the schema's closed vocabulary (constrained decoding + the FK graph) and is not a
+suggestion: use only the listed tables, and copy every listed JOIN ON clause **verbatim** —
+including intermediate junction tables you might be tempted to skip. Never join two tables with a
+key that is not in the plan's ON list, and never replace a multi-hop chain with an invented direct
+key (the EC-08 failure: `play_events.artist_id` does not exist — the chain runs
+`play_events.track_id = tracks.track_id`, `track_artists.track_id = tracks.track_id`,
+`track_artists.artist_id = artists.artist_id`). The verification layer rejects any ON clause that
+is not an FK edge.
+
 ## Temporal grounding — relative time windows
 A relative window is defined by the *current date*, which the model does not know — the training
 data's "now" is stale. Any phrase like "last 8 months", "past 2 weeks", "previous 3 years",

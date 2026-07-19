@@ -48,7 +48,12 @@ def _mysql_to_sqlite(sql: str) -> str:
             sign = "-" if isinstance(node, exp.DateSub) else "+"
             qty = node.expression.name
             unit = (node.text("unit") or "day").lower()
-            return exp.func("DATE", node.this, exp.Literal.string(f"{sign}{qty} {unit}"))
+            # Recurse into the date argument ourselves: transform() does not
+            # descend into the freshly built DATE() node, so an inner
+            # CURDATE()/NOW() would otherwise render as SQLite's CURRENT_DATE
+            # keyword — real system clock, silently ignoring IDI_FREEZE_NOW.
+            inner = node.this.transform(rewrite)
+            return exp.func("DATE", inner, exp.Literal.string(f"{sign}{qty} {unit}"))
         if isinstance(node, exp.CurrentDate):
             return exp.func("CURDATE")
         if isinstance(node, exp.CurrentTimestamp):
@@ -241,7 +246,7 @@ class FileConnector:
                                     if defn.args.get("kind")
                                     else "unknown"
                                 ),
-                                # An explicit NULL is a NotNullColumnConstraint with allow_null=True.
+                                # Explicit NULL: NotNullColumnConstraint with allow_null=True.
                                 is_nullable=not any(
                                     isinstance(k, exp.NotNullColumnConstraint)
                                     and not k.args.get("allow_null")

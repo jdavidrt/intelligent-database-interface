@@ -16,6 +16,7 @@ from backend.app.models.envelope import (
     VerifyReport,
 )
 from backend.app.services import temporal
+from backend.app.services.db.join_graph import JoinGraph
 
 # -- Temporal-grounding check (sanity layer) -----------------------------------------
 # A relative time window in the question ("last 8 months", "this year") can only be
@@ -241,10 +242,79 @@ class VerificationAgent:
                             ),
                         )
 
+        # Rule 4b enforcement (closed join vocabulary): every JOIN ... ON equality
+        # between columns of two different real tables must be an FK edge from
+        # DBProfile.relationship_edges. Column existence was already validated
+        # above, so this catches the subtler hallucination: a join key built from
+        # two *real* columns that are not actually related (e.g.
+        # `artists.artist_id = play_events.user_id`). The message carries the
+        # legal multi-hop chain so the regeneration loop gets the fix, not just
+        # the diagnosis.
+        if profile.relationship_edges:
+            graph = JoinGraph(profile.relationship_edges)
+            violation = self._find_illegal_join_edge(scopes, source_maps, graph)
+            if violation is not None:
+                return violation
+
         return LayerResult(
             passed=True,
             message="All column references resolve to tables present in FROM/JOIN",
         )
+
+    @staticmethod
+    def _find_illegal_join_edge(
+        scopes,
+        source_maps: dict[int, dict[str, tuple[str | None, set[str] | None]]],
+        graph: JoinGraph,
+    ) -> LayerResult | None:
+        """First JOIN ... ON equality that is not a real FK edge, or None."""
+        for scope in scopes:
+            sources = source_maps.get(id(scope), {})
+            expression = getattr(scope, "expression", None)
+            joins = (getattr(expression, "args", None) or {}).get("joins") or []
+            for join in joins:
+                on = join.args.get("on")
+                if on is None:
+                    continue
+                for eq in on.find_all(exp.EQ):
+                    left, right = eq.this, eq.expression
+                    if not (isinstance(left, exp.Column) and isinstance(right, exp.Column)):
+                        continue  # column-vs-literal filters inside ON are fine
+                    lq = left.table.lower() if left.table else ""
+                    rq = right.table.lower() if right.table else ""
+                    if not lq or not rq:
+                        continue
+                    l_table = sources.get(lq, (None, None))[0]
+                    r_table = sources.get(rq, (None, None))[0]
+                    if l_table is None or r_table is None or l_table == r_table:
+                        continue  # subquery/CTE side or self-join — out of scope here
+                    a = f"{l_table}.{left.name.lower()}"
+                    b = f"{r_table}.{right.name.lower()}"
+                    if graph.has_edge(a, b):
+                        continue
+                    legal = graph.path(l_table, r_table)
+                    if legal:
+                        hint = (
+                            f" The legal join chain from {l_table} to {r_table} is: "
+                            + " ; ".join(legal)
+                            + " — join through the intermediate table(s), copying these "
+                            "ON clauses verbatim."
+                        )
+                    else:
+                        hint = (
+                            f" No foreign-key path connects {l_table} and {r_table} at "
+                            "all — one of them is the wrong table for this question."
+                        )
+                    return LayerResult(
+                        passed=False,
+                        message=(
+                            f"Invented join key: '{left.table}.{left.name} = "
+                            f"{right.table}.{right.name}' is not a relationship in the "
+                            f"schema — no foreign key links {a} to {b}, directly or "
+                            f"transitively.{hint}"
+                        ),
+                    )
+        return None
 
     @staticmethod
     def _explicit_select_aliases(scope) -> set[str]:

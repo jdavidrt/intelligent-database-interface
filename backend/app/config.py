@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     # date-dependent SQL ("last 8 months") gives identical results on any day.
     freeze_now: str = Field(default="", alias="IDI_FREEZE_NOW")
 
+    # Schema-grounded planning: when true, the SQL Generator runs a constrained-
+    # decoding plan step first (llama.cpp json_schema -> GBNF grammar over enums
+    # of the schema's tables/join edges/columns), so table & join selection is
+    # physically unable to hallucinate. Costs one extra LLM call per query.
+    constrained_planning: bool = Field(default=True, alias="IDI_CONSTRAINED_PLANNING")
+
     # Backend
     backend_port: int = Field(default=5000, alias="BACKEND_PORT")
     cors_origins: list[str] = Field(default=["*"])

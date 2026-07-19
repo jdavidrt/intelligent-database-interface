@@ -20,7 +20,7 @@ const PHRASES = [
     'SELECT * is handy for exploring, but production queries name their columns explicitly.',
 ];
 
-const ROTATE_MS = 4000;
+const ROTATE_MS = 8000;
 
 export function WaitingPhrases() {
     // Start at a random phrase so consecutive queries don't always show the same one.

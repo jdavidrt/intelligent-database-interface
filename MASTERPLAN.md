@@ -143,8 +143,33 @@ Each agent is a pure-ish function over a shared, typed envelope (Pydantic). Keep
 | Layer | Question | Mechanism (local, cheap) |
 |---|---|---|
 | Syntax | Is it valid SQL? | `sqlglot` parse + MySQL `EXPLAIN` (no execution) |
-| Semantic | Do tables/columns exist and link correctly? | schema-linking against `DBProfile`; reject hallucinated names |
+| Semantic | Do tables/columns exist and link correctly? | schema-linking against `DBProfile`; reject hallucinated names; **closed join vocabulary** — every `JOIN … ON` equality must be a (transitively) legal FK edge, rejections name the legal chain |
 | Sanity | Is the result plausible and safe? | read-only guard, forced `LIMIT`, dry-run row-count, NULL/`= NULL` and pre-agg-vs-raw heuristics from the soundwave taxonomy |
+
+### Schema grounding — the closed join vocabulary (added 2026-07-19)
+
+Born from a real failure: "most reproduced artists of the last year" generated the nonexistent
+`play_events.artist_id` join — a 3B model shortcutting the EC-08 multi-hop chain. The fix grounds
+both *generation* and *verification* in the FK graph the profile already carried:
+
+- **`services/db/join_graph.py`** — deterministic FK-path resolution over
+  `DBProfile.relationship_edges`. Columns are grouped into equivalence classes (union-find over FK
+  pairs), so transitive equalities like `track_artists.track_id = play_events.track_id` are legal;
+  among equal-length paths, routes through junction tables (≥ 2 outgoing FKs) win — encoding
+  EC-08's "bridge anchor" rule deterministically (track_artists over albums). Pure stdlib, no LLM.
+- **Constrained-decoding plan step** (`IDI_CONSTRAINED_PLANNING`, default on): before generating,
+  the SQL Generator asks llama.cpp for a JSON plan whose schema enums are *exactly* the profile's
+  tables/edges/columns — compiled server-side to a GBNF grammar, out-of-vocabulary identifiers are
+  unsamplable. The model only *chooses* tables and output columns; join edges are then recomputed
+  deterministically via `join_tree` (intermediates included). Any failure (older llama.cpp,
+  timeout) degrades to injecting a deterministic "Precomputed join plan" for tables literally
+  named in the question — the plan is an upgrade, never a dependency.
+- **Verifier enforcement**: the semantic layer now enforces what the prompt's rule 4b only
+  requested — an invented join key between two *real* columns (previously undetectable) is
+  rejected with the exact legal chain in the message, which is what the regeneration loop feeds on.
+
+Costs one extra LLM call per query when the plan step runs; disable with
+`IDI_CONSTRAINED_PLANNING=false`. Offline coverage: `tests/test_schema_grounding.py`.
 
 ---
 
@@ -250,6 +275,26 @@ This is the structural foundation the sprint builds on (your explicit priority: 
 **Gate D3**: ✅ registry swap observable per agent in the `AgentEvent` stream (label on the `"started"` event); `pytest tests/` green (24/24); a missing/deleted profile falls back to `base` without breaking the pipeline (already guaranteed by `llm_service.load_adapter`'s existing fail-safe, now reached through the registry — covered by `test_adapter_registry.py`). **A/B and evaluation reports themselves are not yet generated** — both harnesses need a running backend + llama.cpp server and are left for a manual run (see `DAY3_PLAN.md`'s Gate D3 checklist for the exact commands).
 
 > **Data quirk found while deriving `evaluate.py`'s ground truth:** `gate_d1.py`'s EC-08 probe asks for playlists containing tracks "by Adele" — no such artist exists among soundwave_db's 12 artists, so the correct answer is 0 rows, meaning EC-08 can never pass the `row_count > 0` heuristic `gate_d1.py`/`ab_harness.py` use, even with perfect SQL. `evaluate.py`'s accuracy checker scores EC-08 correctly (expects 0); `gate_d1.py` itself was left untouched per Day 3's "import, don't duplicate" instruction.
+
+### Interlude — Schema Grounding ✅ COMPLETE — 2026-07-19 *(unscheduled hardening, pre-Day 4)*
+
+*Goal: table/column/join hallucination becomes structurally impossible, not just caught.*
+
+- [x] `backend/app/services/db/join_graph.py` — FK join graph: column equivalence classes
+  (transitive join legality), junction-table-preferred shortest paths, greedy Steiner `join_tree`.
+- [x] SQL Generator: constrained-decoding plan step (llama.cpp `response_format` json_schema with
+  schema-enum vocabulary → GBNF) + deterministic join-plan injection fallback; plan reused on
+  regeneration; `tables_used`/`columns_used` now populated on `SqlCandidate`.
+- [x] Verification semantic layer: closed-join-vocabulary enforcement (rule 4b), didactic
+  rejection messages carrying the legal chain.
+- [x] Fixed en passant: `_mysql_to_sqlite` now recurses into rewritten `DATE_SUB`/`DATE_ADD`
+  arguments — an inner `CURDATE()` previously rendered as SQLite's `CURRENT_DATE` and silently
+  ignored `IDI_FREEZE_NOW`.
+- [x] 13 offline tests (`tests/test_schema_grounding.py`); suite at 101 green.
+
+**Gate**: ✅ the EC-08 failure query (`play_events.artist_id`) is rejected with the legal chain
+named; an invented join between two real columns no longer passes semantic verification; plan-step
+outage degrades gracefully (generation still runs, verification chain unchanged as safety net).
 
 ### Day 4 — Real DB Connection & Hardening
 

@@ -66,7 +66,7 @@ def patched_llm(monkeypatch):
     def _apply(responses: list[str]):
         queue = list(responses)
 
-        def fake_chat(messages, temperature=0.3, timeout=90):
+        def fake_chat(messages, temperature=0.3, timeout=90, extra=None):
             if not queue:
                 raise AssertionError("patched_llm: ran out of canned responses")
             return queue.pop(0)
@@ -95,6 +95,17 @@ def patched_vector_context(monkeypatch):
 
     monkeypatch.setattr(qu_module, "query_context", fake_query_context)
     monkeypatch.setattr(sg_module, "query_context", fake_query_context)
+
+
+@pytest.fixture(autouse=True)
+def _disable_constrained_planning(monkeypatch):
+    """The offline suite mocks the LLM with a fixed response queue; the
+    constrained-decoding plan step would consume an extra response per
+    generate() call. Disabled by default — tests/test_schema_grounding.py
+    re-enables it explicitly to exercise the plan path."""
+    from backend.app.config import settings
+
+    monkeypatch.setattr(settings, "constrained_planning", False)
 
 
 @pytest.fixture(autouse=True)

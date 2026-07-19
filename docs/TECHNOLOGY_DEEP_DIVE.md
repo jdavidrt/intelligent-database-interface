@@ -15,6 +15,7 @@ This document explores six critical technologies that form the invisible archite
 5. [WebSockets: Real-Time Progress Updates](#5-websockets-real-time-progress-updates)
 6. [Model Format: GGUF](#6-model-format-gguf)
 7. [Technology Decision Matrix](#7-technology-decision-matrix)
+8. [Constrained Decoding & Schema Grounding](#8-constrained-decoding--schema-grounding)
 
 ---
 
@@ -1235,6 +1236,7 @@ curl http://localhost:8080/health
 | **Training Data** | gretelai (primary) + Spider (validation) | Largest synthetic + standard benchmark |
 | **Real-Time Updates** | WebSocket via FastAPI | Bidirectional, progress + cancellation |
 | **Model Format** | GGUF (Q4_K_M) | 75% smaller, llama.cpp optimized |
+| **Schema Grounding** | FK join graph + GBNF constrained decoding | Hallucinated identifiers unsamplable; joins deterministic (§8) |
 
 ### 7.2 Architecture Integration
 
@@ -1321,5 +1323,86 @@ curl http://localhost:8080/health
 
 ---
 
+## 8. Constrained Decoding & Schema Grounding
+
+### 8.1 The Problem It Solves
+
+A small local model (3B, Q4) asked to join `artists` to `play_events` will happily invent
+`play_events.artist_id` — a column that does not exist — instead of deriving the EC-08 multi-hop
+chain through the `track_artists` bridge. Prompt rules ("only use listed join paths") reduce but
+never eliminate this: instructions are suggestions to a sampler that remains free to emit any
+token. Verification catches the bad SQL afterwards, but a regeneration loop fed only "column X
+doesn't exist" often re-fails — the model still has to *derive* the correct chain itself.
+
+Schema grounding attacks the problem at three layers, from strongest to fallback:
+
+### 8.2 Layer A — Constrained Decoding (llama.cpp JSON Schema → GBNF)
+
+llama.cpp can compile a JSON Schema into a **GBNF grammar** that masks the sampler itself: at
+every decoding step, tokens that cannot continue a grammar-valid string get zero probability.
+IDI's SQL Generator exploits this with a *plan step* before generation
+(`sql_generator._constrained_plan`, flag `IDI_CONSTRAINED_PLANNING`, default on):
+
+```python
+# The enums ARE the schema — the "tokenized vocabulary".
+schema = {
+  "type": "object",
+  "properties": {
+    "tables":         {"type": "array", "items": {"enum": [t.name for t in profile.tables]}},
+    "join_on":        {"type": "array", "items": {"enum": edge_labels}},       # "a.x = b.y"
+    "output_columns": {"type": "array", "items": {"enum": qualified_columns}}, # "table.col"
+  },
+  "required": ["tables", "join_on", "output_columns"],
+}
+# POST payload: {"response_format": {"type": "json_object", "schema": schema}, ...}
+```
+
+The model cannot emit `play_events.artist_id` because no grammar path produces that string —
+hallucination is blocked at token level, not detected afterwards. Cost: one extra LLM call per
+query (~seconds on the GTX 1650 budget). Failure of any kind (older llama.cpp without grammar
+support, timeout, malformed JSON) returns `None` and generation proceeds unplanned — the plan is
+an upgrade, never a dependency.
+
+### 8.3 Layer B — Deterministic Join Resolution (`services/db/join_graph.py`)
+
+The model only *chooses* tables and output columns; it is never trusted to connect them. The
+join edges are recomputed from the FK graph (`DBProfile.relationship_edges`) with three rules:
+
+1. **Column equivalence classes** (union-find over FK pairs): `track_artists.track_id` and
+   `play_events.track_id` both FK to `tracks.track_id`, so equating them directly is exactly as
+   sound as the two edges it shortcuts — transitive joins are first-class, matching the EC-08
+   profile's own recommended chain.
+2. **Junction preference**: among equal-length paths, routes through bridge tables (≥ 2 outgoing
+   FKs) win. This is why artists→play_events resolves through `track_artists` and not through
+   `albums` — same hop count, but the albums route silently drops standalone singles (EC-03) and
+   featured credits. Lexicographic tie-break keeps output stable across runs.
+3. **Greedy Steiner `join_tree`**: connects N required tables with a minimal edge set,
+   intermediates included — the exact ON clauses land verbatim in the generation prompt.
+
+When Layer A is unavailable, the same module powers a fallback: tables literally named in the
+question get linked and their precomputed chain injected into the prompt.
+
+### 8.4 Layer C — Closed-Vocabulary Verification
+
+The semantic verification layer enforces what the prompt's rule 4b only requested: every
+`JOIN … ON` equality between columns of two different tables must be a (transitively) legal FK
+edge. This closes the last hole — an invented join between two *real* columns
+(`artists.artist_id = play_events.user_id`) previously passed existence checks and would have
+executed as a meaningless cross-match. Rejection messages are didactic by design: they name the
+legal chain (`play_events.track_id = track_artists.track_id ; track_artists.artist_id =
+artists.artist_id`), which is exactly what the one-shot regeneration loop feeds back to the
+generator — the fix, not just the diagnosis.
+
+### 8.5 Why Not a Full SQL Grammar?
+
+Constraining *entire* SQL generation with a schema-aware grammar is possible in principle but
+brittle: SQL's expression grammar is large, and over-constraining kills legitimate constructs
+(subqueries, functions, aliases). Constraining only the *planning decision* — which tables, which
+joins, which columns — captures ~all of the hallucination risk at a fraction of the grammar
+complexity, and leaves the model free where it is actually competent (SELECT expressions,
+filters, aggregation shape). The verification chain remains the unconditional safety net.
+
+---
+
 *Document generated for IDI Project - Universidad Nacional de Colombia*
-*Last updated: January 2025*
+*Last updated: July 2026*

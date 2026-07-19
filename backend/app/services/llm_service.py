@@ -50,6 +50,7 @@ class LLMService:
         messages: list[dict[str, str]],
         temperature: float,
         timeout: int,
+        extra: dict[str, Any] | None = None,
     ) -> tuple[dict[str, Any], int]:
         """POST to llama.cpp; return the raw JSON body and elapsed ms."""
         if self._instruction_profile:
@@ -64,6 +65,12 @@ class LLMService:
                 messages = [{"role": "system", "content": self._instruction_profile}] + messages
 
         payload: dict[str, Any] = {"messages": messages, "temperature": temperature}
+        if extra:
+            # Constrained decoding et al. — e.g. {"response_format": {"type":
+            # "json_object", "schema": {...}}} makes llama.cpp compile the JSON
+            # Schema (enums included) to a GBNF grammar: the sampler is then
+            # physically unable to emit a value outside the schema's vocabulary.
+            payload.update(extra)
         t0 = time.time()
         try:
             resp = requests.post(self._base_url, json=payload, timeout=timeout)
@@ -80,9 +87,10 @@ class LLMService:
         messages: list[dict[str, str]],
         temperature: float = 0.3,
         timeout: int = 90,
+        extra: dict[str, Any] | None = None,
     ) -> str:
         """Send a chat payload to llama.cpp and return the content string."""
-        data, elapsed = self._request(messages, temperature, timeout)
+        data, elapsed = self._request(messages, temperature, timeout, extra)
         content: str = data.get("choices", [{}])[0].get("message", {}).get("content", "")
         print(f"[LLMService] {elapsed}ms — {len(content)} chars returned")
         return content

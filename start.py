@@ -86,6 +86,58 @@ def find_npm() -> str | None:
     return None
 
 
+def pick_gpu_device(binary: str) -> str | None:
+    """Choose the discrete GPU, not whichever device llama.cpp lists first.
+
+    The winget build is a Vulkan build, and on this machine it enumerates:
+
+        Vulkan0: Intel(R) UHD Graphics 630   <- integrated, and the default
+        Vulkan1: NVIDIA GeForce GTX 1650     <- the card we actually want
+
+    llama.cpp offloads to Vulkan0 unless told otherwise, so `-ngl 99` was
+    filling the *integrated* GPU: measured 2026-07-21, that is 8.6 tok/s and
+    451 MiB of NVIDIA VRAM in use, against 44.6 tok/s and 2969 MiB when pinned
+    to Vulkan1 — a 5.2x difference that silently applied to every benchmark run
+    and every interactive session.
+
+    Selection is by vendor rather than by free memory: the iGPU reports ~7.4 GB
+    "free" because it shares system RAM, so a memory heuristic picks exactly the
+    wrong device. Returns None when nothing scores, leaving llama.cpp's default
+    alone rather than guessing.
+
+    Override with IDI_LLAMA_DEVICE (e.g. "Vulkan0", or "none" for CPU).
+    """
+    override = os.getenv("IDI_LLAMA_DEVICE")
+    if override:
+        return None if override.lower() == "auto" else override
+
+    try:
+        listing = subprocess.run(
+            [binary, "--list-devices"], capture_output=True, text=True, timeout=60
+        ).stdout
+    except Exception:
+        return None
+
+    discrete = ("nvidia", "geforce", "rtx", "quadro", "tesla", "radeon", "arc")
+    integrated = ("uhd graphics", "iris", "hd graphics", "vega", "llvmpipe")
+
+    best: tuple[int, str] | None = None
+    for line in listing.splitlines():
+        if ":" not in line or not line.strip().startswith(("Vulkan", "CUDA", "SYCL", "ROCm")):
+            continue
+        name, _, description = line.strip().partition(":")
+        lowered = description.lower()
+        if any(token in lowered for token in integrated):
+            continue
+        if any(token in lowered for token in discrete):
+            score = 2
+        else:
+            continue
+        if best is None or score > best[0]:
+            best = (score, name.strip())
+    return best[1] if best else None
+
+
 def find_llama_server() -> str | None:
     """Return the path to the llama-server binary, or None if not found."""
     # WinGet install location
@@ -142,9 +194,12 @@ def preflight() -> bool:
 # ── llama server ─────────────────────────────────────────────────────────────
 
 def llama_already_running() -> bool:
+    # 127.0.0.1, not "localhost": localhost resolves to ::1 first on this
+    # machine and the IPv6 attempt hangs a full 2s before falling back to IPv4,
+    # which would eat the whole timeout on every poll.
     try:
         with urllib.request.urlopen(
-            f"http://localhost:{LLAMA_PORT}/health", timeout=2
+            f"http://127.0.0.1:{LLAMA_PORT}/health", timeout=5
         ) as r:
             return r.status == 200
     except Exception:
@@ -172,9 +227,15 @@ def start_llama_server(binary: str) -> subprocess.Popen:
         return None  # type: ignore
 
     print(f"  Starting llama.cpp server (log -> {LLAMA_LOG}) ...", flush=True)
+
+    device = pick_gpu_device(binary)
+    device_args = ["--device", device] if device else []
+    print(f"  GPU device: {device or 'llama.cpp default (no discrete GPU detected)'}")
+
     log_f = open(LLAMA_LOG, "w")
     proc = subprocess.Popen(
         [binary, "--model", MODEL_PATH, "--port", LLAMA_PORT, "-ngl", "99"]
+        + device_args
         + lora_args(),
         stdout=log_f,
         stderr=log_f,

@@ -13,17 +13,24 @@ time available:
 Counts are sized against the measured 87.6s/item of the 2026-07-21 pilot and are
 fixed constants; the menu shows a live estimate from the newest report on disk.
 
-Usage (from repo root, with `python start.py` already running):
+Usage — this is the whole command. No other server or terminal is needed:
 
     python run_benchmarks.py                  # menu
     python run_benchmarks.py --profile 30m    # unattended
     python run_benchmarks.py --profile full --tag "run B, specialized profiles"
 
+llama.cpp and the FastAPI backend are started automatically if they are not
+already up, with `IDI_FREEZE_NOW` and `IDI_GREEDY` set — the two settings whose
+absence silently voids a run (§1.1, §1.3). Anything this process started is
+stopped when the run ends; anything already running is adopted and left alone,
+including on Ctrl-C. Pass `--no-autostart` to require a backend you manage
+yourself.
+
 Everything of substance lives in `evaluation/`: this file is a menu, a preflight
 banner and a progress display. Selection (`evaluation/plan.py`), scoring
-(`evaluation/scoring.py`) and reporting (`evaluation/run.py`) are shared with
-`python -m evaluation.run`, so the two entry points cannot disagree about what a
-run means.
+(`evaluation/scoring.py`), reporting (`evaluation/run.py`) and process
+management (`evaluation/servers.py`) are shared with `python -m evaluation.run`,
+so the two entry points cannot disagree about what a run means.
 
 The §1.1 frozen clock is set before any import that touches services.clock.
 """
@@ -53,6 +60,7 @@ from evaluation.plan import (  # noqa: E402
     plan_run,
 )
 from evaluation.progress import ProgressReporter  # noqa: E402
+from evaluation.servers import ManagedServers  # noqa: E402
 
 REPORT_GLOB = os.path.join(ROOT, "data", "benchmarks", "eval_*.json")
 
@@ -168,33 +176,50 @@ def main() -> None:
     )
     parser.add_argument("--corpus", action="append", default=None, help="restrict to one corpus")
     parser.add_argument("--yes", action="store_true", help="do not ask for confirmation")
+    parser.add_argument(
+        "--no-autostart",
+        action="store_true",
+        help="do not start llama.cpp or the backend; require them to be running already",
+    )
     runner.add_common_arguments(parser)
     args = parser.parse_args()
 
     seconds_per_item, source = measured_seconds_per_item()
 
-    # Preflight first: an unreachable backend, an unfrozen clock or a dead
-    # llama.cpp must surface now, not after the operator commits to three hours.
-    print(f"\n  checking the backend at {args.base_url} …")
-    health = runner.preflight(args.base_url, args.allow_unfrozen)
-    print(f"  ok — clock {health.get('freeze_now')}, llm healthy, db '{runner.DB_NAME}' selected")
+    # Everything this block starts is owned by the `with`, so a crash, a
+    # SystemExit from preflight or a Ctrl-C all take the same teardown path.
+    # Servers that were already running are never in `started` and survive.
+    with ManagedServers() as servers:
+        if args.no_autostart:
+            print(f"\n  --no-autostart: expecting a backend at {args.base_url}")
+        else:
+            print("\n  bringing up the servers this run needs …")
+            servers.ensure_all(args.base_url)
 
-    profile = args.profile or choose_profile(seconds_per_item, source)
-    corpora = args.corpus or list(runner.CORPUS_SIZES)
-    items, selection = plan_run(profile, corpora)
+        # preflight owns the §1.1/§1.3 verdict, whether we started the backend
+        # or adopted one that was already up.
+        health = runner.preflight(args.base_url, args.allow_unfrozen)
+        print(
+            f"  ready — clock {health.get('freeze_now')}, greedy={health.get('greedy')}, "
+            f"db '{runner.DB_NAME}' selected"
+        )
 
-    header = runner.build_header(args.base_url, health, args.hardware_profile, selection, args)
-    if args.allow_unfrozen and health.get("freeze_now") != runner.FREEZE_NOW:
-        header["reportable"] = False
-        header["caveats"].append("§1.1 VOID: executed without the frozen clock")
+        profile = args.profile or choose_profile(seconds_per_item, source)
+        corpora = args.corpus or list(runner.CORPUS_SIZES)
+        items, selection = plan_run(profile, corpora)
 
-    print_plan(header, len(items), seconds_per_item)
-    if not args.yes and not args.profile and ask("start?", ["y", "n"], "y") != "y":
-        raise SystemExit("  nothing run.")
+        header = runner.build_header(args.base_url, health, args.hardware_profile, selection, args)
+        if args.allow_unfrozen and health.get("freeze_now") != runner.FREEZE_NOW:
+            header["reportable"] = False
+            header["caveats"].append("§1.1 VOID: executed without the frozen clock")
 
-    reporter = ProgressReporter(total=len(items))
-    summary, _records, json_path, md_path = runner.run_sweep(items, header, args, reporter)
-    runner.print_summary(header, summary, json_path, md_path)
+        print_plan(header, len(items), seconds_per_item)
+        if not args.yes and not args.profile and ask("start?", ["y", "n"], "y") != "y":
+            raise SystemExit("  nothing run.")
+
+        reporter = ProgressReporter(total=len(items))
+        summary, _records, json_path, md_path = runner.run_sweep(items, header, args, reporter)
+        runner.print_summary(header, summary, json_path, md_path)
 
 
 if __name__ == "__main__":

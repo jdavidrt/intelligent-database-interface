@@ -12,8 +12,8 @@ from backend.app.config import settings
 
 
 class DatabaseSummary(BaseModel):
-    db_name: str            # folder name — canonical identifier used everywhere
-    display_name: str       # derived from the doc file's H1, or title-cased db_name
+    db_name: str  # folder name — canonical identifier used everywhere
+    display_name: str  # derived from the doc file's H1, or title-cased db_name
     description: str | None = None
     has_survey: bool = False
 
@@ -36,12 +36,14 @@ def list_available_databases() -> list[DatabaseSummary]:
         doc_matches = glob.glob(os.path.join(entry.path, "*_db_documentation.md"))
         survey_matches = glob.glob(os.path.join(entry.path, "*_survey.json"))
         display_name, description = _derive_display(entry.name, doc_matches)
-        results.append(DatabaseSummary(
-            db_name=entry.name,
-            display_name=display_name,
-            description=description,
-            has_survey=len(survey_matches) > 0,
-        ))
+        results.append(
+            DatabaseSummary(
+                db_name=entry.name,
+                display_name=display_name,
+                description=description,
+                has_survey=len(survey_matches) > 0,
+            )
+        )
     return results
 
 

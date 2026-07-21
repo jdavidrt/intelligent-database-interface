@@ -24,6 +24,18 @@ pipeline asks for clarification instead of guessing.
 `reference_sql` returns against the seeded database under
 `IDI_FREEZE_NOW=2026-07-17T12:00:00`. A run without that variable set is void.
 
+**The `evidence` field is never fed to the pipeline** (decided 2026-07-21). In BIRD,
+evidence is handed to the model at inference time; here it is corpus metadata only —
+documentation of which domain fact an item depends on, used when reading results.
+IDI's equivalent of evidence is its own Context Manager: the per-database survey
+(`databases/<db>/NN_<db>_survey.json`) feeds the glossary, coded values and
+source-of-truth notes into the prompt. Passing the corpus's evidence strings in
+alongside would measure a system IDI is not — the whole didactic claim is that the
+system supplies domain context itself, so an item the model gets wrong for want of
+domain knowledge is a finding about the Context Manager, not a handicap to correct
+for. This is a methodology choice, not a protocol change; §2.2 defines the field and
+never says to pass it.
+
 ## Regenerating and checking
 
 ```bash
@@ -56,14 +68,30 @@ reference SQL, and BIRD-036/040, both caught before any run.
 ## Scored runs
 
 ```bash
-# the backend must already be running with the frozen clock and greedy decoding:
-#   IDI_FREEZE_NOW=2026-07-17T12:00:00 IDI_GREEDY=1 python start.py
-python run_benchmarks.py                       # menu + live progress (recommended)
+python run_benchmarks.py                       # menu + live progress — the whole command
 python run_benchmarks.py --profile 30m         # unattended preset
+python run_benchmarks.py --no-autostart        # require a backend you manage yourself
+
+# without the launcher, the backend must already be running with the frozen
+# clock and greedy decoding:
+#   IDI_FREEZE_NOW=2026-07-17T12:00:00 IDI_GREEDY=1 python start.py
 python -m evaluation.run                       # all 225 items, no menu
 python -m evaluation.run --corpus soundwave_30 # one corpus
 python -m evaluation.run --total 30            # deterministic proportional subset
 ```
+
+`run_benchmarks.py` starts llama.cpp and the backend itself if they are not
+already up, setting `IDI_FREEZE_NOW` and `IDI_GREEDY` — the two variables whose
+absence silently voids a run (§1.1, §1.3). Servers it started are stopped when
+the run ends; servers already running are adopted and left alone, including on
+Ctrl-C and including when it loses a port race.
+
+**GPU.** llama.cpp is pinned to the discrete GPU by `start.py:pick_gpu_device()`.
+This matters more than it sounds: the Vulkan build lists the Intel iGPU first,
+so every run before 2026-07-21 offloaded there at 8.6 tok/s instead of 44.6 on
+the GTX 1650. The run header now records `vram_used_mb`, and a run labelled
+`gpu` whose VRAM use is too low for an offloaded model gets a caveat saying its
+latency and tokens/sec are not a GPU-profile result.
 
 ### Presets
 

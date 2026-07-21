@@ -49,13 +49,19 @@ from typing import Any
 import requests
 
 from evaluation.corpus import CORPUS_SIZES, FREEZE_NOW, CorpusItem, execute
+from evaluation.diagnostics import diagnose
 from evaluation.plan import PROFILES, plan_run, select_items, selection_caveats
 from evaluation.progress import ProgressReporter
 from evaluation.scoring import Comparison, compare_against_any
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPORT_DIR = os.path.join(REPO_ROOT, "data", "benchmarks")
-DEFAULT_BASE_URL = "http://localhost:5000"
+# 127.0.0.1, never "localhost". Measured 2026-07-21 on this machine: `localhost`
+# resolves to ::1 before 127.0.0.1, uvicorn binds IPv4 only, and the IPv6 attempt
+# hangs for a full 2s before falling back — a flat +2.03s on *every* request
+# (6.15s vs 4.12s for the same /health). Over 225 items that is 7.5 minutes of
+# waste, and worse, it is a constant additive artefact in the §5 latency figures.
+DEFAULT_BASE_URL = "http://127.0.0.1:5000"
 DB_NAME = "soundwave"
 
 # The connector force-appends LIMIT 200 to any query without one
@@ -144,6 +150,15 @@ def _verify_caveats(verify: dict) -> list[str]:
         caveat
         for layer_name in ("syntax", "semantic", "sanity")
         for caveat in (verify.get(layer_name) or {}).get("caveats", [])
+    ]
+
+
+def _failing_layers(verify: dict) -> list[str]:
+    """Which of the three layers rejected the SQL. §4.3 wants the layer named."""
+    return [
+        name
+        for name in ("syntax", "semantic", "sanity")
+        if not (verify.get(name) or {}).get("passed", True)
     ]
 
 
@@ -313,17 +328,39 @@ def _llama_props(base_url: str) -> dict[str, Any]:
         return {}
 
 
-def _gpu_name() -> str | None:
+# A 3B Q4_K_M model fully offloaded occupies ~2.9 GB of VRAM. Anything under
+# this means llama.cpp is not running on the NVIDIA card — measured 2026-07-21,
+# an iGPU-bound server leaves it at ~450 MB. See start.pick_gpu_device.
+MIN_OFFLOADED_VRAM_MB = 1500
+
+
+def _gpu_info() -> dict[str, Any]:
+    """Name, total and *used* VRAM. The used figure is the offload evidence."""
     try:
         out = subprocess.run(
-            ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader"],
+            [
+                "nvidia-smi",
+                "--query-gpu=name,memory.total,memory.used",
+                "--format=csv,noheader,nounits",
+            ],
             capture_output=True,
             text=True,
             timeout=10,
         ).stdout.strip()
-        return out.splitlines()[0] if out else None
+        name, total, used = (part.strip() for part in out.splitlines()[0].split(","))
+        return {
+            "name": name,
+            "vram_total_mb": int(total),
+            "vram_used_mb": int(used),
+            "description": f"{name}, {total} MiB",
+        }
     except Exception:
-        return None
+        return {}
+
+
+def _gpu_name() -> str | None:
+    """Back-compat shim for callers that only want the display string."""
+    return _gpu_info().get("description")
 
 
 def _adapter_registry() -> dict[str, Any]:
@@ -359,6 +396,18 @@ def build_header(
         caveats.append(
             f"engine is {health.get('connector')!r}; EX is not comparable across engines (§1.2)"
         )
+    # §1.4: a run labelled `gpu` that never touched the GPU would misreport both
+    # latency and tokens/sec. Until 2026-07-21 every run did exactly that — the
+    # Vulkan build defaults to the Intel iGPU (start.pick_gpu_device), costing
+    # 5.2x throughput. Cheap to check, and it was invisible for months.
+    gpu = _gpu_info()
+    used = gpu.get("vram_used_mb")
+    if hardware_profile == "gpu" and used is not None and used < MIN_OFFLOADED_VRAM_MB:
+        caveats.append(
+            f"hardware profile says 'gpu' but only {used} MiB of {gpu.get('name')} VRAM is in "
+            f"use — llama.cpp is probably offloading elsewhere (the Vulkan build defaults to "
+            f"the integrated GPU). Latency and tokens/sec below are not a GPU-profile result."
+        )
 
     return {
         "protocol_version": "1.2",
@@ -388,8 +437,8 @@ def build_header(
         },
         # §1.1 — frozen clock, read off the server, not off this process.
         "freeze_now": health.get("freeze_now"),
-        # §1.4 — hardware profile.
-        "hardware": {"profile": hardware_profile, "gpu": _gpu_name()},
+        # §1.4 — hardware profile, with the evidence rather than the claim.
+        "hardware": {"profile": hardware_profile, "gpu": _gpu_name(), **_gpu_info()},
         "git": _git_sha(),
         "adapters": _adapter_registry(),
         "selection": selection,
@@ -468,6 +517,14 @@ def aggregate(records: list[dict]) -> dict[str, Any]:
         },
         "edr_events": sum(1 for r in records if r.get("edr_event")),
         "latency_ms": _latency_summary(records),
+        # The interpretation layer. Rendered into the Markdown report too, from
+        # this same dict, so the two artefacts cannot disagree about what the
+        # run means.
+        "diagnostics": diagnose(records),
+        "failing_layers": {
+            layer: sum(1 for r in records if layer in (r.get("failing_layers") or []))
+            for layer in ("syntax", "semantic", "sanity")
+        },
     }
 
 
@@ -554,6 +611,72 @@ def _md_table(title: str, rows: dict[str, dict[str, int]]) -> str:
     return "\n".join(out) + "\n"
 
 
+def _add_diagnostics(add, summary: dict) -> None:
+    """The interpretation layer, rendered from `summary["diagnostics"]`.
+
+    Same dict the JSON carries, so the two artefacts cannot drift apart — that
+    coherence is the point: a reader of the .md and a script reading the .json
+    must reach the same conclusion about what failed and why.
+    """
+    diagnostics = summary.get("diagnostics")
+    if not diagnostics:
+        return
+
+    add("\n## Diagnostics — how to read the failures\n")
+    add(f"> {diagnostics['discipline']}\n")
+
+    if not diagnostics["failed"]:
+        add(f"No failures among {diagnostics['scored']} scored items.")
+        return
+
+    add(
+        f"{diagnostics['failed']} of {diagnostics['scored']} scored items failed, "
+        f"in these classes:\n"
+    )
+    add("| Class | Count | What it means | Items |")
+    add("|---|---|---|---|")
+    for klass, bucket in diagnostics["taxonomy"].items():
+        items = ", ".join(bucket["items"][:8]) + (" …" if len(bucket["items"]) > 8 else "")
+        add(f"| `{klass}` | {bucket['count']} | {bucket['label']} | {items} |")
+
+    layers = summary.get("failing_layers") or {}
+    if any(layers.values()):
+        add(
+            "\nVerification layer that rejected (§4.3): "
+            + ", ".join(f"{name}={count}" for name, count in layers.items() if count)
+        )
+
+    recurring = diagnostics["recurring"]
+    if recurring:
+        add(
+            "\n### Recurring failure signatures\n\n"
+            "Messages with table, column and numeric literals normalized away, so one root "
+            "cause showing several faces is counted once. **Only signatures seen more than "
+            "once appear here** — these are the findings worth acting on, in order.\n"
+        )
+        add("| Seen | Signature | Items |")
+        add("|---|---|---|")
+        for row in recurring:
+            sig = row["signature"].replace("|", "\\|")
+            items = ", ".join(row["items"][:8]) + (" …" if len(row["items"]) > 8 else "")
+            add(f"| {row['count']}× | `{sig}` | {items} |")
+
+    soft = diagnostics["caveat_signatures_on_passing_items"]
+    if soft:
+        add(
+            "\n### Caveats on queries that passed (§4.4 soft signal)\n\n"
+            "A `caution` never blocks, so these are usability findings rather than "
+            "correctness failures. They matter in aggregate: a caveat on nearly every "
+            "answer trains the user to ignore caveats.\n"
+        )
+        add("| Seen | Caveat | Items |")
+        add("|---|---|---|")
+        for row in soft[:10]:
+            sig = row["signature"].replace("|", "\\|")
+            items = ", ".join(row["items"][:8]) + (" …" if len(row["items"]) > 8 else "")
+            add(f"| {row['count']}× | {sig} | {items} |")
+
+
 def write_reports(
     header: dict, summary: dict, records: list[dict], overwrite: str | None = None
 ) -> tuple[str, str]:
@@ -638,6 +761,8 @@ def write_reports(
     tokens = latency["tokens_per_sec"]
     add(f"- tokens/sec P50 {tokens['p50']}, mean {tokens['mean']}")
 
+    _add_diagnostics(add, summary)
+
     add("\n## Per-item results\n")
     add("| Item | Corpus | Tier | Score | Outcome | Verdict | Reason | SQL |")
     add("|---|---|---|---|---|---|---|---|")
@@ -661,7 +786,11 @@ def preflight(base_url: str, allow_unfrozen: bool) -> dict:
     try:
         health = requests.get(f"{base_url}/health", timeout=10).json()
     except Exception as exc:
-        raise SystemExit(f"Backend unreachable at {base_url}: {exc}\nStart it with start.py.")
+        raise SystemExit(
+            f"Backend unreachable at {base_url}: {exc}\n"
+            "Start it with `python run_benchmarks.py` (which brings it up itself), "
+            "or `python start.py` for the full stack."
+        )
 
     if "freeze_now" not in health:
         raise SystemExit(
@@ -672,7 +801,9 @@ def preflight(base_url: str, allow_unfrozen: bool) -> dict:
         raise SystemExit(
             f"Refusing to run: the backend reports IDI_FREEZE_NOW={health.get('freeze_now')!r}, "
             f"expected {FREEZE_NOW!r}. §1.1 — a run without the frozen clock is void.\n"
-            f"Restart the backend with IDI_FREEZE_NOW={FREEZE_NOW}."
+            f"This backend was already running, so it is left alone rather than restarted. "
+            f"Stop it and re-run `python run_benchmarks.py`, which starts one with "
+            f"IDI_FREEZE_NOW={FREEZE_NOW} and IDI_GREEDY=1 set."
         )
     if not health.get("llm_healthy"):
         raise SystemExit(
@@ -743,6 +874,7 @@ def run_sweep(
                 "row_count": result.get("row_count", 0),
                 "rows": (result.get("rows") or [])[:20],
                 "verdict": _verdict(verify),
+                "failing_layers": _failing_layers(verify),
                 "caveats": _verify_caveats(verify),
                 "wall_ms": wall_ms,
                 "stage_latencies_ms": _stage_latencies(events),

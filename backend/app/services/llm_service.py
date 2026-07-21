@@ -109,9 +109,15 @@ class LLMService:
         messages: list[dict[str, str]],
         temperature: float = 0.3,
         timeout: int = 90,
+        extra: dict[str, Any] | None = None,
     ) -> tuple[str, dict[str, Any]]:
-        """Like chat(), but also returns timing/token metadata for benchmarking."""
-        data, elapsed = self._request(messages, temperature, timeout)
+        """Like chat(), but also returns timing/token metadata for benchmarking.
+
+        Takes `extra` for the same reason chat() does: structured SQL emission
+        is both a grammar-constrained call *and* the call whose tokens/sec the
+        benchmark reads, so it needs the two capabilities in one place.
+        """
+        data, elapsed = self._request(messages, temperature, timeout, extra)
         content: str = data.get("choices", [{}])[0].get("message", {}).get("content", "")
         usage = data.get("usage", {})
         completion_tokens = usage.get("completion_tokens", 0)

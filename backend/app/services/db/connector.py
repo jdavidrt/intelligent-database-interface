@@ -25,8 +25,10 @@ class DBConnector(Protocol):
 def get_connector(db_name: str):
     """Return the active DBConnector implementation for db_name per settings.connector."""
     from backend.app.config import settings
+
     if settings.connector == "mysql":
         # Day 4: from .mysql_connector import MySQLConnector; return MySQLConnector(db_name)
         raise NotImplementedError("MySQLConnector arrives on Day 4.")
     from .file_connector import FileConnector
+
     return FileConnector(db_name)

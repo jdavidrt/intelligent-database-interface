@@ -1,0 +1,3251 @@
+{
+  "header": {
+    "protocol_version": "1.2",
+    "started_at": "2026-07-21T19:49:39.369662+00:00",
+    "base_url": "http://127.0.0.1:5000",
+    "engine": {
+      "connector": "file",
+      "description": "in-memory SQLite built from databases/soundwave/*.sql via FileConnector",
+      "database": "soundwave",
+      "reset_to_seed": "per backend start; the connector is read-only and never mutated",
+      "row_cap": 200
+    },
+    "decoding": {
+      "greedy": true,
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "seed": 20260721,
+      "repetitions": 1,
+      "constrained_planning": true,
+      "model_path": "C:\\dev\\intelligent-database-interface\\models\\qwen2.5-coder-3b-instruct-q4_k_m.gguf",
+      "n_ctx": 17152
+    },
+    "freeze_now": "2026-07-17T12:00:00",
+    "hardware": {
+      "profile": "gpu",
+      "gpu": "NVIDIA GeForce GTX 1650, 4096 MiB",
+      "name": "NVIDIA GeForce GTX 1650",
+      "vram_total_mb": 4096,
+      "vram_used_mb": 2782,
+      "description": "NVIDIA GeForce GTX 1650, 4096 MiB"
+    },
+    "git": {
+      "sha": "d8de1d348fa9d77a519ceef1855991fc1e50c8a1",
+      "dirty": true
+    },
+    "adapters": {
+      "registry": {
+        "sql_generator": {
+          "kind": "gguf",
+          "artifact": "sql_generator.gguf"
+        },
+        "query_understanding": {
+          "kind": "gguf",
+          "artifact": "query_understanding.gguf"
+        },
+        "verification": {
+          "kind": "prompt",
+          "artifact": "verification.md"
+        },
+        "clarification": {
+          "kind": "prompt",
+          "artifact": "clarification.md"
+        }
+      },
+      "run": "B"
+    },
+    "selection": {
+      "profile": "1h",
+      "profile_label": "1 hour",
+      "tier_rule": "proportional",
+      "rule": "1 hour preset \u2014 proportional across corpora, proportional across difficulty tiers, manifest-order prefix within each stratum",
+      "per_corpus": {
+        "spider_style": 11,
+        "bird_style": 11,
+        "soundwave_30": 5,
+        "idi_exec_75": 14
+      },
+      "per_corpus_tier": {
+        "spider_style": {
+          "easy": 5,
+          "medium": 4,
+          "hard": 2
+        },
+        "bird_style": {
+          "easy": 5,
+          "medium": 4,
+          "hard": 2
+        },
+        "soundwave_30": {
+          "easy": 1,
+          "medium": 1,
+          "hard": 3
+        },
+        "idi_exec_75": {
+          "easy": 3,
+          "medium": 5,
+          "hard": 5
+        }
+      },
+      "tier_totals": {
+        "easy": 14,
+        "medium": 14,
+        "hard": 13
+      },
+      "expected_behaviour_counts": {
+        "answer": 40,
+        "clarify": 1
+      },
+      "available_behaviour_counts": {
+        "answer": 220,
+        "clarify": 5
+      },
+      "selected": 41,
+      "available": {
+        "spider_style": 60,
+        "bird_style": 60,
+        "soundwave_30": 30,
+        "idi_exec_75": 75
+      },
+      "subset": true,
+      "tier_axis": "normalized for allocation only; reports use native tier labels"
+    },
+    "reportable": false,
+    "caveats": [
+      "partial run: 41 of 225 items. EX below is a pilot figure, not the corpus EX of \u00a73."
+    ],
+    "command": "run_benchmarks.py",
+    "tag": "",
+    "finished_at": "2026-07-21T20:40:31.653116+00:00",
+    "items_attempted": 41
+  },
+  "summary": {
+    "overall": {
+      "scored": 41,
+      "passed": 14,
+      "ex": 0.3415,
+      "void": 0
+    },
+    "per_corpus": {
+      "bird_style": {
+        "scored": 11,
+        "passed": 6,
+        "ex": 0.5455,
+        "void": 0
+      },
+      "idi_exec_75": {
+        "scored": 14,
+        "passed": 2,
+        "ex": 0.1429,
+        "void": 0
+      },
+      "soundwave_30": {
+        "scored": 5,
+        "passed": 0,
+        "ex": 0.0,
+        "void": 0
+      },
+      "spider_style": {
+        "scored": 11,
+        "passed": 6,
+        "ex": 0.5455,
+        "void": 0
+      }
+    },
+    "by_category": {
+      "bird_style / Dirty data / external knowledge": {
+        "scored": 11,
+        "passed": 6
+      },
+      "idi_exec_75 / Aggregations / KPIs": {
+        "scored": 10,
+        "passed": 2
+      },
+      "idi_exec_75 / Deliberate Ambiguity": {
+        "scored": 1,
+        "passed": 0
+      },
+      "idi_exec_75 / Ranking / Top-N": {
+        "scored": 3,
+        "passed": 0
+      },
+      "soundwave_30 / EC-01": {
+        "scored": 1,
+        "passed": 0
+      },
+      "soundwave_30 / EC-06": {
+        "scored": 2,
+        "passed": 0
+      },
+      "soundwave_30 / EC-09": {
+        "scored": 1,
+        "passed": 0
+      },
+      "soundwave_30 / EC-14": {
+        "scored": 1,
+        "passed": 0
+      },
+      "spider_style / Structural": {
+        "scored": 11,
+        "passed": 6
+      }
+    },
+    "by_difficulty": {
+      "bird_style / challenging": {
+        "scored": 2,
+        "passed": 1
+      },
+      "bird_style / moderate": {
+        "scored": 4,
+        "passed": 0
+      },
+      "bird_style / simple": {
+        "scored": 5,
+        "passed": 5
+      },
+      "idi_exec_75 / high": {
+        "scored": 6,
+        "passed": 0
+      },
+      "idi_exec_75 / low": {
+        "scored": 3,
+        "passed": 2
+      },
+      "idi_exec_75 / medium": {
+        "scored": 5,
+        "passed": 0
+      },
+      "soundwave_30 / Easy": {
+        "scored": 1,
+        "passed": 0
+      },
+      "soundwave_30 / Hard": {
+        "scored": 3,
+        "passed": 0
+      },
+      "soundwave_30 / Medium": {
+        "scored": 1,
+        "passed": 0
+      },
+      "spider_style / easy": {
+        "scored": 5,
+        "passed": 4
+      },
+      "spider_style / hard": {
+        "scored": 2,
+        "passed": 0
+      },
+      "spider_style / medium": {
+        "scored": 4,
+        "passed": 2
+      }
+    },
+    "by_ec_tag": {
+      "(none)": {
+        "scored": 15,
+        "passed": 8
+      },
+      "EC-01": {
+        "scored": 1,
+        "passed": 0
+      },
+      "EC-02": {
+        "scored": 2,
+        "passed": 1
+      },
+      "EC-03": {
+        "scored": 1,
+        "passed": 1
+      },
+      "EC-05": {
+        "scored": 4,
+        "passed": 2
+      },
+      "EC-06": {
+        "scored": 2,
+        "passed": 0
+      },
+      "EC-07": {
+        "scored": 1,
+        "passed": 0
+      },
+      "EC-08": {
+        "scored": 5,
+        "passed": 0
+      },
+      "EC-09": {
+        "scored": 1,
+        "passed": 0
+      },
+      "EC-14": {
+        "scored": 1,
+        "passed": 0
+      },
+      "EC-15": {
+        "scored": 3,
+        "passed": 0
+      },
+      "EC-17": {
+        "scored": 14,
+        "passed": 3
+      }
+    },
+    "outcomes": {
+      "answered": 35,
+      "blocked": 4,
+      "meta_answer": 1,
+      "no_sql": 1
+    },
+    "verdicts": {
+      "caution": 4,
+      "fail": 4,
+      "pass": 31
+    },
+    "edr_events": 4,
+    "latency_ms": {
+      "note": "descriptive; not the \u00a75 measurement protocol",
+      "end_to_end": {
+        "p50": 82158,
+        "p90": 98718,
+        "max": 152656
+      },
+      "verification_chain": {
+        "p50": 9
+      },
+      "tokens_per_sec": {
+        "p50": 12.0,
+        "mean": 12.55
+      }
+    },
+    "diagnostics": {
+      "discipline": "**\u00a70.2 \u2014 instrument, not target.** This section interprets the run; it does not re-score it. Nothing below may justify changing a threshold, a corpus item, a tolerance or the EX comparison algorithm \u2014 those are frozen. A defect found here is fixed in the *system* (prompt, schema summary, verifier, training data), never in the measurement, and the fix is logged in \u00a711.\n>\n> Note what reading this costs. Once a failure below drives a change, these corpora have acted as a **development set** for that change, and every later EX on them is optimistic to that extent. That is a legitimate use \u2014 it is what a diagnostic corpus is for \u2014 but \u00a74.2 must say so rather than report the later figure as an independent result.",
+      "scored": 41,
+      "failed": 27,
+      "taxonomy": {
+        "wrong_row_count": {
+          "count": 9,
+          "label": "executed, but returned a different number of rows",
+          "items": [
+            "SPIDER-005",
+            "SPIDER-049",
+            "BIRD-032",
+            "BIRD-033",
+            "SW-Q11",
+            "SW-Q12",
+            "EXEC-011",
+            "EXEC-015",
+            "EXEC-020"
+          ]
+        },
+        "wrong_values": {
+          "count": 6,
+          "label": "executed with the right shape, but at least one value differs",
+          "items": [
+            "EXEC-003",
+            "EXEC-010",
+            "EXEC-012",
+            "EXEC-013",
+            "EXEC-014",
+            "EXEC-019"
+          ]
+        },
+        "wrong_column_count": {
+          "count": 5,
+          "label": "executed, but returned a different number of columns",
+          "items": [
+            "BIRD-031",
+            "BIRD-034",
+            "SW-Q01",
+            "SW-Q06",
+            "EXEC-021"
+          ]
+        },
+        "blocked": {
+          "count": 4,
+          "label": "verification blocked the SQL before execution (an EDR event, \u00a74)",
+          "items": [
+            "SPIDER-028",
+            "BIRD-053",
+            "SW-Q13",
+            "EXEC-009"
+          ]
+        },
+        "meta_answer": {
+          "count": 1,
+          "label": "answered in prose as a meta question instead of querying",
+          "items": [
+            "SPIDER-026"
+          ]
+        },
+        "no_sql": {
+          "count": 1,
+          "label": "no SQL was generated",
+          "items": [
+            "SPIDER-050"
+          ]
+        },
+        "did_not_clarify": {
+          "count": 1,
+          "label": "produced SQL where \u00a73.6 required a clarification",
+          "items": [
+            "EXEC-071"
+          ]
+        }
+      },
+      "blocked_signatures": [
+        {
+          "signature": "verification blocked the SQL \u2014 Engine EXPLAIN rejected the query: no such column: <id>",
+          "count": 2,
+          "items": [
+            "BIRD-053",
+            "SW-Q13"
+          ]
+        },
+        {
+          "signature": "verification blocked the SQL \u2014 Engine EXPLAIN rejected the query: no such table: <id>",
+          "count": 1,
+          "items": [
+            "EXEC-009"
+          ]
+        },
+        {
+          "signature": "verification blocked the SQL \u2014 Invented join key: <id> is not a relationship in the schema \u2014 no foreign key links <id> to <id>, directly or transitively. The le",
+          "count": 1,
+          "items": [
+            "SPIDER-028"
+          ]
+        }
+      ],
+      "wrong_answer_signatures": [
+        {
+          "signature": "row count <n> != expected <n>",
+          "count": 9,
+          "items": [
+            "SPIDER-005",
+            "SPIDER-049",
+            "BIRD-032",
+            "BIRD-033",
+            "SW-Q11",
+            "SW-Q12",
+            "EXEC-011",
+            "EXEC-015",
+            "EXEC-020"
+          ]
+        },
+        {
+          "signature": "column count <n> != expected <n>",
+          "count": 5,
+          "items": [
+            "BIRD-031",
+            "BIRD-034",
+            "SW-Q01",
+            "SW-Q06",
+            "EXEC-021"
+          ]
+        },
+        {
+          "signature": "sorted row <n> col <n>: <n> != <n>",
+          "count": 3,
+          "items": [
+            "EXEC-003",
+            "EXEC-010",
+            "EXEC-013"
+          ]
+        },
+        {
+          "signature": "row <n> col <n>: <n> != <n>",
+          "count": 1,
+          "items": [
+            "EXEC-019"
+          ]
+        },
+        {
+          "signature": "sorted row <n> col <n>: <id> != <n>",
+          "count": 1,
+          "items": [
+            "EXEC-012"
+          ]
+        },
+        {
+          "signature": "sorted row <n> col <n>: <n> != <id>",
+          "count": 1,
+          "items": [
+            "EXEC-014"
+          ]
+        }
+      ],
+      "caveat_signatures_on_passing_items": [],
+      "recurring": [
+        {
+          "signature": "row count <n> != expected <n>",
+          "count": 9,
+          "items": [
+            "SPIDER-005",
+            "SPIDER-049",
+            "BIRD-032",
+            "BIRD-033",
+            "SW-Q11",
+            "SW-Q12",
+            "EXEC-011",
+            "EXEC-015",
+            "EXEC-020"
+          ]
+        },
+        {
+          "signature": "column count <n> != expected <n>",
+          "count": 5,
+          "items": [
+            "BIRD-031",
+            "BIRD-034",
+            "SW-Q01",
+            "SW-Q06",
+            "EXEC-021"
+          ]
+        },
+        {
+          "signature": "sorted row <n> col <n>: <n> != <n>",
+          "count": 3,
+          "items": [
+            "EXEC-003",
+            "EXEC-010",
+            "EXEC-013"
+          ]
+        },
+        {
+          "signature": "verification blocked the SQL \u2014 Engine EXPLAIN rejected the query: no such column: <id>",
+          "count": 2,
+          "items": [
+            "BIRD-053",
+            "SW-Q13"
+          ]
+        }
+      ]
+    },
+    "failing_layers": {
+      "syntax": 3,
+      "semantic": 4,
+      "sanity": 0
+    }
+  },
+  "items": [
+    {
+      "id": "SPIDER-001",
+      "corpus": "spider_style",
+      "category": "Structural",
+      "difficulty": "easy",
+      "ec_tags": [],
+      "expected_behaviour": "answer",
+      "nl": "List the names of all artists.",
+      "reference_sql": "SELECT name FROM artists",
+      "sql": "SELECT name FROM artists",
+      "row_count": 12,
+      "rows": [
+        {
+          "name": "The Weeknd"
+        },
+        {
+          "name": "Taylor Swift"
+        },
+        {
+          "name": "Bad Bunny"
+        },
+        {
+          "name": "Drake"
+        },
+        {
+          "name": "Billie Eilish"
+        },
+        {
+          "name": "Kendrick Lamar"
+        },
+        {
+          "name": "Dua Lipa"
+        },
+        {
+          "name": "BTS"
+        },
+        {
+          "name": "Ed Sheeran"
+        },
+        {
+          "name": "Olivia Rodrigo"
+        },
+        {
+          "name": "Arctic Monkeys"
+        },
+        {
+          "name": "Karol G"
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 28500,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 5791,
+        "sql_generator": 22622,
+        "verification": 5
+      },
+      "tokens_per_sec": 8.75,
+      "pipeline_error": null,
+      "ground_truth_rows": 12,
+      "score": "pass",
+      "outcome": "answered",
+      "reason": "12 row(s) matched"
+    },
+    {
+      "id": "SPIDER-002",
+      "corpus": "spider_style",
+      "category": "Structural",
+      "difficulty": "easy",
+      "ec_tags": [],
+      "expected_behaviour": "answer",
+      "nl": "How many tracks are there?",
+      "reference_sql": "SELECT COUNT(*) FROM tracks",
+      "sql": "SELECT COUNT(*) AS total_tracks FROM tracks",
+      "row_count": 1,
+      "rows": [
+        {
+          "total_tracks": 48
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 61569,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 4166,
+        "sql_generator": 57306,
+        "verification": 7
+      },
+      "tokens_per_sec": 8.22,
+      "pipeline_error": null,
+      "ground_truth_rows": 1,
+      "score": "pass",
+      "outcome": "answered",
+      "reason": "1 row(s) matched"
+    },
+    {
+      "id": "SPIDER-003",
+      "corpus": "spider_style",
+      "category": "Structural",
+      "difficulty": "easy",
+      "ec_tags": [],
+      "expected_behaviour": "answer",
+      "nl": "Show the titles of all albums whose album type is 'album'.",
+      "reference_sql": "SELECT title FROM albums WHERE album_type = 'album'",
+      "sql": "SELECT albums.title\nFROM albums\nWHERE album_type = 'album';",
+      "row_count": 19,
+      "rows": [
+        {
+          "title": "After Hours"
+        },
+        {
+          "title": "Dawn FM"
+        },
+        {
+          "title": "Midnights"
+        },
+        {
+          "title": "Folklore"
+        },
+        {
+          "title": "Un Verano Sin Ti"
+        },
+        {
+          "title": "Certified Lover Boy"
+        },
+        {
+          "title": "Hit Me Hard and Soft"
+        },
+        {
+          "title": "Mr. Morale & The Big Steppers"
+        },
+        {
+          "title": "Future Nostalgia"
+        },
+        {
+          "title": "Map of the Soul: 7"
+        },
+        {
+          "title": "SOUR"
+        },
+        {
+          "title": "The Car"
+        },
+        {
+          "title": "Ma\u00f1ana Ser\u00e1 Bonito"
+        },
+        {
+          "title": "Subtract"
+        },
+        {
+          "title": "GNX"
+        },
+        {
+          "title": "Midnight Reverie"
+        },
+        {
+          "title": "Neon Season"
+        },
+        {
+          "title": "Cartograf\u00eda"
+        },
+        {
+          "title": "Static Bloom"
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 26793,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 4970,
+        "sql_generator": 19044,
+        "verification": 8
+      },
+      "tokens_per_sec": 8.05,
+      "pipeline_error": null,
+      "ground_truth_rows": 19,
+      "score": "pass",
+      "outcome": "answered",
+      "reason": "19 row(s) matched"
+    },
+    {
+      "id": "SPIDER-004",
+      "corpus": "spider_style",
+      "category": "Structural",
+      "difficulty": "easy",
+      "ec_tags": [],
+      "expected_behaviour": "answer",
+      "nl": "Which genres have no parent genre?",
+      "reference_sql": "SELECT name FROM genres WHERE parent_genre_id IS NULL",
+      "sql": "SELECT name FROM genres WHERE parent_genre_id IS NULL;",
+      "row_count": 8,
+      "rows": [
+        {
+          "name": "Pop"
+        },
+        {
+          "name": "Rock"
+        },
+        {
+          "name": "Hip-Hop"
+        },
+        {
+          "name": "Latin"
+        },
+        {
+          "name": "R&B"
+        },
+        {
+          "name": "Electronic"
+        },
+        {
+          "name": "Jazz"
+        },
+        {
+          "name": "Classical"
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 66090,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 5201,
+        "sql_generator": 60753,
+        "verification": 8
+      },
+      "tokens_per_sec": 9.24,
+      "pipeline_error": null,
+      "ground_truth_rows": 8,
+      "score": "pass",
+      "outcome": "answered",
+      "reason": "8 row(s) matched"
+    },
+    {
+      "id": "SPIDER-005",
+      "corpus": "spider_style",
+      "category": "Structural",
+      "difficulty": "easy",
+      "ec_tags": [],
+      "expected_behaviour": "answer",
+      "nl": "List the display names of all users ordered by the date they joined.",
+      "reference_sql": "SELECT display_name FROM users ORDER BY joined_at",
+      "sql": "SELECT T1.display_name\nFROM users AS T1\nJOIN users AS T2 ON T1.user_id = T2.referred_by_user_id\nORDER BY T1.joined_at;",
+      "row_count": 12,
+      "rows": [
+        {
+          "display_name": "sophc"
+        },
+        {
+          "display_name": "sophc"
+        },
+        {
+          "display_name": "sophc"
+        },
+        {
+          "display_name": "mariaL"
+        },
+        {
+          "display_name": "lucar"
+        },
+        {
+          "display_name": "aishah"
+        },
+        {
+          "display_name": "aishah"
+        },
+        {
+          "display_name": "yukit"
+        },
+        {
+          "display_name": "lucass"
+        },
+        {
+          "display_name": "emmaw"
+        },
+        {
+          "display_name": "sanr"
+        },
+        {
+          "display_name": "tomm"
+        }
+      ],
+      "verdict": "caution",
+      "failing_layers": [],
+      "caveats": [
+        "Unverified self-join on 'users': 'T1.user_id = T2.referred_by_user_id' relates the table to itself in two roles. The schema cannot confirm the direction \u2014 check that this is the intended one and not its reverse."
+      ],
+      "wall_ms": 23982,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 4261,
+        "sql_generator": 19634,
+        "verification": 6
+      },
+      "tokens_per_sec": 10.24,
+      "pipeline_error": null,
+      "ground_truth_rows": 40,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "row count 12 != expected 40"
+    },
+    {
+      "id": "SPIDER-025",
+      "corpus": "spider_style",
+      "category": "Structural",
+      "difficulty": "medium",
+      "ec_tags": [],
+      "expected_behaviour": "answer",
+      "nl": "List the title and release date of every album, ordered by release date.",
+      "reference_sql": "SELECT title, release_date FROM albums ORDER BY release_date",
+      "sql": "SELECT title, release_date\nFROM albums\nORDER BY release_date;",
+      "row_count": 20,
+      "rows": [
+        {
+          "title": "Map of the Soul: 7",
+          "release_date": "2020-02-21"
+        },
+        {
+          "title": "After Hours",
+          "release_date": "2020-03-20"
+        },
+        {
+          "title": "Future Nostalgia",
+          "release_date": "2020-03-27"
+        },
+        {
+          "title": "Folklore",
+          "release_date": "2020-07-24"
+        },
+        {
+          "title": "SOUR",
+          "release_date": "2021-05-21"
+        },
+        {
+          "title": "Certified Lover Boy",
+          "release_date": "2021-09-03"
+        },
+        {
+          "title": "Dawn FM",
+          "release_date": "2022-01-07"
+        },
+        {
+          "title": "Un Verano Sin Ti",
+          "release_date": "2022-05-06"
+        },
+        {
+          "title": "Mr. Morale & The Big Steppers",
+          "release_date": "2022-05-13"
+        },
+        {
+          "title": "Midnights",
+          "release_date": "2022-10-21"
+        },
+        {
+          "title": "The Car",
+          "release_date": "2022-10-21"
+        },
+        {
+          "title": "Ma\u00f1ana Ser\u00e1 Bonito",
+          "release_date": "2023-02-24"
+        },
+        {
+          "title": "Subtract",
+          "release_date": "2023-05-05"
+        },
+        {
+          "title": "Hit Me Hard and Soft",
+          "release_date": "2024-05-17"
+        },
+        {
+          "title": "GNX",
+          "release_date": "2024-11-22"
+        },
+        {
+          "title": "Midnight Reverie",
+          "release_date": "2025-03-14"
+        },
+        {
+          "title": "Neon Season",
+          "release_date": "2025-07-25"
+        },
+        {
+          "title": "Cartograf\u00eda",
+          "release_date": "2025-11-07"
+        },
+        {
+          "title": "Static Bloom",
+          "release_date": "2026-02-20"
+        },
+        {
+          "title": "Long Way Home",
+          "release_date": "2026-05-15"
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 73944,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 15287,
+        "sql_generator": 58566,
+        "verification": 8
+      },
+      "tokens_per_sec": 7.98,
+      "pipeline_error": null,
+      "ground_truth_rows": 20,
+      "score": "pass",
+      "outcome": "answered",
+      "reason": "20 row(s) matched"
+    },
+    {
+      "id": "SPIDER-026",
+      "corpus": "spider_style",
+      "category": "Structural",
+      "difficulty": "medium",
+      "ec_tags": [],
+      "expected_behaviour": "answer",
+      "nl": "Show the name and country of artists whose label is 'Warner Records'.",
+      "reference_sql": "SELECT name, country FROM artists WHERE label = 'Warner Records'",
+      "sql": null,
+      "row_count": 0,
+      "rows": [],
+      "verdict": null,
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 7582,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "clarification": 7479
+      },
+      "tokens_per_sec": null,
+      "pipeline_error": null,
+      "ground_truth_rows": 1,
+      "score": "fail",
+      "outcome": "meta_answer",
+      "reason": "answered as a meta question"
+    },
+    {
+      "id": "SPIDER-027",
+      "corpus": "spider_style",
+      "category": "Structural",
+      "difficulty": "medium",
+      "ec_tags": [],
+      "expected_behaviour": "answer",
+      "nl": "List the name and monthly price of each subscription plan, most expensive first.",
+      "reference_sql": "SELECT name, monthly_price FROM subscription_plans ORDER BY monthly_price DESC",
+      "sql": "SELECT subscription_plans.name, subscription_plans.monthly_price\nFROM subscription_plans\nORDER BY subscription_plans.monthly_price DESC;",
+      "row_count": 4,
+      "rows": [
+        {
+          "name": "Family",
+          "monthly_price": 17.99
+        },
+        {
+          "name": "Individual",
+          "monthly_price": 11.99
+        },
+        {
+          "name": "Student",
+          "monthly_price": 6.49
+        },
+        {
+          "name": "Free",
+          "monthly_price": 0.0
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 65959,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 4602,
+        "sql_generator": 61245,
+        "verification": 8
+      },
+      "tokens_per_sec": 11.44,
+      "pipeline_error": null,
+      "ground_truth_rows": 4,
+      "score": "pass",
+      "outcome": "answered",
+      "reason": "4 row(s) matched"
+    },
+    {
+      "id": "SPIDER-028",
+      "corpus": "spider_style",
+      "category": "Structural",
+      "difficulty": "medium",
+      "ec_tags": [],
+      "expected_behaviour": "answer",
+      "nl": "How many users are there in each country?",
+      "reference_sql": "SELECT country, COUNT(*) FROM users GROUP BY country",
+      "sql": "SELECT COUNT(users.user_id) AS user_count, users.country\nFROM users\nJOIN daily_artist_metrics ON users.country = daily_artist_metrics.country_code\nGROUP BY users.country;",
+      "row_count": 0,
+      "rows": [],
+      "verdict": "fail",
+      "failing_layers": [
+        "semantic"
+      ],
+      "caveats": [],
+      "wall_ms": 93918,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 5061,
+        "sql_generator": 63570,
+        "verification": 25211
+      },
+      "tokens_per_sec": 12.93,
+      "pipeline_error": "Verification failed.",
+      "ground_truth_rows": 23,
+      "score": "fail",
+      "outcome": "blocked",
+      "reason": "verification blocked the SQL \u2014 Invented join key: 'users.country = daily_artist_metrics.country_code' is not a relationship in the schema \u2014 no foreign key links users.country to daily_artist_metrics.country_code, directly or transitively. The legal join chain from users to daily_artist_metrics is: user_follows_artists.user_id = users.user_id ; daily_artist_metrics.artist_id = user_follows_artists.artist_id \u2014 join through the intermediate table(s), copying these ON clauses verbatim.",
+      "edr_event": true
+    },
+    {
+      "id": "SPIDER-049",
+      "corpus": "spider_style",
+      "category": "Structural",
+      "difficulty": "hard",
+      "ec_tags": [],
+      "expected_behaviour": "answer",
+      "nl": "Show the name and country of the first five artists from Great Britain, in alphabetical order.",
+      "reference_sql": "SELECT name, country FROM artists WHERE country = 'GB' ORDER BY name LIMIT 5",
+      "sql": "SELECT name, country\nFROM artists\nWHERE country = 'Great Britain'\nORDER BY name ASC\nLIMIT 5;",
+      "row_count": 0,
+      "rows": [],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 70933,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 4948,
+        "sql_generator": 63379,
+        "verification": 3
+      },
+      "tokens_per_sec": 10.61,
+      "pipeline_error": null,
+      "ground_truth_rows": 3,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "row count 0 != expected 3"
+    },
+    {
+      "id": "SPIDER-050",
+      "corpus": "spider_style",
+      "category": "Structural",
+      "difficulty": "hard",
+      "ec_tags": [],
+      "expected_behaviour": "answer",
+      "nl": "How many play events does each track have, most played first?",
+      "reference_sql": "SELECT t.title, COUNT(*) FROM tracks t JOIN play_events pe ON t.track_id = pe.track_id GROUP BY t.title ORDER BY COUNT(*) DESC",
+      "sql": null,
+      "row_count": 0,
+      "rows": [],
+      "verdict": null,
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 152656,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 5035,
+        "sql_generator": 147567
+      },
+      "tokens_per_sec": null,
+      "pipeline_error": "llama.cpp timed out after 90s.",
+      "ground_truth_rows": 48,
+      "score": "fail",
+      "outcome": "no_sql",
+      "reason": "no SQL generated"
+    },
+    {
+      "id": "BIRD-001",
+      "corpus": "bird_style",
+      "category": "Dirty data / external knowledge",
+      "difficulty": "simple",
+      "ec_tags": [
+        "EC-17"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "How many payments actually went through?",
+      "reference_sql": "SELECT COUNT(*) FROM payments WHERE payment_status = 'completed'",
+      "sql": "SELECT COUNT(payment_id) AS completed_payments\nFROM payments\nWHERE payment_status = 'completed';",
+      "row_count": 1,
+      "rows": [
+        {
+          "completed_payments": 420
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 25054,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 5302,
+        "sql_generator": 19678,
+        "verification": 3
+      },
+      "tokens_per_sec": 7.4,
+      "pipeline_error": null,
+      "ground_truth_rows": 1,
+      "score": "pass",
+      "outcome": "answered",
+      "reason": "1 row(s) matched"
+    },
+    {
+      "id": "BIRD-002",
+      "corpus": "bird_style",
+      "category": "Dirty data / external knowledge",
+      "difficulty": "simple",
+      "ec_tags": [
+        "EC-17"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "How many times has a track actually been played?",
+      "reference_sql": "SELECT COUNT(*) FROM play_events WHERE event_type = 'play'",
+      "sql": "SELECT COUNT(event_id) AS play_count\nFROM play_events\nWHERE event_type = 'play';",
+      "row_count": 1,
+      "rows": [
+        {
+          "play_count": 963
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 91372,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 19284,
+        "sql_generator": 71991,
+        "verification": 8
+      },
+      "tokens_per_sec": 17.26,
+      "pipeline_error": null,
+      "ground_truth_rows": 1,
+      "score": "pass",
+      "outcome": "answered",
+      "reason": "1 row(s) matched"
+    },
+    {
+      "id": "BIRD-003",
+      "corpus": "bird_style",
+      "category": "Dirty data / external knowledge",
+      "difficulty": "simple",
+      "ec_tags": [
+        "EC-05"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "How long is the average track in minutes?",
+      "reference_sql": "SELECT AVG(trk_dur_ms) / 60000.0 FROM tracks",
+      "sql": "SELECT AVG(trk_dur_ms / 60000.0) AS avg_duration_minutes\nFROM tracks;",
+      "row_count": 1,
+      "rows": [
+        {
+          "avg_duration_minutes": 3.5852246527777774
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 86365,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 18262,
+        "sql_generator": 68017,
+        "verification": 3
+      },
+      "tokens_per_sec": 16.25,
+      "pipeline_error": null,
+      "ground_truth_rows": 1,
+      "score": "pass",
+      "outcome": "answered",
+      "reason": "1 row(s) matched"
+    },
+    {
+      "id": "BIRD-004",
+      "corpus": "bird_style",
+      "category": "Dirty data / external knowledge",
+      "difficulty": "simple",
+      "ec_tags": [
+        "EC-02",
+        "EC-05"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "How many users signed up organically?",
+      "reference_sql": "SELECT COUNT(*) FROM users WHERE usr_acq_src = 1",
+      "sql": "SELECT COUNT(DISTINCT user_id) AS organic_signups\nFROM users\nWHERE usr_acq_src = 1;",
+      "row_count": 1,
+      "rows": [
+        {
+          "organic_signups": 12
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 83014,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 19936,
+        "sql_generator": 63011,
+        "verification": 3
+      },
+      "tokens_per_sec": 8.53,
+      "pipeline_error": null,
+      "ground_truth_rows": 1,
+      "score": "pass",
+      "outcome": "answered",
+      "reason": "1 row(s) matched"
+    },
+    {
+      "id": "BIRD-005",
+      "corpus": "bird_style",
+      "category": "Dirty data / external knowledge",
+      "difficulty": "simple",
+      "ec_tags": [
+        "EC-03"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "How many standalone singles are in the catalogue?",
+      "reference_sql": "SELECT COUNT(*) FROM tracks WHERE album_id IS NULL",
+      "sql": "SELECT COUNT(*) AS total_singles\nFROM tracks\nWHERE album_id IS NULL;",
+      "row_count": 1,
+      "rows": [
+        {
+          "total_singles": 8
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 85189,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 19218,
+        "sql_generator": 65876,
+        "verification": 8
+      },
+      "tokens_per_sec": 6.51,
+      "pipeline_error": null,
+      "ground_truth_rows": 1,
+      "score": "pass",
+      "outcome": "answered",
+      "reason": "1 row(s) matched"
+    },
+    {
+      "id": "BIRD-031",
+      "corpus": "bird_style",
+      "category": "Dirty data / external knowledge",
+      "difficulty": "moderate",
+      "ec_tags": [
+        "EC-17"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "Which users have ever actually played something?",
+      "reference_sql": "SELECT display_name FROM users WHERE user_id IN (SELECT user_id FROM play_events WHERE event_type = 'play')",
+      "sql": "SELECT DISTINCT u.user_id, u.name\nFROM play_events pe\nJOIN users u ON pe.user_id = u.user_id\nWHERE pe.event_type = 'play';",
+      "row_count": 38,
+      "rows": [
+        {
+          "user_id": 1,
+          "name": "Sophia Carter"
+        },
+        {
+          "user_id": 2,
+          "name": "James Nguyen"
+        },
+        {
+          "user_id": 3,
+          "name": "Maria Lopez"
+        },
+        {
+          "user_id": 4,
+          "name": "Luca Rossi"
+        },
+        {
+          "user_id": 5,
+          "name": "Aisha Patel"
+        },
+        {
+          "user_id": 6,
+          "name": "Carlos Mendez"
+        },
+        {
+          "user_id": 7,
+          "name": "Nina Kowalski"
+        },
+        {
+          "user_id": 9,
+          "name": "Yuki Tanaka"
+        },
+        {
+          "user_id": 10,
+          "name": "Elena Volkov"
+        },
+        {
+          "user_id": 11,
+          "name": "David Kim"
+        },
+        {
+          "user_id": 13,
+          "name": "Lucas Silva"
+        },
+        {
+          "user_id": 15,
+          "name": "Santiago Ruiz"
+        },
+        {
+          "user_id": 16,
+          "name": "Priya Sharma"
+        },
+        {
+          "user_id": 17,
+          "name": "Tom M\u00fcller"
+        },
+        {
+          "user_id": 18,
+          "name": "Isabela Costa"
+        },
+        {
+          "user_id": 19,
+          "name": "Alex Turner"
+        },
+        {
+          "user_id": 20,
+          "name": "Camila Torres"
+        },
+        {
+          "user_id": 14,
+          "name": "Emma Wilson"
+        },
+        {
+          "user_id": 37,
+          "name": "Grace Kim"
+        },
+        {
+          "user_id": 29,
+          "name": "Ingrid Larsen"
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 82887,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 19633,
+        "sql_generator": 63151,
+        "verification": 7
+      },
+      "tokens_per_sec": 11.17,
+      "pipeline_error": null,
+      "ground_truth_rows": 38,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "column count 2 != expected 1"
+    },
+    {
+      "id": "BIRD-032",
+      "corpus": "bird_style",
+      "category": "Dirty data / external knowledge",
+      "difficulty": "moderate",
+      "ec_tags": [
+        "EC-17"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "Which tracks has nobody ever liked?",
+      "reference_sql": "SELECT title FROM tracks WHERE track_id NOT IN (SELECT track_id FROM user_liked_tracks)",
+      "sql": "SELECT DISTINCT t.title, t.trk_dur_ms, t.is_exp, t.isrc, t.track_number, t.total_plays, a.name, a.country, a.bio, a.verified\nFROM tracks t\nJOIN track_artists ta ON t.track_id = ta.track_id\nJOIN user_liked_tracks ult ON ta.track_id = ult.track_id\nJOIN artists a ON ta.artist_id = a.artist_id\nWHERE t.total_plays = 0\nORDER BY t.title;",
+      "row_count": 0,
+      "rows": [],
+      "verdict": "caution",
+      "failing_layers": [],
+      "caveats": [
+        "Ambiguous join route: artists and user_liked_tracks were connected through track_artists, but user_follows_artists link them equally directly and answer a different question. The schema alone cannot say which reading you meant."
+      ],
+      "wall_ms": 89787,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 19705,
+        "sql_generator": 69971,
+        "verification": 25
+      },
+      "tokens_per_sec": 16.2,
+      "pipeline_error": null,
+      "ground_truth_rows": 3,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "row count 0 != expected 3"
+    },
+    {
+      "id": "BIRD-033",
+      "corpus": "bird_style",
+      "category": "Dirty data / external knowledge",
+      "difficulty": "moderate",
+      "ec_tags": [
+        "EC-17",
+        "EC-08"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "How much revenue did each plan actually bring in?",
+      "reference_sql": "SELECT s.plan_id, SUM(pay.amount) AS revenue FROM payments pay JOIN subscriptions s ON pay.subscription_id = s.subscription_id WHERE pay.payment_status = 'completed' GROUP BY s.plan_id",
+      "sql": "SELECT ph.plan_id, ph.monthly_price, SUM(pay.amount) AS total_revenue\nFROM pricing_history ph\nJOIN subscriptions s ON ph.plan_id = s.plan_id\nJOIN payments pay ON s.subscription_id = pay.subscription_id\nWHERE s.status = 1 AND pay.payment_status = 'completed'\nGROUP BY ph.plan_id, ph.monthly_price\nORDER BY total_revenue DESC;",
+      "row_count": 10,
+      "rows": [
+        {
+          "plan_id": 3,
+          "monthly_price": 8.99,
+          "total_revenue": 2409.71
+        },
+        {
+          "plan_id": 3,
+          "monthly_price": 9.49,
+          "total_revenue": 2409.71
+        },
+        {
+          "plan_id": 3,
+          "monthly_price": 9.99,
+          "total_revenue": 2409.71
+        },
+        {
+          "plan_id": 3,
+          "monthly_price": 11.99,
+          "total_revenue": 2409.71
+        },
+        {
+          "plan_id": 4,
+          "monthly_price": 14.99,
+          "total_revenue": 2115.7799999999997
+        },
+        {
+          "plan_id": 4,
+          "monthly_price": 15.99,
+          "total_revenue": 2115.7799999999997
+        },
+        {
+          "plan_id": 4,
+          "monthly_price": 17.99,
+          "total_revenue": 2115.7799999999997
+        },
+        {
+          "plan_id": 2,
+          "monthly_price": 4.99,
+          "total_revenue": 433.81
+        },
+        {
+          "plan_id": 2,
+          "monthly_price": 5.49,
+          "total_revenue": 433.81
+        },
+        {
+          "plan_id": 2,
+          "monthly_price": 6.49,
+          "total_revenue": 433.81
+        }
+      ],
+      "verdict": "caution",
+      "failing_layers": [],
+      "caveats": [
+        "Ambiguous join route: payments and pricing_history were connected through subscriptions, but subscription_periods link them equally directly and answer a different question. The schema alone cannot say which reading you meant."
+      ],
+      "wall_ms": 34478,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 5918,
+        "sql_generator": 25887,
+        "verification": 25
+      },
+      "tokens_per_sec": 14.59,
+      "pipeline_error": null,
+      "ground_truth_rows": 3,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "row count 10 != expected 3"
+    },
+    {
+      "id": "BIRD-034",
+      "corpus": "bird_style",
+      "category": "Dirty data / external knowledge",
+      "difficulty": "moderate",
+      "ec_tags": [
+        "EC-17"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "How many plays did each track get in 2026?",
+      "reference_sql": "SELECT t.title, COUNT(*) AS plays FROM tracks t JOIN play_events pe ON t.track_id = pe.track_id WHERE pe.event_type = 'play' AND YEAR(pe.played_at) = 2026 GROUP BY t.title",
+      "sql": "SELECT t.track_id, t.title, COUNT(*) AS play_count\nFROM play_events pe\nJOIN tracks t ON pe.track_id = t.track_id\nWHERE pe.event_type = 'play' AND YEAR(pe.played_at) = 2026\nGROUP BY t.track_id, t.title\nORDER BY play_count DESC;",
+      "row_count": 48,
+      "rows": [
+        {
+          "track_id": 8,
+          "title": "Marjorie",
+          "play_count": 14
+        },
+        {
+          "track_id": 30,
+          "title": "Cruel Summer",
+          "play_count": 13
+        },
+        {
+          "track_id": 46,
+          "title": "Golden Hour",
+          "play_count": 13
+        },
+        {
+          "track_id": 3,
+          "title": "In Your Eyes",
+          "play_count": 12
+        },
+        {
+          "track_id": 4,
+          "title": "Sacrifice",
+          "play_count": 12
+        },
+        {
+          "track_id": 26,
+          "title": "One Dance",
+          "play_count": 12
+        },
+        {
+          "track_id": 34,
+          "title": "Slow Fade",
+          "play_count": 12
+        },
+        {
+          "track_id": 47,
+          "title": "Ritmo Nuevo",
+          "play_count": 12
+        },
+        {
+          "track_id": 6,
+          "title": "Anti-Hero",
+          "play_count": 11
+        },
+        {
+          "track_id": 41,
+          "title": "Sin Regreso",
+          "play_count": 11
+        },
+        {
+          "track_id": 2,
+          "title": "Save Your Tears",
+          "play_count": 10
+        },
+        {
+          "track_id": 12,
+          "title": "Way 2 Sexy",
+          "play_count": 10
+        },
+        {
+          "track_id": 31,
+          "title": "Midnight Reverie",
+          "play_count": 10
+        },
+        {
+          "track_id": 7,
+          "title": "Lavender Haze",
+          "play_count": 9
+        },
+        {
+          "track_id": 9,
+          "title": "Tit\u00ed Me Pregunt\u00f3",
+          "play_count": 9
+        },
+        {
+          "track_id": 13,
+          "title": "Champagne Poetry",
+          "play_count": 9
+        },
+        {
+          "track_id": 16,
+          "title": "N95",
+          "play_count": 9
+        },
+        {
+          "track_id": 35,
+          "title": "Neon Season",
+          "play_count": 9
+        },
+        {
+          "track_id": 36,
+          "title": "Glass Hearts",
+          "play_count": 9
+        },
+        {
+          "track_id": 39,
+          "title": "Cartograf\u00eda",
+          "play_count": 9
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 89708,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 20627,
+        "sql_generator": 68966,
+        "verification": 25
+      },
+      "tokens_per_sec": 17.7,
+      "pipeline_error": null,
+      "ground_truth_rows": 48,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "column count 3 != expected 2"
+    },
+    {
+      "id": "BIRD-052",
+      "corpus": "bird_style",
+      "category": "Dirty data / external knowledge",
+      "difficulty": "challenging",
+      "ec_tags": [
+        "EC-17"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "How many completed payments did each user make during 2025?",
+      "reference_sql": "SELECT user_id, COUNT(*) AS payments FROM payments WHERE payment_status = 'completed' AND YEAR(payment_date) = 2025 GROUP BY user_id",
+      "sql": "SELECT \n    u.user_id, \n    COUNT(p.payment_id) AS completed_payments\nFROM \n    payments p\nJOIN \n    users u ON p.user_id = u.user_id\nWHERE \n    p.payment_date >= '2025-01-01' AND p.payment_date <= '2025-12-31' AND p.payment_status = 'completed'\nGROUP BY \n    u.user_id;",
+      "row_count": 25,
+      "rows": [
+        {
+          "user_id": 1,
+          "completed_payments": 11
+        },
+        {
+          "user_id": 2,
+          "completed_payments": 10
+        },
+        {
+          "user_id": 3,
+          "completed_payments": 11
+        },
+        {
+          "user_id": 4,
+          "completed_payments": 11
+        },
+        {
+          "user_id": 5,
+          "completed_payments": 11
+        },
+        {
+          "user_id": 9,
+          "completed_payments": 10
+        },
+        {
+          "user_id": 10,
+          "completed_payments": 11
+        },
+        {
+          "user_id": 11,
+          "completed_payments": 11
+        },
+        {
+          "user_id": 13,
+          "completed_payments": 10
+        },
+        {
+          "user_id": 14,
+          "completed_payments": 11
+        },
+        {
+          "user_id": 15,
+          "completed_payments": 10
+        },
+        {
+          "user_id": 16,
+          "completed_payments": 10
+        },
+        {
+          "user_id": 17,
+          "completed_payments": 10
+        },
+        {
+          "user_id": 19,
+          "completed_payments": 11
+        },
+        {
+          "user_id": 20,
+          "completed_payments": 11
+        },
+        {
+          "user_id": 21,
+          "completed_payments": 7
+        },
+        {
+          "user_id": 23,
+          "completed_payments": 1
+        },
+        {
+          "user_id": 25,
+          "completed_payments": 4
+        },
+        {
+          "user_id": 28,
+          "completed_payments": 11
+        },
+        {
+          "user_id": 30,
+          "completed_payments": 9
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 87667,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 19521,
+        "sql_generator": 68017,
+        "verification": 21
+      },
+      "tokens_per_sec": 14.86,
+      "pipeline_error": null,
+      "ground_truth_rows": 25,
+      "score": "pass",
+      "outcome": "answered",
+      "reason": "25 row(s) matched"
+    },
+    {
+      "id": "BIRD-053",
+      "corpus": "bird_style",
+      "category": "Dirty data / external knowledge",
+      "difficulty": "challenging",
+      "ec_tags": [
+        "EC-08",
+        "EC-15",
+        "EC-17"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "How many distinct listeners does each artist have, by name?",
+      "reference_sql": "SELECT a.name, COUNT(DISTINCT pe.user_id) AS listeners FROM artists a JOIN track_artists ta ON a.artist_id = ta.artist_id JOIN play_events pe ON ta.track_id = pe.track_id WHERE pe.event_type = 'play' GROUP BY a.name",
+      "sql": "SELECT a.name AS artist_name, COUNT(DISTINCT da.artist_id) AS distinct_listeners\nFROM artists a\nJOIN daily_artist_metrics da ON a.artist_id = da.artist_id\nWHERE YEAR(da.metric_date) = 2026 AND da.event_type = 'play'\nGROUP BY a.artist_id, a.name\nORDER BY distinct_listeners DESC;",
+      "row_count": 0,
+      "rows": [],
+      "verdict": "fail",
+      "failing_layers": [
+        "syntax",
+        "semantic"
+      ],
+      "caveats": [],
+      "wall_ms": 109014,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 18345,
+        "sql_generator": 65815,
+        "verification": 24777
+      },
+      "tokens_per_sec": 16.4,
+      "pipeline_error": "Verification failed.",
+      "ground_truth_rows": 12,
+      "score": "fail",
+      "outcome": "blocked",
+      "reason": "verification blocked the SQL \u2014 Engine EXPLAIN rejected the query: no such column: da.event_type; Column 'event_type' does not exist in table 'daily_artist_metrics' (referenced as 'da.event_type') \u2014 it exists in: play_events",
+      "edr_event": true
+    },
+    {
+      "id": "SW-Q01",
+      "corpus": "soundwave_30",
+      "category": "EC-01",
+      "difficulty": "Easy",
+      "ec_tags": [
+        "EC-01"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "Show me all artists from Colombia.",
+      "reference_sql": "SELECT\n    artist_id,\n    name,\n    country,\n    monthly_listeners_cached\nFROM artists\nWHERE country = 'CO'",
+      "sql": "SELECT artists.name FROM artists WHERE country = 'CO'",
+      "row_count": 1,
+      "rows": [
+        {
+          "name": "Karol G"
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 78335,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 16770,
+        "sql_generator": 61467,
+        "verification": 4
+      },
+      "tokens_per_sec": 7.05,
+      "pipeline_error": null,
+      "ground_truth_rows": 1,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "column count 1 != expected 4"
+    },
+    {
+      "id": "SW-Q06",
+      "corpus": "soundwave_30",
+      "category": "EC-06",
+      "difficulty": "Medium",
+      "ec_tags": [
+        "EC-06"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "What is the current monthly price for each subscription plan?",
+      "reference_sql": "SELECT\n    sp.name          AS plan_name,\n    ph.monthly_price AS current_price,\n    ph.effective_from\nFROM subscription_plans sp\nJOIN pricing_history ph ON sp.plan_id = ph.plan_id\nWHERE ph.effective_to IS NULL\nORDER BY ph.monthly_price",
+      "sql": "SELECT subscription_plans.name, pricing_history.monthly_price\nFROM pricing_history\nJOIN subscription_plans ON pricing_history.plan_id = subscription_plans.plan_id\nWHERE pricing_history.effective_to IS NULL;",
+      "row_count": 4,
+      "rows": [
+        {
+          "name": "Free",
+          "monthly_price": 0.0
+        },
+        {
+          "name": "Student",
+          "monthly_price": 6.49
+        },
+        {
+          "name": "Individual",
+          "monthly_price": 11.99
+        },
+        {
+          "name": "Family",
+          "monthly_price": 17.99
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 29716,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 5020,
+        "sql_generator": 22029,
+        "verification": 9
+      },
+      "tokens_per_sec": 11.61,
+      "pipeline_error": null,
+      "ground_truth_rows": 4,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "column count 2 != expected 3"
+    },
+    {
+      "id": "SW-Q11",
+      "corpus": "soundwave_30",
+      "category": "EC-06",
+      "difficulty": "Hard",
+      "ec_tags": [
+        "EC-06"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "Which artists had more than 5 distinct listeners per month in 2024?",
+      "reference_sql": "SELECT\n    a.name                                     AS artist_name,\n    DATE_FORMAT(pe.played_at, '%Y-%m')         AS stream_month,\n    COUNT(DISTINCT pe.user_id)                 AS unique_listeners\nFROM artists        a\nJOIN track_artists ta ON a.artist_id = ta.artist_id\nJOIN play_events   pe ON ta.track_id = pe.track_id\nWHERE YEAR(pe.played_at)  = 2024\n  AND pe.event_type       = 'play'\nGROUP BY a.artist_id, a.name, stream_month\nHAVING COUNT(DISTINCT pe.user_id) > 5\nORDER BY stream_month, unique_listeners DESC",
+      "sql": "SELECT a.name AS artist_name, DATE_FORMAT(dam.metric_date, '%Y-%m') AS stream_month, COUNT(DISTINCT pe.user_id) AS distinct_listeners\nFROM artists a\nJOIN track_artists ta ON a.artist_id = ta.artist_id\nJOIN play_events pe ON ta.track_id = pe.track_id\nJOIN daily_artist_metrics dam ON a.artist_id = dam.artist_id\nWHERE YEAR(pe.played_at) = 2024 AND pe.event_type = 'play'\nGROUP BY a.artist_id, a.name, dam.metric_date\nHAVING COUNT(DISTINCT pe.user_id) > 5\nORDER BY stream_month, distinct_listeners DESC;",
+      "row_count": 25,
+      "rows": [
+        {
+          "artist_name": "Bad Bunny",
+          "stream_month": "2023-01",
+          "distinct_listeners": 7
+        },
+        {
+          "artist_name": "Billie Eilish",
+          "stream_month": "2023-01",
+          "distinct_listeners": 6
+        },
+        {
+          "artist_name": "Bad Bunny",
+          "stream_month": "2023-04",
+          "distinct_listeners": 7
+        },
+        {
+          "artist_name": "Bad Bunny",
+          "stream_month": "2024-01",
+          "distinct_listeners": 7
+        },
+        {
+          "artist_name": "Billie Eilish",
+          "stream_month": "2024-01",
+          "distinct_listeners": 6
+        },
+        {
+          "artist_name": "Bad Bunny",
+          "stream_month": "2024-04",
+          "distinct_listeners": 7
+        },
+        {
+          "artist_name": "Billie Eilish",
+          "stream_month": "2024-07",
+          "distinct_listeners": 6
+        },
+        {
+          "artist_name": "Billie Eilish",
+          "stream_month": "2024-07",
+          "distinct_listeners": 6
+        },
+        {
+          "artist_name": "Bad Bunny",
+          "stream_month": "2025-04",
+          "distinct_listeners": 7
+        },
+        {
+          "artist_name": "Bad Bunny",
+          "stream_month": "2025-05",
+          "distinct_listeners": 7
+        },
+        {
+          "artist_name": "Billie Eilish",
+          "stream_month": "2025-05",
+          "distinct_listeners": 6
+        },
+        {
+          "artist_name": "Billie Eilish",
+          "stream_month": "2025-06",
+          "distinct_listeners": 6
+        },
+        {
+          "artist_name": "Billie Eilish",
+          "stream_month": "2025-07",
+          "distinct_listeners": 6
+        },
+        {
+          "artist_name": "Bad Bunny",
+          "stream_month": "2025-10",
+          "distinct_listeners": 7
+        },
+        {
+          "artist_name": "Billie Eilish",
+          "stream_month": "2025-10",
+          "distinct_listeners": 6
+        },
+        {
+          "artist_name": "Billie Eilish",
+          "stream_month": "2025-12",
+          "distinct_listeners": 6
+        },
+        {
+          "artist_name": "Bad Bunny",
+          "stream_month": "2026-01",
+          "distinct_listeners": 7
+        },
+        {
+          "artist_name": "Billie Eilish",
+          "stream_month": "2026-01",
+          "distinct_listeners": 6
+        },
+        {
+          "artist_name": "Billie Eilish",
+          "stream_month": "2026-02",
+          "distinct_listeners": 6
+        },
+        {
+          "artist_name": "Bad Bunny",
+          "stream_month": "2026-03",
+          "distinct_listeners": 7
+        }
+      ],
+      "verdict": "caution",
+      "failing_layers": [],
+      "caveats": [
+        "Ambiguous join route: daily_artist_metrics and play_events were connected through track_artists, but user_follows_artists link them equally directly and answer a different question. The schema alone cannot say which reading you meant."
+      ],
+      "wall_ms": 88701,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 18986,
+        "sql_generator": 69588,
+        "verification": 36
+      },
+      "tokens_per_sec": 18.15,
+      "pipeline_error": null,
+      "ground_truth_rows": 1,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "row count 25 != expected 1"
+    },
+    {
+      "id": "SW-Q12",
+      "corpus": "soundwave_30",
+      "category": "EC-14",
+      "difficulty": "Hard",
+      "ec_tags": [
+        "EC-14"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "Find users who follow at least one artist but have never listened to any music by those specific artists.",
+      "reference_sql": "SELECT DISTINCT\n    u.display_name,\n    u.country\nFROM users u\nJOIN user_follows_artists ufa ON u.user_id = ufa.user_id\nWHERE NOT EXISTS (\n    SELECT 1\n    FROM play_events   pe\n    JOIN track_artists ta ON pe.track_id  = ta.track_id\n    WHERE pe.user_id   = u.user_id\n      AND ta.artist_id = ufa.artist_id\n)",
+      "sql": "SELECT u.user_id, u.name, u.display_name, u.email, u.country, u.birth_date, u.status, u.usr_acq_src, u.joined_at, u.last_login\nFROM users u\nJOIN user_follows_artists ufa ON u.user_id = ufa.user_id\nWHERE NOT EXISTS (\n    SELECT 1\n    FROM play_events pe\n    JOIN track_artists ta ON pe.track_id = ta.track_id\n    WHERE pe.user_id = u.user_id\n      AND ta.artist_id = ufa.artist_id\n);",
+      "row_count": 11,
+      "rows": [
+        {
+          "user_id": 7,
+          "name": "Nina Kowalski",
+          "display_name": "ninak",
+          "email": "nina@email.com",
+          "country": "PL",
+          "birth_date": "2001-06-14",
+          "status": 0,
+          "usr_acq_src": 3,
+          "joined_at": "2022-07-12 19:00:00",
+          "last_login": "2024-12-01 11:00:00"
+        },
+        {
+          "user_id": 25,
+          "name": "Amara Okafor",
+          "display_name": "amarao",
+          "email": "amarao@email.com",
+          "country": "NG",
+          "birth_date": "1989-06-25",
+          "status": 1,
+          "usr_acq_src": 3,
+          "joined_at": "2025-04-12 19:45:00",
+          "last_login": "2025-12-08 19:45:00"
+        },
+        {
+          "user_id": 25,
+          "name": "Amara Okafor",
+          "display_name": "amarao",
+          "email": "amarao@email.com",
+          "country": "NG",
+          "birth_date": "1989-06-25",
+          "status": 1,
+          "usr_acq_src": 3,
+          "joined_at": "2025-04-12 19:45:00",
+          "last_login": "2025-12-08 19:45:00"
+        },
+        {
+          "user_id": 26,
+          "name": "Kenji Sato",
+          "display_name": "kenjis",
+          "email": "kenjis@email.com",
+          "country": "JP",
+          "birth_date": "1988-04-13",
+          "status": 1,
+          "usr_acq_src": 3,
+          "joined_at": "2025-05-27 07:15:00",
+          "last_login": "2026-03-19 07:15:00"
+        },
+        {
+          "user_id": 30,
+          "name": "Rahul Mehta",
+          "display_name": "rahulm",
+          "email": "rahulm@email.com",
+          "country": "IN",
+          "birth_date": "1992-11-10",
+          "status": 1,
+          "usr_acq_src": 1,
+          "joined_at": "2025-09-26 07:00:00",
+          "last_login": "2026-07-14 07:00:00"
+        },
+        {
+          "user_id": 30,
+          "name": "Rahul Mehta",
+          "display_name": "rahulm",
+          "email": "rahulm@email.com",
+          "country": "IN",
+          "birth_date": "1992-11-10",
+          "status": 1,
+          "usr_acq_src": 1,
+          "joined_at": "2025-09-26 07:00:00",
+          "last_login": "2026-07-14 07:00:00"
+        },
+        {
+          "user_id": 31,
+          "name": "Beatriz Costa",
+          "display_name": "beatrizc",
+          "email": "beatrizc@email.com",
+          "country": "BR",
+          "birth_date": "1995-09-16",
+          "status": 1,
+          "usr_acq_src": 3,
+          "joined_at": "2025-10-16 20:45:00",
+          "last_login": "2025-11-24 20:45:00"
+        },
+        {
+          "user_id": 31,
+          "name": "Beatriz Costa",
+          "display_name": "beatrizc",
+          "email": "beatrizc@email.com",
+          "country": "BR",
+          "birth_date": "1995-09-16",
+          "status": 1,
+          "usr_acq_src": 3,
+          "joined_at": "2025-10-16 20:45:00",
+          "last_login": "2025-11-24 20:45:00"
+        },
+        {
+          "user_id": 36,
+          "name": "Pablo Ramos",
+          "display_name": "pablor",
+          "email": "pablor@email.com",
+          "country": "ES",
+          "birth_date": "2003-07-06",
+          "status": 1,
+          "usr_acq_src": 2,
+          "joined_at": "2026-03-06 19:45:00",
+          "last_login": "2026-07-17 21:00:00"
+        },
+        {
+          "user_id": 38,
+          "name": "Tomas Novak",
+          "display_name": "tomasn",
+          "email": "tomasn@email.com",
+          "country": "CZ",
+          "birth_date": "2000-02-17",
+          "status": 1,
+          "usr_acq_src": 1,
+          "joined_at": "2026-05-04 23:45:00",
+          "last_login": "2026-05-08 23:45:00"
+        },
+        {
+          "user_id": 40,
+          "name": "Owen Baker",
+          "display_name": "owenb",
+          "email": "owenb@email.com",
+          "country": "GB",
+          "birth_date": "2002-05-25",
+          "status": 1,
+          "usr_acq_src": 1,
+          "joined_at": "2026-07-08 19:15:00",
+          "last_login": "2026-07-17 18:00:00"
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 91342,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 22216,
+        "sql_generator": 69001,
+        "verification": 30
+      },
+      "tokens_per_sec": 17.38,
+      "pipeline_error": null,
+      "ground_truth_rows": 8,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "row count 11 != expected 8"
+    },
+    {
+      "id": "SW-Q13",
+      "corpus": "soundwave_30",
+      "category": "EC-09",
+      "difficulty": "Hard",
+      "ec_tags": [
+        "EC-09"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "Show each referred user alongside the display name of who referred them.",
+      "reference_sql": "SELECT\n    u.display_name   AS referred_user,\n    u.country        AS referred_country,\n    r.display_name   AS referred_by,\n    u.joined_at\nFROM users u\nJOIN users r ON u.referred_by_user_id = r.user_id\nORDER BY u.joined_at",
+      "sql": "SELECT u.name AS referred_user, u2.display_name AS referred_by\nFROM users u\nJOIN user_follows_artists uf ON u.user_id = uf.user_id\nJOIN users u2 ON uf.followed_by_user_id = u2.user_id\nORDER BY u2.followed_at;",
+      "row_count": 0,
+      "rows": [],
+      "verdict": "fail",
+      "failing_layers": [
+        "syntax",
+        "semantic"
+      ],
+      "caveats": [],
+      "wall_ms": 98718,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 5209,
+        "sql_generator": 66096,
+        "verification": 24814
+      },
+      "tokens_per_sec": 15.32,
+      "pipeline_error": "Verification failed.",
+      "ground_truth_rows": 12,
+      "score": "fail",
+      "outcome": "blocked",
+      "reason": "verification blocked the SQL \u2014 Engine EXPLAIN rejected the query: no such column: uf.followed_by_user_id; Column 'followed_by_user_id' does not exist in table 'user_follows_artists' (referenced as 'uf.followed_by_user_id')",
+      "edr_event": true
+    },
+    {
+      "id": "EXEC-001",
+      "corpus": "idi_exec_75",
+      "category": "Aggregations / KPIs",
+      "difficulty": "low",
+      "ec_tags": [],
+      "expected_behaviour": "answer",
+      "nl": "How many users do we have?",
+      "reference_sql": "SELECT COUNT(*) FROM users",
+      "sql": "SELECT COUNT(user_id) AS total_users FROM users;",
+      "row_count": 1,
+      "rows": [
+        {
+          "total_users": 40
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 82158,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 17523,
+        "sql_generator": 64544,
+        "verification": 7
+      },
+      "tokens_per_sec": 6.41,
+      "pipeline_error": null,
+      "ground_truth_rows": 1,
+      "score": "pass",
+      "outcome": "answered",
+      "reason": "1 row(s) matched"
+    },
+    {
+      "id": "EXEC-002",
+      "corpus": "idi_exec_75",
+      "category": "Aggregations / KPIs",
+      "difficulty": "low",
+      "ec_tags": [],
+      "expected_behaviour": "answer",
+      "nl": "How many tracks are in the catalogue?",
+      "reference_sql": "SELECT COUNT(*) FROM tracks",
+      "sql": "SELECT COUNT(*) AS total_tracks\nFROM tracks;",
+      "row_count": 1,
+      "rows": [
+        {
+          "total_tracks": 48
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 70512,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 4471,
+        "sql_generator": 65924,
+        "verification": 7
+      },
+      "tokens_per_sec": 7.95,
+      "pipeline_error": null,
+      "ground_truth_rows": 1,
+      "score": "pass",
+      "outcome": "answered",
+      "reason": "1 row(s) matched"
+    },
+    {
+      "id": "EXEC-003",
+      "corpus": "idi_exec_75",
+      "category": "Aggregations / KPIs",
+      "difficulty": "low",
+      "ec_tags": [
+        "EC-17"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "What's our total revenue to date?",
+      "reference_sql": "SELECT SUM(amount) FROM payments WHERE payment_status = 'completed'",
+      "sql": "SELECT SUM(p.amount) AS total_revenue\nFROM payments p\nJOIN subscriptions s ON p.subscription_id = s.subscription_id\nWHERE s.end_date IS NULL OR s.end_date >= '2026-07-17';",
+      "row_count": 1,
+      "rows": [
+        {
+          "total_revenue": 5195.59
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 70397,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 4890,
+        "sql_generator": 65411,
+        "verification": 6
+      },
+      "tokens_per_sec": 12.04,
+      "pipeline_error": null,
+      "ground_truth_rows": 1,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "sorted row 0 col 0: 5195.59 != 4959.3"
+    },
+    {
+      "id": "EXEC-009",
+      "corpus": "idi_exec_75",
+      "category": "Aggregations / KPIs",
+      "difficulty": "medium",
+      "ec_tags": [
+        "EC-17"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "What's our average payment size by method?",
+      "reference_sql": "SELECT payment_method, AVG(amount) AS avg_amount FROM payments WHERE payment_status = 'completed' GROUP BY payment_method",
+      "sql": "SELECT pm.payment_method, AVG(p.amount) AS average_payment_size\nFROM payments p\nJOIN payment_method pm ON p.payment_method = pm.payment_method_id\nGROUP BY pm.payment_method;",
+      "row_count": 0,
+      "rows": [],
+      "verdict": "fail",
+      "failing_layers": [
+        "syntax",
+        "semantic"
+      ],
+      "caveats": [],
+      "wall_ms": 94074,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 5203,
+        "sql_generator": 65481,
+        "verification": 23330
+      },
+      "tokens_per_sec": 12.18,
+      "pipeline_error": "Verification failed.",
+      "ground_truth_rows": 4,
+      "score": "fail",
+      "outcome": "blocked",
+      "reason": "verification blocked the SQL \u2014 Engine EXPLAIN rejected the query: no such table: payment_method; Hallucinated table: 'payment_method' not in DBProfile",
+      "edr_event": true
+    },
+    {
+      "id": "EXEC-010",
+      "corpus": "idi_exec_75",
+      "category": "Aggregations / KPIs",
+      "difficulty": "medium",
+      "ec_tags": [],
+      "expected_behaviour": "answer",
+      "nl": "How do plays break down by device?",
+      "reference_sql": "SELECT device_type, COUNT(*) AS plays FROM play_events GROUP BY device_type",
+      "sql": "SELECT device_type, COUNT(*) AS play_count\nFROM play_events\nWHERE event_type = 'play'\nGROUP BY device_type;",
+      "row_count": 5,
+      "rows": [
+        {
+          "device_type": "desktop",
+          "play_count": 172
+        },
+        {
+          "device_type": "mobile",
+          "play_count": 431
+        },
+        {
+          "device_type": "other",
+          "play_count": 127
+        },
+        {
+          "device_type": "smart_tv",
+          "play_count": 107
+        },
+        {
+          "device_type": "tablet",
+          "play_count": 126
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 69295,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 4834,
+        "sql_generator": 61739,
+        "verification": 10
+      },
+      "tokens_per_sec": 9.43,
+      "pipeline_error": null,
+      "ground_truth_rows": 5,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "sorted row 0 col 1: 172 != 205"
+    },
+    {
+      "id": "EXEC-011",
+      "corpus": "idi_exec_75",
+      "category": "Aggregations / KPIs",
+      "difficulty": "medium",
+      "ec_tags": [
+        "EC-02",
+        "EC-05"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "What's the split of our users by acquisition channel?",
+      "reference_sql": "SELECT usr_acq_src, COUNT(*) AS users FROM users GROUP BY usr_acq_src",
+      "sql": "SELECT \n    u.usr_acq_src,\n    u.name,\n    u.display_name,\n    u.email,\n    u.country,\n    u.birth_date,\n    u.status,\n    u.joined_at,\n    u.last_login,\n    CASE \n        WHEN u.usr_acq_src = 1 THEN 'organic'\n        WHEN u.usr_acq_src = 2 THEN 'social'\n        WHEN u.usr_acq_src = 3 THEN 'referral'\n        WHEN u.usr_acq_src = 4 THEN 'ad'\n        ELSE 'unknown'\n    END AS acquisition_source_name\nFROM \n    users u\nJOIN \n    user_liked_tracks ul ON u.user_id = ul.user_id\nGROUP BY \n    u.usr_acq_src, u.name, u.display_name, u.email, u.country, u.birth_date, u.status, u.joined_at, u.last_login\nORDER BY \n    u.usr_acq_src, RANK() OVER (PARTITION BY u.usr_acq_src ORDER BY COUNT(*) DESC);",
+      "row_count": 37,
+      "rows": [
+        {
+          "usr_acq_src": 1,
+          "name": "Carlos Mendez",
+          "display_name": "carlosm",
+          "email": "carlos@email.com",
+          "country": "MX",
+          "birth_date": "1987-01-25",
+          "status": 1,
+          "joined_at": "2022-06-01 10:00:00",
+          "last_login": "2025-01-10 08:00:00",
+          "acquisition_source_name": "organic"
+        },
+        {
+          "usr_acq_src": 1,
+          "name": "Maria Lopez",
+          "display_name": "mariaL",
+          "email": "maria@email.com",
+          "country": "CO",
+          "birth_date": "1998-11-05",
+          "status": 1,
+          "joined_at": "2022-03-10 08:15:00",
+          "last_login": "2025-01-19 17:45:00",
+          "acquisition_source_name": "organic"
+        },
+        {
+          "usr_acq_src": 1,
+          "name": "James Nguyen",
+          "display_name": "jnguyen",
+          "email": "james@email.com",
+          "country": "US",
+          "birth_date": "1990-07-22",
+          "status": 1,
+          "joined_at": "2022-02-01 11:00:00",
+          "last_login": "2025-01-18 20:00:00",
+          "acquisition_source_name": "organic"
+        },
+        {
+          "usr_acq_src": 1,
+          "name": "Tomas Novak",
+          "display_name": "tomasn",
+          "email": "tomasn@email.com",
+          "country": "CZ",
+          "birth_date": "2000-02-17",
+          "status": 1,
+          "joined_at": "2026-05-04 23:45:00",
+          "last_login": "2026-05-08 23:45:00",
+          "acquisition_source_name": "organic"
+        },
+        {
+          "usr_acq_src": 1,
+          "name": "Yuki Tanaka",
+          "display_name": "yukit",
+          "email": "yuki@email.com",
+          "country": "JP",
+          "birth_date": "1997-12-11",
+          "status": 1,
+          "joined_at": "2022-09-05 13:00:00",
+          "last_login": "2025-01-21 06:00:00",
+          "acquisition_source_name": "organic"
+        },
+        {
+          "usr_acq_src": 1,
+          "name": "Grace Kim",
+          "display_name": "gracek",
+          "email": "gracek@email.com",
+          "country": "KR",
+          "birth_date": "1995-05-26",
+          "status": 1,
+          "joined_at": "2026-04-11 12:30:00",
+          "last_login": "2026-07-17 08:00:00",
+          "acquisition_source_name": "organic"
+        },
+        {
+          "usr_acq_src": 1,
+          "name": "Lucas Silva",
+          "display_name": "lucass",
+          "email": "lucas@email.com",
+          "country": "BR",
+          "birth_date": "1996-07-08",
+          "status": 1,
+          "joined_at": "2023-02-14 12:00:00",
+          "last_login": "2025-01-19 21:30:00",
+          "acquisition_source_name": "organic"
+        },
+        {
+          "usr_acq_src": 1,
+          "name": "Sophia Carter",
+          "display_name": "sophc",
+          "email": "sophia@email.com",
+          "country": "US",
+          "birth_date": "1995-03-12",
+          "status": 1,
+          "joined_at": "2022-01-15 09:30:00",
+          "last_login": "2025-01-20 14:22:00",
+          "acquisition_source_name": "organic"
+        },
+        {
+          "usr_acq_src": 1,
+          "name": "Owen Baker",
+          "display_name": "owenb",
+          "email": "owenb@email.com",
+          "country": "GB",
+          "birth_date": "2002-05-25",
+          "status": 1,
+          "joined_at": "2026-07-08 19:15:00",
+          "last_login": "2026-07-17 18:00:00",
+          "acquisition_source_name": "organic"
+        },
+        {
+          "usr_acq_src": 1,
+          "name": "Santiago Ruiz",
+          "display_name": "sanr",
+          "email": "santiago@email.com",
+          "country": "CO",
+          "birth_date": "1991-09-14",
+          "status": 1,
+          "joined_at": "2023-04-20 17:00:00",
+          "last_login": "2025-01-21 10:00:00",
+          "acquisition_source_name": "organic"
+        },
+        {
+          "usr_acq_src": 1,
+          "name": "Rahul Mehta",
+          "display_name": "rahulm",
+          "email": "rahulm@email.com",
+          "country": "IN",
+          "birth_date": "1992-11-10",
+          "status": 1,
+          "joined_at": "2025-09-26 07:00:00",
+          "last_login": "2026-07-14 07:00:00",
+          "acquisition_source_name": "organic"
+        },
+        {
+          "usr_acq_src": 2,
+          "name": "Aisha Patel",
+          "display_name": "aishah",
+          "email": "aisha@email.com",
+          "country": "GB",
+          "birth_date": "2000-09-30",
+          "status": 1,
+          "joined_at": "2022-05-20 14:30:00",
+          "last_login": "2025-01-15 12:00:00",
+          "acquisition_source_name": "social"
+        },
+        {
+          "usr_acq_src": 2,
+          "name": "Diego Herrera",
+          "display_name": "diegoh",
+          "email": "diegoh@email.com",
+          "country": "MX",
+          "birth_date": "1989-08-26",
+          "status": 1,
+          "joined_at": "2025-07-13 11:00:00",
+          "last_login": "2026-04-21 11:00:00",
+          "acquisition_source_name": "social"
+        },
+        {
+          "usr_acq_src": 2,
+          "name": "Sofia Ricci",
+          "display_name": "sofiar",
+          "email": "sofiar@email.com",
+          "country": "IT",
+          "birth_date": "1993-07-14",
+          "status": 1,
+          "joined_at": "2025-02-01 22:15:00",
+          "last_login": "2025-02-08 22:15:00",
+          "acquisition_source_name": "social"
+        },
+        {
+          "usr_acq_src": 2,
+          "name": "David Kim",
+          "display_name": "davidk",
+          "email": "david@email.com",
+          "country": "KR",
+          "birth_date": "1989-05-17",
+          "status": 1,
+          "joined_at": "2022-11-01 15:00:00",
+          "last_login": "2025-01-16 18:00:00",
+          "acquisition_source_name": "social"
+        },
+        {
+          "usr_acq_src": 2,
+          "name": "Liam O'Connor",
+          "display_name": "liamoc",
+          "email": "liamoc@email.com",
+          "country": "IE",
+          "birth_date": "2005-05-12",
+          "status": 1,
+          "joined_at": "2025-03-20 12:30:00",
+          "last_login": "2026-02-24 12:30:00",
+          "acquisition_source_name": "social"
+        },
+        {
+          "usr_acq_src": 2,
+          "name": "Pablo Ramos",
+          "display_name": "pablor",
+          "email": "pablor@email.com",
+          "country": "ES",
+          "birth_date": "2003-07-06",
+          "status": 1,
+          "joined_at": "2026-03-06 19:45:00",
+          "last_login": "2026-07-17 21:00:00",
+          "acquisition_source_name": "social"
+        },
+        {
+          "usr_acq_src": 2,
+          "name": "Luca Rossi",
+          "display_name": "lucar",
+          "email": "luca@email.com",
+          "country": "IT",
+          "birth_date": "1993-04-18",
+          "status": 1,
+          "joined_at": "2022-04-05 16:00:00",
+          "last_login": "2025-01-17 10:30:00",
+          "acquisition_source_name": "social"
+        },
+        {
+          "usr_acq_src": 2,
+          "name": "Valentina Cruz",
+          "display_name": "valentinac",
+          "email": "valentinac@email.com",
+          "country": "AR",
+          "birth_date": "1995-09-27",
+          "status": 1,
+          "joined_at": "2026-06-18 10:45:00",
+          "last_login": "2026-07-17 18:00:00",
+          "acquisition_source_name": "social"
+        },
+        {
+          "usr_acq_src": 2,
+          "name": "Emma Wilson",
+          "display_name": "emmaw",
+          "email": "emma@email.com",
+          "country": "AU",
+          "birth_date": "2002-03-25",
+          "status": 1,
+          "joined_at": "2023-03-01 08:00:00",
+          "last_login": "2025-01-18 15:00:00",
+          "acquisition_source_name": "social"
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 73144,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 5242,
+        "sql_generator": 30615,
+        "verification": 34633
+      },
+      "tokens_per_sec": 21.75,
+      "pipeline_error": null,
+      "ground_truth_rows": 4,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "row count 37 != expected 4"
+    },
+    {
+      "id": "EXEC-012",
+      "corpus": "idi_exec_75",
+      "category": "Aggregations / KPIs",
+      "difficulty": "medium",
+      "ec_tags": [],
+      "expected_behaviour": "answer",
+      "nl": "How many subscriptions sit on each plan?",
+      "reference_sql": "SELECT plan_id, COUNT(*) AS subs FROM subscriptions GROUP BY plan_id",
+      "sql": "SELECT sp.name, COUNT(*) AS subscription_count\nFROM subscriptions s\nJOIN subscription_plans sp ON s.plan_id = sp.plan_id\nGROUP BY sp.plan_id, sp.name;",
+      "row_count": 4,
+      "rows": [
+        {
+          "name": "Free",
+          "subscription_count": 6
+        },
+        {
+          "name": "Student",
+          "subscription_count": 7
+        },
+        {
+          "name": "Individual",
+          "subscription_count": 17
+        },
+        {
+          "name": "Family",
+          "subscription_count": 10
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 83152,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 18344,
+        "sql_generator": 64697,
+        "verification": 15
+      },
+      "tokens_per_sec": 12.24,
+      "pipeline_error": null,
+      "ground_truth_rows": 4,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "sorted row 0 col 0: 'Family' != 1"
+    },
+    {
+      "id": "EXEC-013",
+      "corpus": "idi_exec_75",
+      "category": "Aggregations / KPIs",
+      "difficulty": "medium",
+      "ec_tags": [
+        "EC-05",
+        "EC-17"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "How many listening hours does each device account for?",
+      "reference_sql": "SELECT device_type, SUM(duration_ms) / 3600000.0 AS hours FROM play_events WHERE event_type = 'play' GROUP BY device_type",
+      "sql": "SELECT \n    pe.device_type, \n    SUM(pe.duration_ms) AS total_duration_ms\nFROM \n    play_events pe\nJOIN \n    users u ON pe.user_id = u.user_id\nWHERE \n    pe.event_type = 'play'\nGROUP BY \n    pe.device_type;",
+      "row_count": 5,
+      "rows": [
+        {
+          "device_type": "desktop",
+          "total_duration_ms": 29914304
+        },
+        {
+          "device_type": "mobile",
+          "total_duration_ms": 75814757
+        },
+        {
+          "device_type": "other",
+          "total_duration_ms": 20915945
+        },
+        {
+          "device_type": "smart_tv",
+          "total_duration_ms": 18451285
+        },
+        {
+          "device_type": "tablet",
+          "total_duration_ms": 22166519
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 82071,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 16876,
+        "sql_generator": 65075,
+        "verification": 18
+      },
+      "tokens_per_sec": 10.23,
+      "pipeline_error": null,
+      "ground_truth_rows": 5,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "sorted row 0 col 1: 29914304 != 8.309528888888888"
+    },
+    {
+      "id": "EXEC-014",
+      "corpus": "idi_exec_75",
+      "category": "Aggregations / KPIs",
+      "difficulty": "high",
+      "ec_tags": [
+        "EC-17",
+        "EC-08"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "What's our revenue by plan?",
+      "reference_sql": "SELECT p.name, SUM(pay.amount) AS revenue FROM payments pay JOIN subscriptions s ON pay.subscription_id = s.subscription_id JOIN subscription_plans p ON s.plan_id = p.plan_id WHERE pay.payment_status = 'completed' GROUP BY p.name",
+      "sql": "SELECT sp.plan_id, SUM(p.amount) AS total_revenue\nFROM subscriptions sp\nJOIN payments p ON sp.subscription_id = p.subscription_id\nWHERE sp.status = 1 AND p.payment_status = 'completed'\nGROUP BY sp.plan_id;",
+      "row_count": 3,
+      "rows": [
+        {
+          "plan_id": 2,
+          "total_revenue": 433.81
+        },
+        {
+          "plan_id": 3,
+          "total_revenue": 2409.71
+        },
+        {
+          "plan_id": 4,
+          "total_revenue": 2115.7799999999997
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 33355,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 5259,
+        "sql_generator": 25425,
+        "verification": 13
+      },
+      "tokens_per_sec": 14.86,
+      "pipeline_error": null,
+      "ground_truth_rows": 3,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "sorted row 0 col 0: 2 != 'Family'"
+    },
+    {
+      "id": "EXEC-015",
+      "corpus": "idi_exec_75",
+      "category": "Aggregations / KPIs",
+      "difficulty": "high",
+      "ec_tags": [
+        "EC-15",
+        "EC-17"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "How many distinct listeners does each artist pull in?",
+      "reference_sql": "SELECT ta.artist_id, COUNT(DISTINCT pe.user_id) AS listeners FROM track_artists ta JOIN play_events pe ON ta.track_id = pe.track_id WHERE pe.event_type = 'play' GROUP BY ta.artist_id",
+      "sql": "SELECT a.name AS artist_name, SUM(da.stream_count) AS total_listeners\nFROM daily_artist_metrics da\nJOIN artists a ON da.artist_id = a.artist_id\nWHERE YEAR(da.metric_date) = 2026 AND da.country_code = 'CO'\nGROUP BY a.name\nORDER BY total_listeners DESC;",
+      "row_count": 3,
+      "rows": [
+        {
+          "artist_name": "The Weeknd",
+          "total_listeners": 5068461
+        },
+        {
+          "artist_name": "Kendrick Lamar",
+          "total_listeners": 2775913
+        },
+        {
+          "artist_name": "Olivia Rodrigo",
+          "total_listeners": 2704207
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 113733,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 20324,
+        "sql_generator": 64962,
+        "verification": 28325
+      },
+      "tokens_per_sec": 14.84,
+      "pipeline_error": null,
+      "ground_truth_rows": 12,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "row count 3 != expected 12"
+    },
+    {
+      "id": "EXEC-019",
+      "corpus": "idi_exec_75",
+      "category": "Ranking / Top-N",
+      "difficulty": "high",
+      "ec_tags": [
+        "EC-08",
+        "EC-15"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "Who are our top five artists by listener reach?",
+      "reference_sql": "SELECT a.name, COUNT(DISTINCT pe.user_id) AS listeners FROM artists a JOIN track_artists ta ON a.artist_id = ta.artist_id JOIN play_events pe ON ta.track_id = pe.track_id WHERE pe.event_type = 'play' GROUP BY a.name ORDER BY listeners DESC LIMIT 5",
+      "sql": "SELECT a.name AS artist_name, SUM(dam.stream_count) AS total_stream_count\nFROM artists a\nJOIN daily_artist_metrics dam ON a.artist_id = dam.artist_id\nGROUP BY a.artist_id, a.name\nORDER BY total_stream_count DESC\nLIMIT 5;",
+      "row_count": 5,
+      "rows": [
+        {
+          "artist_name": "The Weeknd",
+          "total_stream_count": 65314971
+        },
+        {
+          "artist_name": "Bad Bunny",
+          "total_stream_count": 55954737
+        },
+        {
+          "artist_name": "Karol G",
+          "total_stream_count": 55034083
+        },
+        {
+          "artist_name": "Taylor Swift",
+          "total_stream_count": 50550823
+        },
+        {
+          "artist_name": "Dua Lipa",
+          "total_stream_count": 44797248
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 88259,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 19964,
+        "sql_generator": 68187,
+        "verification": 5
+      },
+      "tokens_per_sec": 16.01,
+      "pipeline_error": null,
+      "ground_truth_rows": 5,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "row 0 col 1: 65314971 != 37"
+    },
+    {
+      "id": "EXEC-020",
+      "corpus": "idi_exec_75",
+      "category": "Ranking / Top-N",
+      "difficulty": "high",
+      "ec_tags": [
+        "EC-08"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "Which genres are we biggest in?",
+      "reference_sql": "SELECT g.name, COUNT(*) AS plays FROM genres g JOIN track_genres tg ON g.genre_id = tg.genre_id JOIN play_events pe ON tg.track_id = pe.track_id WHERE pe.event_type = 'play' GROUP BY g.name ORDER BY plays DESC",
+      "sql": "SELECT g.name, da.stream_count\nFROM artist_genres ag\nJOIN daily_artist_metrics da ON ag.artist_id = da.artist_id\nJOIN genres g ON ag.genre_id = g.genre_id\nWHERE ag.is_prim = 1\nORDER BY g.name, da.stream_count DESC;",
+      "row_count": 134,
+      "rows": [
+        {
+          "name": "Hip-Hop",
+          "stream_count": 4233580
+        },
+        {
+          "name": "Hip-Hop",
+          "stream_count": 4142512
+        },
+        {
+          "name": "Hip-Hop",
+          "stream_count": 3599205
+        },
+        {
+          "name": "Hip-Hop",
+          "stream_count": 3496106
+        },
+        {
+          "name": "Hip-Hop",
+          "stream_count": 3359441
+        },
+        {
+          "name": "Hip-Hop",
+          "stream_count": 3111869
+        },
+        {
+          "name": "Hip-Hop",
+          "stream_count": 3043069
+        },
+        {
+          "name": "Hip-Hop",
+          "stream_count": 2986553
+        },
+        {
+          "name": "Hip-Hop",
+          "stream_count": 2954691
+        },
+        {
+          "name": "Hip-Hop",
+          "stream_count": 2775913
+        },
+        {
+          "name": "Hip-Hop",
+          "stream_count": 2727933
+        },
+        {
+          "name": "Hip-Hop",
+          "stream_count": 2708117
+        },
+        {
+          "name": "Hip-Hop",
+          "stream_count": 2632771
+        },
+        {
+          "name": "K-Pop",
+          "stream_count": 4800000
+        },
+        {
+          "name": "K-Pop",
+          "stream_count": 4600000
+        },
+        {
+          "name": "K-Pop",
+          "stream_count": 3218904
+        },
+        {
+          "name": "K-Pop",
+          "stream_count": 3200000
+        },
+        {
+          "name": "K-Pop",
+          "stream_count": 3050000
+        },
+        {
+          "name": "K-Pop",
+          "stream_count": 3018432
+        },
+        {
+          "name": "K-Pop",
+          "stream_count": 2833905
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 81090,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 4478,
+        "sql_generator": 74009,
+        "verification": 9
+      },
+      "tokens_per_sec": 19.04,
+      "pipeline_error": null,
+      "ground_truth_rows": 11,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "row count 134 != expected 11"
+    },
+    {
+      "id": "EXEC-021",
+      "corpus": "idi_exec_75",
+      "category": "Ranking / Top-N",
+      "difficulty": "high",
+      "ec_tags": [
+        "EC-17"
+      ],
+      "expected_behaviour": "answer",
+      "nl": "Who are our most engaged listeners this year?",
+      "reference_sql": "SELECT u.display_name, COUNT(*) AS plays FROM users u JOIN play_events pe ON u.user_id = pe.user_id WHERE pe.event_type = 'play' AND pe.played_at >= '2026-01-01' GROUP BY u.display_name ORDER BY plays DESC LIMIT 10",
+      "sql": "SELECT u.name, u.display_name, u.email, u.country, u.birth_date, u.status, u.usr_acq_src, u.joined_at, u.last_login, u.referred_by_user_id\nFROM users u\nJOIN play_events pe ON u.user_id = pe.user_id\nWHERE YEAR(pe.played_at) = YEAR(CURDATE())\nGROUP BY u.user_id\nORDER BY COUNT(pe.event_id) DESC\nLIMIT 10;",
+      "row_count": 10,
+      "rows": [
+        {
+          "name": "Camila Torres",
+          "display_name": "camilat",
+          "email": "camila@email.com",
+          "country": "CO",
+          "birth_date": "2001-01-09",
+          "status": 1,
+          "usr_acq_src": 3,
+          "joined_at": "2023-09-03 10:00:00",
+          "last_login": "2025-01-20 16:00:00",
+          "referred_by_user_id": 15
+        },
+        {
+          "name": "James Nguyen",
+          "display_name": "jnguyen",
+          "email": "james@email.com",
+          "country": "US",
+          "birth_date": "1990-07-22",
+          "status": 1,
+          "usr_acq_src": 1,
+          "joined_at": "2022-02-01 11:00:00",
+          "last_login": "2025-01-18 20:00:00",
+          "referred_by_user_id": null
+        },
+        {
+          "name": "Owen Baker",
+          "display_name": "owenb",
+          "email": "owenb@email.com",
+          "country": "GB",
+          "birth_date": "2002-05-25",
+          "status": 1,
+          "usr_acq_src": 1,
+          "joined_at": "2026-07-08 19:15:00",
+          "last_login": "2026-07-17 18:00:00",
+          "referred_by_user_id": null
+        },
+        {
+          "name": "Kenji Sato",
+          "display_name": "kenjis",
+          "email": "kenjis@email.com",
+          "country": "JP",
+          "birth_date": "1988-04-13",
+          "status": 1,
+          "usr_acq_src": 3,
+          "joined_at": "2025-05-27 07:15:00",
+          "last_login": "2026-03-19 07:15:00",
+          "referred_by_user_id": 1
+        },
+        {
+          "name": "Beatriz Costa",
+          "display_name": "beatrizc",
+          "email": "beatrizc@email.com",
+          "country": "BR",
+          "birth_date": "1995-09-16",
+          "status": 1,
+          "usr_acq_src": 3,
+          "joined_at": "2025-10-16 20:45:00",
+          "last_login": "2025-11-24 20:45:00",
+          "referred_by_user_id": 4
+        },
+        {
+          "name": "Priya Sharma",
+          "display_name": "priyas",
+          "email": "priya@email.com",
+          "country": "IN",
+          "birth_date": "1999-04-02",
+          "status": 1,
+          "usr_acq_src": 3,
+          "joined_at": "2023-05-15 11:00:00",
+          "last_login": "2025-01-20 19:00:00",
+          "referred_by_user_id": 1
+        },
+        {
+          "name": "Yuki Tanaka",
+          "display_name": "yukit",
+          "email": "yuki@email.com",
+          "country": "JP",
+          "birth_date": "1997-12-11",
+          "status": 1,
+          "usr_acq_src": 1,
+          "joined_at": "2022-09-05 13:00:00",
+          "last_login": "2025-01-21 06:00:00",
+          "referred_by_user_id": null
+        },
+        {
+          "name": "Mia Thompson",
+          "display_name": "miat",
+          "email": "miat@email.com",
+          "country": "AU",
+          "birth_date": "1998-12-19",
+          "status": 1,
+          "usr_acq_src": 3,
+          "joined_at": "2025-12-06 19:00:00",
+          "last_login": "2026-06-22 19:00:00",
+          "referred_by_user_id": 5
+        },
+        {
+          "name": "Lucas Silva",
+          "display_name": "lucass",
+          "email": "lucas@email.com",
+          "country": "BR",
+          "birth_date": "1996-07-08",
+          "status": 1,
+          "usr_acq_src": 1,
+          "joined_at": "2023-02-14 12:00:00",
+          "last_login": "2025-01-19 21:30:00",
+          "referred_by_user_id": null
+        },
+        {
+          "name": "Ali Hassan",
+          "display_name": "alih",
+          "email": "alih@email.com",
+          "country": "EG",
+          "birth_date": "2004-03-07",
+          "status": 1,
+          "usr_acq_src": 4,
+          "joined_at": "2026-01-20 07:30:00",
+          "last_login": "2026-07-17 07:00:00",
+          "referred_by_user_id": null
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 100959,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 6198,
+        "sql_generator": 67136,
+        "verification": 27531
+      },
+      "tokens_per_sec": 16.77,
+      "pipeline_error": null,
+      "ground_truth_rows": 10,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "column count 10 != expected 2"
+    },
+    {
+      "id": "EXEC-071",
+      "corpus": "idi_exec_75",
+      "category": "Deliberate Ambiguity",
+      "difficulty": "high",
+      "ec_tags": [
+        "EC-07"
+      ],
+      "expected_behaviour": "clarify",
+      "nl": "Show me our best artists.",
+      "reference_sql": null,
+      "sql": "SELECT a.name, da.stream_count\nFROM artists a\nJOIN daily_artist_metrics da ON a.artist_id = da.artist_id\nORDER BY da.stream_count DESC\nLIMIT 10;",
+      "row_count": 10,
+      "rows": [
+        {
+          "name": "Karol G",
+          "stream_count": 7800000
+        },
+        {
+          "name": "Karol G",
+          "stream_count": 7500000
+        },
+        {
+          "name": "Karol G",
+          "stream_count": 7200000
+        },
+        {
+          "name": "Bad Bunny",
+          "stream_count": 6200000
+        },
+        {
+          "name": "Bad Bunny",
+          "stream_count": 5600000
+        },
+        {
+          "name": "The Weeknd",
+          "stream_count": 5555040
+        },
+        {
+          "name": "The Weeknd",
+          "stream_count": 5360017
+        },
+        {
+          "name": "Bad Bunny",
+          "stream_count": 5300000
+        },
+        {
+          "name": "Bad Bunny",
+          "stream_count": 5250000
+        },
+        {
+          "name": "Taylor Swift",
+          "stream_count": 5152308
+        }
+      ],
+      "verdict": "pass",
+      "failing_layers": [],
+      "caveats": [],
+      "wall_ms": 82658,
+      "stage_latencies_ms": {
+        "context_manager": 0,
+        "query_understanding": 19128,
+        "sql_generator": 63425,
+        "verification": 13
+      },
+      "tokens_per_sec": 11.77,
+      "pipeline_error": null,
+      "score": "fail",
+      "outcome": "answered",
+      "reason": "did not clarify (pipeline answered)"
+    }
+  ]
+}

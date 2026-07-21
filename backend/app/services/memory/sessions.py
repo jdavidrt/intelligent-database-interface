@@ -83,19 +83,22 @@ def append_turn(
         con.execute(
             "INSERT INTO turns (turn_id, session_id, created_at, role, content, sql, rows_json) "
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (str(uuid.uuid4()), session_id, now, role, content,
-             sql, json.dumps(rows, default=str) if rows is not None else None),
+            (
+                str(uuid.uuid4()),
+                session_id,
+                now,
+                role,
+                content,
+                sql,
+                json.dumps(rows, default=str) if rows is not None else None,
+            ),
         )
-        con.execute(
-            "UPDATE sessions SET updated_at = ? WHERE session_id = ?", (now, session_id)
-        )
+        con.execute("UPDATE sessions SET updated_at = ? WHERE session_id = ?", (now, session_id))
 
 
 def get_session(session_id: str) -> dict[str, Any] | None:
     with _conn() as con:
-        row = con.execute(
-            "SELECT * FROM sessions WHERE session_id = ?", (session_id,)
-        ).fetchone()
+        row = con.execute("SELECT * FROM sessions WHERE session_id = ?", (session_id,)).fetchone()
         if row is None:
             return None
         turns = con.execute(
@@ -110,7 +113,8 @@ def list_sessions(limit: int = 50) -> list[dict[str, Any]]:
     with _conn() as con:
         rows = con.execute(
             "SELECT session_id, title, db_name, created_at, updated_at "
-            "FROM sessions ORDER BY updated_at DESC LIMIT ?", (limit,)
+            "FROM sessions ORDER BY updated_at DESC LIMIT ?",
+            (limit,),
         ).fetchall()
     return [dict(r) for r in rows]
 
@@ -120,6 +124,7 @@ def get_recent_turns(session_id: str, n: int = 6) -> list[dict[str, str]]:
     with _conn() as con:
         rows = con.execute(
             "SELECT role, content FROM turns WHERE session_id = ? "
-            "ORDER BY created_at DESC LIMIT ?", (session_id, n)
+            "ORDER BY created_at DESC LIMIT ?",
+            (session_id, n),
         ).fetchall()
     return [{"role": r["role"], "content": r["content"]} for r in reversed(rows)]

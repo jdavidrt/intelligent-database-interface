@@ -62,7 +62,8 @@ The system orchestrates seven specialized modules:
 - **Install dependencies**: `pip install -r backend/requirements.txt`
 - **Run all (recommended)**: `python start.py` from workspace root (launches llama.cpp + FastAPI + Vite)
 - **Run dev server alone**: `uvicorn backend.app.main:app --reload` (from workspace root)
-- **Run llama.cpp server**: install the binary with `winget install ggml.llamacpp` (or put `llama-server` on PATH), place the GGUF at `models/qwen2.5-coder-3b-instruct-q4_k_m.gguf`, then run `llama-server --model models/qwen2.5-coder-3b-instruct-q4_k_m.gguf --port 7860 -ngl 99`. `start.py` does this automatically.
+- **Run llama.cpp server**: install the binary with `winget install ggml.llamacpp` (or put `llama-server` on PATH), place the GGUF at `models/qwen2.5-coder-3b-instruct-q4_k_m.gguf`, then run `llama-server --model models/qwen2.5-coder-3b-instruct-q4_k_m.gguf --port 7860 -ngl 99 --device Vulkan1`. `start.py` does this automatically.
+- **`--device` is not optional on this machine.** The winget build is a Vulkan build and enumerates the Intel UHD 630 iGPU as `Vulkan0` *before* the GTX 1650 as `Vulkan1`, so plain `-ngl 99` offloads to the integrated GPU: measured 2026-07-21, **8.6 tok/s and 451 MiB NVIDIA VRAM** against **44.6 tok/s and 2969 MiB** when pinned to `Vulkan1` — a 5.2× difference that silently applied to every benchmark and every chat session. `start.py:pick_gpu_device()` now selects the discrete GPU by vendor (never by free VRAM — the iGPU reports ~7.4 GB "free" because it shares system RAM). Override with `IDI_LLAMA_DEVICE=Vulkan0`, or `IDI_LLAMA_DEVICE=auto` to restore llama.cpp's own default. Check with `llama-server --list-devices`.
 
 ### Frontend (React)
 - **Install dependencies**: `npm install` (in `frontend` directory)

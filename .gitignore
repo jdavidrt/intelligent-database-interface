@@ -133,3 +133,6 @@ lightning_logs/
 .cursor/
 .cursor_history/
 .antigravity/
+
+# Server logs written by run_benchmarks.py / start.py
+backend_server.log

@@ -1,4 +1,29 @@
-"""Structured SQL emission — SQL_HARDENING_PLAN Step 2.
+"""Structured SQL emission — SQL_HARDENING_PLAN Step 2. **PARKED 2026-07-21.**
+
+PARKED — NOT WIRED INTO THE PIPELINE
+------------------------------------
+Nothing imports this module. It was unwired from `sql_generator.py` when the
+2026-07-21 13:21 run regressed EX from 53.8% to 34.5% against the same corpora
+(`data/benchmarks/eval_2026-07-21_1321.{json,md}`), and the tree was reverted to
+the 53.8% system.
+
+Two mechanical causes were identified in that run, both traceable here:
+
+- **Tripled string literals** — `WHERE albums.album_type = '''album'''` returned
+  zero rows. `_quote()` below re-quotes a literal the plan had already quoted.
+  Four failures (SPIDER-003, BIRD-001, SW-Q01, SW-Q04).
+- **Spurious JOINs on single-table queries** — `SELECT COUNT(*) FROM tracks`
+  became a join through `track_artists`, whose fan-out counts 49 tracks instead
+  of 48. Five failures (SPIDER-002, BIRD-003, EXEC-002/004/006). Note this is
+  the *inverse* of the defect the module was written to fix, described below.
+
+The idea is sound and the diagnosis that motivated it still holds, so the module
+is kept rather than deleted. `tests/test_sql_emitter.py` skips itself while this
+module is unreachable and starts running again automatically the moment anything
+under `backend/app` imports it — so reviving this is a one-line wiring change,
+not a checklist. Fix `_quote` and the plan-scoped join logic before doing so.
+
+The original rationale follows.
 
 The planning step already proves the idea: llama.cpp compiles a JSON Schema
 (enums included) into a GBNF grammar, so the sampler is *physically unable* to
@@ -48,6 +73,30 @@ OPERATORS = ("=", "!=", ">", "<", ">=", "<=", "IS NULL", "IS NOT NULL", "LIKE", 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_]\w*$")
 _NUMERIC_RE = re.compile(r"^-?\d+(\.\d+)?$")
 
+# Arithmetic tail for a projected expression: `AVG(trk_dur_ms)` in milliseconds
+# is not the same answer as the same average in minutes, and §3.3 of the
+# evaluation protocol scores unit mismatches as wrong. Enumerating identifiers
+# alone cannot express `/ 60000.0`, so this one slot stays free text — narrowed
+# to digits, operators and parentheses, which carries no identifier and so no
+# hallucination surface.
+_EXPR_SUFFIX_RE = re.compile(r"^[\d\s+\-*/().]+$")
+
+
+def self_referencing_tables(profile: DBProfile) -> set[str]:
+    """Tables with an FK edge to themselves (`genres.parent_genre_id`, …).
+
+    A flat table list cannot express one table in two roles, so a question that
+    needs a self-join must not take this path: it would render a single-role
+    query that looks right and answers a different question. Detected from the
+    profile rather than hardcoded, so a new database inherits the guard.
+    """
+    tables: set[str] = set()
+    for src, tgt in profile.relationship_edges:
+        src_table = src.split(".", 1)[0].lower()
+        if src_table == tgt.split(".", 1)[0].lower():
+            tables.add(src_table)
+    return tables
+
 
 def _date_columns(profile: DBProfile, tables: set[str]) -> list[str]:
     out: list[str] = []
@@ -88,6 +137,7 @@ def build_query_schema(profile: DBProfile, plan: dict[str, Any]) -> dict[str, An
         "properties": {
             "function": {"type": "string", "enum": list(AGGREGATES)},
             "column": {"type": "string", "enum": aggregate_targets},
+            "expr_suffix": {"type": "string"},
             "alias": {"type": "string"},
         },
         "required": ["function", "column"],
@@ -124,10 +174,16 @@ def build_query_schema(profile: DBProfile, plan: dict[str, Any]) -> dict[str, An
         "required": ["select_index", "direction"],
     }
 
+    # Property order is load-bearing. llama.cpp compiles the schema to a grammar
+    # that emits keys in declaration order, so a leading `expressible` flag
+    # forced the model to rule on the query's difficulty before it had composed
+    # any of it — and it answered "too hard" every single time, including for
+    # `SELECT name FROM subscription_plans WHERE has_downloads = 1`. The
+    # fallback signal is therefore last (decided once the query is written),
+    # optional, and phrased so that the neutral answer is the common one.
     schema: dict[str, Any] = {
         "type": "object",
         "properties": {
-            "expressible": {"type": "boolean"},
             "distinct": {"type": "boolean"},
             "select": {"type": "array", "items": select_item},
             "from": {"type": "string", "enum": tables},
@@ -147,8 +203,9 @@ def build_query_schema(profile: DBProfile, plan: dict[str, Any]) -> dict[str, An
             "having": {"type": "array", "items": having_item},
             "order_by": {"type": "array", "items": order_item},
             "limit": {"type": "integer"},
+            "needs_advanced_sql": {"type": "boolean"},
         },
-        "required": ["expressible", "select", "from"],
+        "required": ["select", "from"],
     }
     if date_columns:
         # Named separately so a relative window can be applied deterministically
@@ -169,6 +226,13 @@ def _quote(value: str) -> str:
     make sure the literal is syntactically well formed.
     """
     text = str(value).strip()
+    # The model often supplies the literal already quoted, because that is what
+    # it has seen in a million SELECT statements. Quoting it again produced
+    # `'''album'''`, which is valid SQL matching nothing — three items in the
+    # 2026-07-21 re-run silently returned 0 rows this way. Strip one balanced
+    # layer before quoting; an interior apostrophe is still escaped below.
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in ("'", '"'):
+        text = text[1:-1].strip()
     if _NUMERIC_RE.match(text):
         return text
     if text.upper() in ("TRUE", "FALSE", "NULL"):
@@ -191,7 +255,31 @@ def _render_expression(function: str, column: str) -> str | None:
     return f"{function}({column})"
 
 
-def _render_condition(item: dict[str, Any]) -> str | None:
+_TRUE_WORDS = {"yes", "true", "y", "t"}
+_FALSE_WORDS = {"no", "false", "n", "f"}
+_BOOLEAN_TYPES = ("tinyint(1)", "boolean", "bool", "bit")
+
+
+def _coerce_flag(value: str, data_type: str | None) -> str:
+    """`has_downloads = 'Yes'` -> `has_downloads = 1` on a flag column.
+
+    Not a semantic guess: against a TINYINT(1), the string 'Yes' matches
+    nothing, so there is no reading under which it was the right literal. The
+    model keeps producing it because the glossary spells the flags out in
+    words ("is explicit content (1=yes, 0=no)") — which is the phrasing a human
+    needs. Normalising the literal here lets both audiences be served.
+    """
+    if not data_type or not any(kind in data_type.lower() for kind in _BOOLEAN_TYPES):
+        return value
+    word = str(value).strip().strip("'\"").lower()
+    if word in _TRUE_WORDS:
+        return "1"
+    if word in _FALSE_WORDS:
+        return "0"
+    return value
+
+
+def _render_condition(item: dict[str, Any], types: dict[str, str]) -> str | None:
     column = item.get("column")
     operator = (item.get("operator") or "").upper()
     if not column or operator not in OPERATORS:
@@ -201,16 +289,88 @@ def _render_condition(item: dict[str, Any]) -> str | None:
     value = item.get("value")
     if value is None or str(value).strip() == "":
         return None
+    data_type = types.get(str(column).lower())
     if operator == "IN":
         parts = [p.strip() for p in str(value).split(",") if p.strip()]
         if not parts:
             return None
-        return f"{column} IN ({', '.join(_quote(p) for p in parts)})"
-    return f"{column} {operator} {_quote(value)}"
+        rendered = ", ".join(_quote(_coerce_flag(p, data_type)) for p in parts)
+        return f"{column} IN ({rendered})"
+    return f"{column} {operator} {_quote(_coerce_flag(str(value), data_type))}"
 
 
 def _table_of(column: str) -> str:
     return column.split(".", 1)[0].lower() if "." in column else ""
+
+
+def _canonicalize(query: dict[str, Any], profile: DBProfile) -> dict[str, Any] | None:
+    """Rewrite every identifier to the profile's own casing, or decline.
+
+    SoundWave's DDL is all lowercase so nothing depends on this today, but Day
+    4 introspects MySQL, where `lower_case_table_names=0` (the Linux default)
+    makes table names case-sensitive. Normalising once here means a model that
+    echoes `Users.Status` produces working SQL instead of a runtime error on
+    one deployment and not the other. An identifier that matches nothing at all
+    declines, which doubles as validation that the grammar held.
+    """
+    tables = {t.name.lower(): t.name for t in profile.tables}
+    columns = {
+        f"{t.name}.{c.name}".lower(): f"{t.name}.{c.name}"
+        for t in profile.tables
+        for c in t.columns
+    }
+
+    def table(name: Any) -> str | None:
+        return tables.get(str(name).strip().lower()) if name else None
+
+    def column(name: Any) -> str | None:
+        text = str(name).strip()
+        return text if text == "*" else columns.get(text.lower())
+
+    out = dict(query)
+    source = table(query.get("from"))
+    if source is None:
+        return None
+    out["from"] = source
+
+    joins = []
+    for join in query.get("joins") or []:
+        joined = table(join.get("table"))
+        condition = str(join.get("on") or "")
+        if joined is None or "=" not in condition:
+            return None
+        left, right = (part.strip() for part in condition.split("=", 1))
+        left_column, right_column = column(left), column(right)
+        if left_column is None or right_column is None:
+            return None
+        joins.append({"table": joined, "on": f"{left_column} = {right_column}"})
+    out["joins"] = joins
+
+    for field in ("select", "where", "having"):
+        items = []
+        for item in query.get(field) or []:
+            if not isinstance(item, dict):
+                return None
+            canonical = column(item.get("column"))
+            if canonical is None:
+                return None
+            items.append({**item, "column": canonical})
+        out[field] = items
+
+    group_by = []
+    for name in query.get("group_by") or []:
+        canonical = column(name)
+        if canonical is None:
+            return None
+        group_by.append(canonical)
+    out["group_by"] = group_by
+
+    if query.get("time_column"):
+        canonical = column(query["time_column"])
+        if canonical is None:
+            return None
+        out["time_column"] = canonical
+    return out
 
 
 def render_sql(
@@ -226,15 +386,15 @@ def render_sql(
     asking the model for it is the whole point — the pilot showed the model
     inventing `played_at <= CURDATE()` filters nobody asked for.
     """
-    if not isinstance(query, dict) or not query.get("expressible", True):
+    if not isinstance(query, dict) or query.get("needs_advanced_sql"):
         return None
+    canonical = _canonicalize(query, profile)
+    if canonical is None:
+        return None
+    query = canonical
 
-    source = query.get("from")
-    if not source or not _IDENTIFIER_RE.match(str(source)):
-        return None
+    source = query["from"]
     known_tables = {t.name.lower() for t in profile.tables}
-    if str(source).lower() not in known_tables:
-        return None
 
     in_scope = {str(source).lower()}
     join_clauses: list[str] = []
@@ -265,6 +425,11 @@ def render_sql(
             has_aggregate = True
         else:
             bare_columns.append(column)
+        suffix = str(item.get("expr_suffix") or "").strip()
+        if suffix:
+            if not _EXPR_SUFFIX_RE.match(suffix):
+                return None
+            expression = f"{expression} {suffix}"
         alias = str(item.get("alias") or "").strip()
         if alias and _IDENTIFIER_RE.match(alias):
             expression = f"{expression} AS {alias}"
@@ -272,9 +437,14 @@ def render_sql(
     if not select_parts:
         return None
 
+    column_types = {
+        f"{table.name}.{column.name}".lower(): column.data_type
+        for table in profile.tables
+        for column in table.columns
+    }
     where_parts: list[str] = []
     for item in query.get("where") or []:
-        rendered = _render_condition(item)
+        rendered = _render_condition(item, column_types)
         if rendered is None:
             return None
         if _table_of(item.get("column", "")) not in in_scope:

@@ -30,6 +30,7 @@ from pydantic import BaseModel
 
 try:
     import psutil
+
     HAS_PSUTIL = True
 except ImportError:
     HAS_PSUTIL = False
@@ -63,7 +64,7 @@ init_db()
 
 # ── path resolution (canonical layout) ────────────────────────────────────────
 # __file__ = backend/app/main.py
-APP_DIR = os.path.dirname(os.path.abspath(__file__))          # backend/app
+APP_DIR = os.path.dirname(os.path.abspath(__file__))  # backend/app
 REPO_ROOT = os.path.abspath(os.path.join(APP_DIR, "..", ".."))  # repo root
 
 # The /chat + /benchmark system prompt is grounded in the soundwave source
@@ -75,7 +76,9 @@ CONTEXT_FILES = ["01_soundwave_schema.sql", "02_soundwave_context.md"]
 # The GGUF model lives at the repo root under models/ (gitignored). The
 # llama-server binary is resolved from winget/PATH by _find_llama_server().
 MODEL_PATH = os.path.join(
-    REPO_ROOT, "models", "qwen2.5-coder-3b-instruct-q4_k_m.gguf",
+    REPO_ROOT,
+    "models",
+    "qwen2.5-coder-3b-instruct-q4_k_m.gguf",
 )
 LLAMA_LOG = os.path.join(REPO_ROOT, "llama_server.log")
 
@@ -88,6 +91,7 @@ LLAMA_CPP_SERVER_URL = os.getenv(
 
 
 # ── context & system prompt ───────────────────────────────────────────────────
+
 
 def load_context() -> str:
     combined = ""
@@ -142,6 +146,7 @@ def build_system_prompt() -> str:
 
 # ── chat endpoint ─────────────────────────────────────────────────────────────
 
+
 class ChatRequest(BaseModel):
     message: str
     history: list = []
@@ -183,8 +188,10 @@ def chat(req: ChatRequest):
         )
     except requests.exceptions.ConnectionError:
         return JSONResponse(
-            {"error": f"Could not reach the llama.cpp server at {LLAMA_CPP_SERVER_URL}. "
-                      "Is it running? Start it with: python start.py"},
+            {
+                "error": f"Could not reach the llama.cpp server at {LLAMA_CPP_SERVER_URL}. "
+                "Is it running? Start it with: python start.py"
+            },
             status_code=503,
         )
     except Exception as e:
@@ -240,6 +247,7 @@ BENCHMARK_QUERIES = [
 
 # ── correctness scoring ───────────────────────────────────────────────────────
 
+
 def score_correctness(generated_response: str, query_def: dict) -> dict:
     """
     Lightweight correctness check: extract the SQL block from the response and
@@ -280,10 +288,14 @@ def score_correctness(generated_response: str, query_def: dict) -> dict:
 
 # ── llama.cpp process management ─────────────────────────────────────────────
 
+
 def _find_llama_server() -> str | None:
     local_app = os.environ.get("LOCALAPPDATA", "")
     winget_bin = os.path.join(
-        local_app, "Microsoft", "WinGet", "Packages",
+        local_app,
+        "Microsoft",
+        "WinGet",
+        "Packages",
         "ggml.llamacpp_Microsoft.Winget.Source_8wekyb3d8bbwe",
         "llama-server.exe",
     )
@@ -308,9 +320,7 @@ def _kill_process_on_port(port: int) -> bool:
     else:
         # Fallback: Windows netstat approach
         if sys.platform == "win32":
-            out = subprocess.run(
-                ["netstat", "-ano"], capture_output=True, text=True
-            ).stdout
+            out = subprocess.run(["netstat", "-ano"], capture_output=True, text=True).stdout
             for line in out.splitlines():
                 if f":{port}" in line and "LISTENING" in line:
                     parts = line.split()
@@ -323,9 +333,8 @@ def _kill_process_on_port(port: int) -> bool:
 def _llama_healthy(port: int = int(LLAMA_PORT), timeout: int = 2) -> bool:
     try:
         import urllib.request
-        with urllib.request.urlopen(
-            f"http://localhost:{port}/health", timeout=timeout
-        ) as r:
+
+        with urllib.request.urlopen(f"http://localhost:{port}/health", timeout=timeout) as r:
             return r.status == 200
     except Exception:
         return False
@@ -425,30 +434,39 @@ def _run_benchmark_task(job_id: str, mode: str) -> None:
 
             correctness = score_correctness(content, q)
 
-            results.append({
-                "id": q["id"],
-                "title": q["title"],
-                "query": q["query"],
-                "response": content,
-                "metrics": {
-                    "completion_tokens": usage.get("completion_tokens", 0),
-                    "time_ms": int((t1 - t0) * 1000),
-                },
-                "correctness": correctness,
-                "error": None,
-            })
+            results.append(
+                {
+                    "id": q["id"],
+                    "title": q["title"],
+                    "query": q["query"],
+                    "response": content,
+                    "metrics": {
+                        "completion_tokens": usage.get("completion_tokens", 0),
+                        "time_ms": int((t1 - t0) * 1000),
+                    },
+                    "correctness": correctness,
+                    "error": None,
+                }
+            )
         except Exception as e:
-            results.append({
-                "id": q["id"],
-                "title": q["title"],
-                "query": q["query"],
-                "response": "",
-                "metrics": None,
-                "correctness": {"score": 0, "has_sql": False,
-                                "found_tables": [], "missing_tables": q["key_tables"],
-                                "found_keywords": [], "missing_keywords": q["key_keywords"]},
-                "error": str(e),
-            })
+            results.append(
+                {
+                    "id": q["id"],
+                    "title": q["title"],
+                    "query": q["query"],
+                    "response": "",
+                    "metrics": None,
+                    "correctness": {
+                        "score": 0,
+                        "has_sql": False,
+                        "found_tables": [],
+                        "missing_tables": q["key_tables"],
+                        "found_keywords": [],
+                        "missing_keywords": q["key_keywords"],
+                    },
+                    "error": str(e),
+                }
+            )
 
     job["progress"] = total
     job["results"] = results
@@ -457,6 +475,7 @@ def _run_benchmark_task(job_id: str, mode: str) -> None:
 
 
 # ── benchmark endpoints ───────────────────────────────────────────────────────
+
 
 class BenchmarkStartRequest(BaseModel):
     mode: str = "gpu"  # "gpu" | "cpu"
@@ -498,4 +517,5 @@ def benchmark_llama_healthy():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=5000)

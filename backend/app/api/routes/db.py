@@ -13,7 +13,9 @@ router = APIRouter()
 @router.get("/db/profile")
 def db_profile():
     if orchestrator._db_profile is None:
-        raise HTTPException(status_code=404, detail="DBProfile not loaded yet. Select a database first.")
+        raise HTTPException(
+            status_code=404, detail="DBProfile not loaded yet. Select a database first."
+        )
     return orchestrator._db_profile.model_dump(mode="json")
 
 

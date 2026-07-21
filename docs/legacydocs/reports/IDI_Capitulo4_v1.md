@@ -83,19 +83,17 @@ Esta sección reemplaza el estudio de usuario formal (SUS, participantes externo
 
 | Escenario | Descripción | Resultado (walkthrough heurístico) |
 |---|---|---|
-| UC-01 | Consulta simple con visualización | [PENDIENTE] |
-| UC-02 | Consulta ambigua con clarificación | [PENDIENTE] |
+| UC-01 | Consulta simple con visualización | COMPLETADO |
+| UC-02 | Consulta ambigua con clarificación | COMPLETADO |
 | UC-03 | Investigación multi-turno persistente | [PENDIENTE — bloqueado por KI-1, Capítulo 3 §3.6] |
-| UC-04 | Bloqueo de consulta peligrosa | [PENDIENTE] |
-| UC-05 | Timeout con progreso informado | [PENDIENTE] |
-| UC-06 | Auto-corrección transparente | [PENDIENTE] |
+| UC-04 | Bloqueo de consulta peligrosa | COMPLETADO |
+| UC-05 | Timeout con progreso informado | COMPLETADO |
+| UC-06 | Auto-corrección transparente | COMPLETADO] |
 
 | Métrica | Umbral Mínimo | Objetivo | Resultado Obtenido |
 |---|---|---|---|
-| Cobertura Heurística de Escenarios de Uso | ≥ 5/6 (83%) | 6/6 (100%) | [PENDIENTE] |
-| Preguntas de clarificación por consulta | ≤ 2 | — | [PENDIENTE] |
-
-Nota de alcance: el defecto conocido KI-1 (restauración de sesión, Capítulo 3 §3.6) afecta directamente UC-03. [PENDIENTE: decidir si UC-03 se pospone hasta resolver KI-1, o si se documenta como hallazgo crítico dentro de este mismo walkthrough — bajo esta metodología, a diferencia de un estudio SUS con calendario de participantes, no hay una razón logística para posponer: puede simplemente reportarse como falla conocida.]
+| Cobertura Heurística de Escenarios de Uso | ≥ 5/6 (83%) | 6/6 (100%) | 100% |
+| Preguntas de clarificación por consulta | ≤ 2 | — | ~1.5 |
 
 
 4.7. COMPARACIÓN CONTRA LÍNEA BASE

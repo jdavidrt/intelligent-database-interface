@@ -14,14 +14,62 @@ decline costs correctness.
 
 from __future__ import annotations
 
+import os
+
 import pytest
 
-from backend.app.agents.sql_emitter import build_query_schema, render_sql
+from backend.app.agents.sql_emitter import (
+    build_query_schema,
+    render_sql,
+    self_referencing_tables,
+)
+
+# -- parked-module guard -------------------------------------------------------
+#
+# `sql_emitter` was unwired from the pipeline on 2026-07-21 (see its module
+# docstring). A green suite asserting that unreachable code behaves correctly is
+# worse than no suite: it reads as coverage of the running system and is not.
+#
+# The skip is conditional on *actual reachability* rather than a hardcoded flag,
+# so re-wiring the emitter revives these 30 tests automatically. Nobody has to
+# remember to delete a skip marker — the failure mode of forgetting is silent,
+# which is the same trap being closed here.
+
+_BACKEND = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "backend", "app"
+)
+
+
+def _imported_by_pipeline() -> bool:
+    """True if anything under backend/app references this module.
+
+    A plain source scan, not an import graph: it needs no backend running, and
+    a mention in a comment is a deliberate true — if someone wrote the name
+    down, a human should decide whether these tests belong live again.
+    """
+    for root, _dirs, files in os.walk(_BACKEND):
+        for name in files:
+            if not name.endswith(".py") or name == "sql_emitter.py":
+                continue
+            with open(os.path.join(root, name), encoding="utf-8") as handle:
+                if "sql_emitter" in handle.read():
+                    return True
+    return False
+
+
+pytestmark = pytest.mark.skipif(
+    not _imported_by_pipeline(),
+    reason=(
+        "sql_emitter is parked — nothing under backend/app imports it, so these tests would "
+        "assert unreachable code. They re-enable themselves when it is wired back in; see the "
+        "module docstring for the two defects to fix first."
+    ),
+)
 
 
 def _query(**overrides) -> dict:
     base = {
-        "expressible": True,
+        "needs_advanced_sql": False,
         "select": [{"function": "", "column": "artists.name"}],
         "from": "artists",
     }
@@ -56,6 +104,57 @@ def test_string_value_is_quoted_and_number_is_not(soundwave_profile) -> None:
         soundwave_profile,
     )
     assert "users.status = 2" in sql
+
+
+def test_already_quoted_values_are_not_quoted_twice(soundwave_profile) -> None:
+    """`'album'` must not become `'''album'''`.
+
+    The model supplies the literal pre-quoted because that is what SQL looks
+    like. Re-quoting produced valid SQL that matched nothing, and three items
+    in the 2026-07-21 re-run silently returned 0 rows — the worst failure shape
+    there is, since nothing errors and nothing is flagged.
+    """
+    sql = render_sql(
+        _query(where=[{"column": "albums.album_type", "operator": "=", "value": "'album'"}])
+        | {"from": "albums", "select": [{"function": "", "column": "albums.title"}]},
+        soundwave_profile,
+    )
+    assert "albums.album_type = 'album'" in sql
+
+
+def test_interior_apostrophes_are_still_escaped(soundwave_profile) -> None:
+    sql = render_sql(
+        _query(where=[{"column": "artists.name", "operator": "=", "value": "Guns N' Roses"}]),
+        soundwave_profile,
+    )
+    assert "artists.name = 'Guns N'' Roses'" in sql
+
+
+def test_yes_no_literals_are_coerced_on_flag_columns(soundwave_profile) -> None:
+    """`is_exp = 'Yes'` against a TINYINT(1) matches nothing, ever.
+
+    The model reaches for the word because the glossary spells these flags out
+    for humans ("is explicit content (1=yes, 0=no)"). Normalising the literal
+    lets the glossary stay readable without costing every flag query.
+    """
+    sql = render_sql(
+        _query(
+            select=[{"function": "", "column": "tracks.title"}],
+            where=[{"column": "tracks.is_exp", "operator": "=", "value": "Yes"}],
+        )
+        | {"from": "tracks"},
+        soundwave_profile,
+    )
+    assert "tracks.is_exp = 1" in sql
+
+
+def test_flag_coercion_does_not_touch_text_columns(soundwave_profile) -> None:
+    """A country named 'No' would be a string, not a zero."""
+    sql = render_sql(
+        _query(where=[{"column": "artists.country", "operator": "=", "value": "No"}]),
+        soundwave_profile,
+    )
+    assert "artists.country = 'No'" in sql
 
 
 def test_is_null_takes_no_value(soundwave_profile) -> None:
@@ -194,7 +293,7 @@ def test_time_predicate_without_a_time_column_declines(soundwave_profile) -> Non
 
 def test_inexpressible_is_declined(soundwave_profile) -> None:
     """The model's own escape hatch: CTEs, window functions, subqueries."""
-    assert render_sql(_query(expressible=False), soundwave_profile) is None
+    assert render_sql(_query(needs_advanced_sql=True), soundwave_profile) is None
 
 
 def test_self_join_is_declined(soundwave_profile) -> None:
@@ -233,6 +332,82 @@ def test_empty_select_is_declined(soundwave_profile) -> None:
 
 def test_non_dict_is_declined(soundwave_profile) -> None:
     assert render_sql("SELECT 1", soundwave_profile) is None  # type: ignore[arg-type]
+
+
+def test_arithmetic_suffix_renders(soundwave_profile) -> None:
+    """BIRD-003 wants minutes, not milliseconds.
+
+    §3.3 of the protocol scores a unit mismatch as wrong and never coerces, so
+    an enum-only SELECT that can say `AVG(trk_dur_ms)` but not `/ 60000.0`
+    would fail the item it was meant to fix.
+    """
+    sql = render_sql(
+        _query(
+            select=[
+                {
+                    "function": "AVG",
+                    "column": "tracks.trk_dur_ms",
+                    "expr_suffix": "/ 60000.0",
+                    "alias": "avg_minutes",
+                }
+            ]
+        )
+        | {"from": "tracks"},
+        soundwave_profile,
+    )
+    assert sql == "SELECT AVG(tracks.trk_dur_ms) / 60000.0 AS avg_minutes\nFROM tracks;"
+
+
+def test_expr_suffix_rejects_anything_but_arithmetic(soundwave_profile) -> None:
+    """The one free-text slot carries no identifiers, so it carries no
+    hallucination surface — and no injection surface either."""
+    for suffix in ("; DROP TABLE users", "FROM users", "|| name", "/ trk_dur_ms"):
+        assert (
+            render_sql(
+                _query(
+                    select=[
+                        {"function": "AVG", "column": "tracks.trk_dur_ms", "expr_suffix": suffix}
+                    ]
+                )
+                | {"from": "tracks"},
+                soundwave_profile,
+            )
+            is None
+        ), suffix
+
+
+def test_identifiers_are_normalised_to_profile_casing(soundwave_profile) -> None:
+    """Day 4 introspects MySQL, where table names are case-sensitive under the
+    Linux default `lower_case_table_names=0`."""
+    sql = render_sql(
+        _query(select=[{"function": "", "column": "ARTISTS.Name"}]) | {"from": "Artists"},
+        soundwave_profile,
+    )
+    assert sql == "SELECT artists.name\nFROM artists;"
+
+
+def test_unknown_column_is_declined(soundwave_profile) -> None:
+    """`explicit` (SPIDER-008's invention) does not exist; `is_exp` does."""
+    assert (
+        render_sql(
+            _query(select=[{"function": "", "column": "tracks.explicit"}]) | {"from": "tracks"},
+            soundwave_profile,
+        )
+        is None
+    )
+
+
+# -- the self-join guard ------------------------------------------------------
+
+
+def test_self_referencing_tables_are_detected_from_the_profile(soundwave_profile) -> None:
+    """genres.parent_genre_id, users.referred_by_user_id, playlists.forked_from_id.
+
+    Derived from the profile rather than hardcoded, so a new database folder
+    inherits the guard without a code change.
+    """
+    assert self_referencing_tables(soundwave_profile) >= {"genres", "users", "playlists"}
+    assert "artists" not in self_referencing_tables(soundwave_profile)
 
 
 # -- schema construction ------------------------------------------------------

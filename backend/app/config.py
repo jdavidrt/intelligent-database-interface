@@ -47,9 +47,20 @@ class Settings(BaseSettings):
     # locked plan, then rendered deterministically, instead of being written as
     # free text and regexed out. Shapes the object cannot represent (CTEs,
     # window functions, subqueries, self-joins) fall back to free-form
-    # generation, so this narrows how the model can go wrong without narrowing
-    # what it can answer.
-    structured_sql: bool = Field(default=True, alias="IDI_STRUCTURED_SQL")
+    # generation.
+    #
+    # DEFAULT OFF, and the measurement is why. On the 26 shared items of the
+    # 2026-07-21 A/B (eval_2026-07-21.json vs eval_2026-07-21_1321.json) it
+    # fixed 2 items and broke 7: EX 53.8% -> 34.5%. It does what it promised —
+    # zero invalid identifiers, and the two recoveries were both previously
+    # blocked queries — but it also makes the *plan* binding, and the planner
+    # over-selects junction tables. Free-form generation quietly ignored a plan
+    # that said `track_artists JOIN tracks` for "how many tracks are there?";
+    # structured emission executes it, and 48 becomes 49. SQL_HARDENING_PLAN
+    # §"Why this order" predicted exactly this: a wrong plan is a suggestion
+    # before Step 2 and the query after it. Turn this on once planner table
+    # selection is fixed and re-measured — not before.
+    structured_sql: bool = Field(default=False, alias="IDI_STRUCTURED_SQL")
 
     # Greedy decoding for scored benchmark runs. EVALUATION_PROTOCOL.md §1.3
     # requires temperature=0, top_p=1 and a fixed seed: non-greedy sampling

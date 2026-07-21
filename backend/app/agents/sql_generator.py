@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import re
 
-from backend.app.agents.sql_emitter import build_query_schema, render_sql
 from backend.app.config import settings
 from backend.app.models.envelope import DBProfile, Intent, SqlCandidate
 from backend.app.services import clock, temporal
@@ -56,32 +55,6 @@ the database schema, select the MINIMAL set of tables needed to answer the
 question, plus the output columns the answer must show. Do not add tables the
 question does not need — every extra table multiplies rows. Respond with JSON
 only.
-"""
-
-
-EMIT_SYSTEM_PROMPT = """\
-You are the SQL emission step of IDI's SQL Generator. Fill in the query object
-for the question below. Every table, column and join key you can choose is
-already restricted to the locked query plan — you cannot name anything that does
-not exist, so choose from what you are offered rather than writing SQL.
-
-Rules:
-1. `select` is the answer's shape. If the question asks "how many", "total",
-   "average", "highest" — set `function` (COUNT / SUM / AVG / MIN / MAX /
-   COUNT_DISTINCT). Returning raw rows where an aggregate was asked for is wrong.
-2. Filter on codes, not on labels. If the schema says a column stores an integer
-   code, `value` must be that code.
-3. `joins` only for tables in the plan. A question about one table needs none.
-4. `order_by.select_index` is 1-based into your own `select` list — that is how
-   you order by a computed count.
-5. Do NOT write a date filter: a relative time window is applied for you. Just
-   set `time_column` to the date column the window applies to.
-6. Set `expressible` to false — and nothing else — if the question genuinely
-   needs a CTE, a subquery, a window function, UNION, CASE, or a self-join.
-   Answering those with this object would silently give a wrong answer; saying
-   so hands the question to a more capable path.
-
-Respond with the JSON object only.
 """
 
 
@@ -138,46 +111,7 @@ def _render_join_edges(edges: list[str], profile: DBProfile, indent: str) -> str
     return "\n".join(rendered)
 
 
-def _render_coded_values(col: str, mapping: dict[str, str]) -> str:
-    """Coded values as an instruction, not as a lookup table to invert.
-
-    The old rendering was `Coded values for users.status: 0->inactive,
-    1->active, 2->banned`, which states the mapping in the direction opposite to
-    the one a filter needs: to answer "how many banned users" the model has to
-    read it backwards. In the 2026-07-21 pilot it did not, and emitted
-    `WHERE status = 'banned'` against an integer column — syntactically valid,
-    silently zero rows, so verification had nothing to reject either.
-
-    Codes that equal their meaning (`event_type: play->play`) carry no mapping
-    at all; for those the useful fact is the closed set of allowed literals.
-    """
-    literal = all(str(code) == str(meaning) for code, meaning in mapping.items())
-    if literal:
-        allowed = ", ".join(f"'{code}'" for code in mapping)
-        return f"{col} accepts exactly these values: {allowed}. Any other literal matches nothing."
-    numeric = all(str(code).lstrip("-").isdigit() for code in mapping)
-    kind = "INTEGER" if numeric else "CODE"
-    pairs = ", ".join(f"'{meaning}' is {col} = {code}" for code, meaning in mapping.items())
-    return (
-        f"{col} stores an {kind} code, never the word: {pairs}. "
-        f"Filter on the code ({col} = {next(iter(mapping))}), never on the label."
-    )
-
-
-def _build_schema_summary(profile: DBProfile, focus: set[str] | None = None) -> str:
-    """Schema for the prompt. `focus` narrows the *detail*, never the table list.
-
-    When a locked plan exists, only its tables get their columns spelled out.
-    The pilot showed why: the emitter was handed a plan naming
-    `subscription_plans` alone and still wrote `JOIN subscriptions ON ... WHERE
-    s.has_downloads`, a column it could only have found in the full 19-table
-    dump printed above the plan. Telling a 3B model "use ONLY these tables"
-    directly underneath every column of every other table is a contradiction,
-    and it resolved it the wrong way.
-
-    The complete table *list* stays complete regardless — it is the
-    hallucinated-table guard, and truncating it would invite the opposite error.
-    """
+def _build_schema_summary(profile: DBProfile) -> str:
     lines = [f"Database: {profile.db_name}"]
     if profile.domain_description:
         lines.append(f"Domain: {profile.domain_description}")
@@ -187,13 +121,7 @@ def _build_schema_summary(profile: DBProfile, focus: set[str] | None = None) -> 
         "Tables (complete list — a name not listed here is NOT a table): "
         + ", ".join(t.name for t in profile.tables)
     )
-    detailed = [t for t in profile.tables if focus is None or t.name.lower() in focus]
-    if focus is not None:
-        lines.append(
-            "Columns are listed below for the tables your query plan selected. "
-            "The other tables exist but are not part of this question."
-        )
-    for t in detailed:
+    for t in profile.tables:
         cols = ", ".join(
             f"{c.name} ({c.data_type}{'?' if c.is_nullable else ''}"
             + (", PK" if c.is_primary_key else "")
@@ -221,21 +149,13 @@ def _build_schema_summary(profile: DBProfile, focus: set[str] | None = None) -> 
             "shared key and are equally valid. Any other join key does NOT exist."
         )
 
-    # Glossary and coded values are filtered to the focus tables too, but only
-    # for entries that name a table. Bare keys (`is_exp`, `trk_dur_ms`) apply to
-    # whichever table owns them and are always kept — dropping those would lose
-    # exactly the abbreviation hints the model needs most.
-    def _in_focus(key: str) -> bool:
-        if focus is None or "." not in key:
-            return True
-        return key.split(".", 1)[0].lower() in focus
-
-    glossary = {k: v for k, v in profile.glossary.items() if _in_focus(k)}
-    if glossary:
-        lines.append("Glossary: " + ", ".join(f"{k}={v}" for k, v in glossary.items()))
-    for col, mapping in profile.coded_value_maps.items():
-        if mapping and _in_focus(col):
-            lines.append(_render_coded_values(col, mapping))
+    if profile.glossary:
+        lines.append("Glossary: " + ", ".join(f"{k}={v}" for k, v in profile.glossary.items()))
+    if profile.coded_value_maps:
+        for col, mapping in profile.coded_value_maps.items():
+            lines.append(
+                f"Coded values for {col}: " + ", ".join(f"{k}->{v}" for k, v in mapping.items())
+            )
     if profile.source_of_truth:
         lines.append(
             "Source-of-truth notes (ambiguous concept -> canonical source): "
@@ -355,59 +275,12 @@ class SQLGenerator:
             data["join_on"] = edges
         return data
 
-    # -- Structured emission ------------------------------------------------------------
-
-    def _structured_emission(
-        self,
-        intent_lines: list[str],
-        profile: DBProfile,
-        plan: dict | None,
-        time_predicate: str | None,
-    ) -> tuple[str, str] | None:
-        """Emit SQL through a grammar-constrained query object (Step 2).
-
-        Returns (sql, rationale), or None to hand back to free-form generation.
-        Every `return None` here is a deliberate decline: this path is only
-        allowed to *win* on the shapes it fully represents.
-        """
-        if not settings.structured_sql or not plan:
-            return None
-        schema = build_query_schema(profile, plan)
-        if schema is None:
-            return None
-        try:
-            raw = llm_service.chat(
-                [
-                    {"role": "system", "content": EMIT_SYSTEM_PROMPT},
-                    {"role": "user", "content": "\n\n".join(intent_lines)},
-                ],
-                temperature=0.1,
-                extra={"response_format": {"type": "json_object", "schema": schema}},
-            )
-            match = re.search(r"\{[\s\S]*\}", raw)
-            query = json.loads(match.group()) if match else None
-        except Exception as e:  # noqa: BLE001 — any failure means "use free-form"
-            print(f"[SQLGenerator] structured emission unavailable ({e}) — free-form")
-            return None
-        if not isinstance(query, dict):
-            return None
-        sql = render_sql(query, profile, time_predicate=time_predicate)
-        if sql is None:
-            print("[SQLGenerator] structured emission declined the shape — free-form")
-            return None
-        self.last_meta = {**(self.last_meta or {}), "emission": "structured"}
-        tables = ", ".join(plan.get("tables", []))
-        return sql, (
-            f"Built from the locked query plan over {tables}: the table set, join keys and "
-            "column names were chosen from the schema's closed vocabulary, so every "
-            "identifier in this query is guaranteed to exist."
-        )
-
     # -- Generation --------------------------------------------------------------------
 
     def generate(
         self, intent: Intent, profile: DBProfile, feedback: str | None = None
     ) -> SqlCandidate:
+        schema_summary = _build_schema_summary(profile)
         context_passages = query_context(intent.raw_query, n_results=4)
         context_str = "\n".join(context_passages)
 
@@ -415,26 +288,7 @@ class SQLGenerator:
         # re-lock the very table selection the verifier just rejected (and
         # contradict its fix) — instead the rejection feedback goes to the
         # planner too, and its legal-chain tables are folded in.
-        #
-        # The plan is computed before the schema summary because it now decides
-        # how much of the schema the summary spells out. The planner itself
-        # still sees every table (it has to choose from all of them); only the
-        # emitter's view is narrowed.
         plan = self._constrained_plan(intent, profile, feedback=feedback)
-        focus = {t.lower() for t in plan["tables"]} if plan else None
-        schema_summary = _build_schema_summary(profile, focus=focus)
-
-        # A relative window is computed once and reused: the free-form prompt
-        # states it as a STRICT instruction, and structured emission applies it
-        # deterministically to the chosen date column.
-        time_predicate: str | None = None
-        window = (
-            temporal.extract_relative_window(f"{intent.time_range} {intent.raw_query}")
-            if intent.time_range
-            else None
-        )
-        if window:
-            time_predicate = temporal.required_predicate(*window)
 
         intent_lines = [
             f"Schema:\n{schema_summary}",
@@ -481,6 +335,7 @@ class SQLGenerator:
                         + _render_join_edges(edges, profile, "  ")
                     )
         if intent.time_range:
+            window = temporal.extract_relative_window(f"{intent.time_range} {intent.raw_query}")
             if window:
                 n, unit = window
                 intent_lines.append(
@@ -507,15 +362,6 @@ class SQLGenerator:
             intent_lines.append(f"Entities referenced: {', '.join(intent.entities)}")
         if intent.filters:
             intent_lines.append(f"Filters: {', '.join(intent.filters)}")
-        # Query Understanding has always parsed these and they never reached the
-        # prompt. "How long is the average track in minutes?" was answered with
-        # `SELECT trk_dur_ms / 60000.0 FROM tracks` — 48 per-row values instead
-        # of one average, with the parsed AVG sitting unused in the envelope.
-        if intent.metrics:
-            intent_lines.append(
-                "Aggregations the answer requires (apply these in the SELECT list — "
-                "the answer is the aggregate, not the raw rows): " + ", ".join(intent.metrics)
-            )
         if feedback:
             valid_tables = ", ".join(t.name for t in profile.tables)
             intent_lines.append(
@@ -529,31 +375,12 @@ class SQLGenerator:
                 "rejected join key was invented, not real."
             )
 
-        # Structured emission first (SQL_HARDENING_PLAN Step 2): the model fills
-        # a query object whose identifier slots are enums from the plan, and the
-        # SQL is rendered deterministically. Declines — an inexpressible shape,
-        # an unrenderable object — fall through to free-form generation below,
-        # so this can only add correctness, never remove reach.
-        structured = self._structured_emission(intent_lines, profile, plan, time_predicate)
-        if structured is not None:
-            sql, rationale = structured
-            return SqlCandidate(
-                sql=sql,
-                rationale=rationale,
-                generation_method=(
-                    "lora" if llm_service.active_adapter() == "sql_generator" else "base_model"
-                ),
-                tables_used=list(plan.get("tables", [])) if plan else [],
-                columns_used=list(plan.get("output_columns", [])) if plan else [],
-            )
-
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": "\n\n".join(intent_lines)},
         ]
 
         raw, self.last_meta = llm_service.chat_with_meta(messages, temperature=0.2)
-        self.last_meta = {**(self.last_meta or {}), "emission": "free_form"}
 
         # Extract rationale
         rationale_match = re.search(r"### Rationale\s*([\s\S]*?)(?=### SQL|```sql|$)", raw)

@@ -179,6 +179,7 @@ class Orchestrator:
                 {
                     "sql": candidate.sql[:300],
                     "rationale": candidate.rationale,
+                    "structured": candidate.structured,
                     **(self._sql_generator.last_meta or {}),
                 },
             )

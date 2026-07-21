@@ -1,6 +1,7 @@
 """Database discovery — scans databases/ for valid DB folders at request time."""
 
 from __future__ import annotations
+
 import glob
 import os
 import re

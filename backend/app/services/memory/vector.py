@@ -1,8 +1,10 @@
 """ChromaDB context store — schema embeddings + DBProfile semantic retrieval."""
 
 from __future__ import annotations
+
 import os
 import re
+
 import chromadb
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
 

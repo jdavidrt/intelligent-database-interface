@@ -106,7 +106,7 @@ LAYER 4 — ANALYTICAL / DERIVED (1 table)
 | **country** | CHAR(2) | ISO-3166 alpha-2 — **shared with users** |
 | bio | TEXT | Optional biography |
 | verified | TINYINT(1) | Platform-verified flag |
-| **monthly_listeners_cached** | INT UNSIGNED | **Pre-aggregated; ~5% above raw play_events** |
+| **monthly_listeners_cached** | INT UNSIGNED | **Cached; 2.4M×–9.1M× above the raw distinct-listener count** |
 | debut_year | YEAR | Year of debut |
 | label | VARCHAR(100) | Record label |
 
@@ -140,7 +140,7 @@ LAYER 4 — ANALYTICAL / DERIVED (1 table)
 | **is_exp** | TINYINT(1) | **Abbreviated: is_explicit flag** |
 | isrc | CHAR(12) | International Standard Recording Code |
 | track_number | TINYINT NULLABLE | Position on album; NULL if single |
-| **total_plays** | BIGINT UNSIGNED | **Cached count; ~5% lower than raw play_events** |
+| **total_plays** | BIGINT UNSIGNED | **Cached count; 479×–200,000,000× *above* raw play_events** |
 
 > NL2SQL challenge: "How many tracks are standalone singles?" must use `WHERE album_id IS NULL`. The common error `WHERE album_id = NULL` always returns 0 rows in MySQL.
 
@@ -324,13 +324,15 @@ LAYER 4 — ANALYTICAL / DERIVED (1 table)
 | **artist_id** | INT UNSIGNED PK | References artists — part of composite PK |
 | **metric_date** | DATE PK | Date — part of composite PK |
 | **country_code** | CHAR(2) PK | Country — part of composite PK |
-| **stream_count** | INT UNSIGNED | **Intentionally ~5% above raw play_events counts (ETL inflation)** |
+| **stream_count** | INT UNSIGNED | **Intentionally above raw play_events: 290,000×–1,070,000× (ETL inflation)** |
 | skip_count | INT UNSIGNED | Skip events that day |
 | save_count | INT UNSIGNED | Save events that day |
 | unique_listeners | INT UNSIGNED | Distinct user count |
 | avg_listen_pct | DECIMAL(5,2) | Average percentage of track listened |
 
-> Composite PK `(artist_id, metric_date, country_code)` tests GROUP BY completeness. Using this table AND `play_events` for the same aggregate causes ~5% discrepancy — simulates real ETL pipeline inflation.
+> Composite PK `(artist_id, metric_date, country_code)` tests GROUP BY completeness. Using this table AND `play_events` for the same aggregate causes a discrepancy of five to six orders of magnitude — simulates ETL pipeline inflation.
+>
+> **Corrected 2026-07-21.** This note and the three column descriptions above said "~5%". That was the design intent, not the seeded reality: the cached and pre-aggregated columns hold production-scale figures while `play_events` is a ~1,000-row teaching sample, so the two disagree by factors in the hundreds of thousands (The Weeknd: 225 raw plays vs 65,314,971 streams). Because this file grounds the agents, the wrong figure here would have taught them that the two sources are nearly interchangeable. See `docs/EVALUATION_PROTOCOL.md` §9 quirk 2.
 
 ---
 
@@ -378,35 +380,38 @@ genres >── genres (parent_genre_id, self-ref)
 | Table | Rows | Notable data points |
 |---|---|---|
 | subscription_plans | 4 | Free, Student, Individual, Family |
-| pricing_history | 8 | 2–3 historical prices per plan |
+| pricing_history | 11 | 1–4 historical prices per plan |
 | genres | 18 | 8 root genres, 10 sub-genres (depth = 2) |
-| artists | 12 | 10 countries; 1 artist from Colombia (Karol G) |
-| albums | 15 | 13 studio albums, 2 compilations |
-| tracks | 30 | 25 on albums + 5 standalone singles (album_id IS NULL) |
-| users | 20 | 15 organic + 5 referred; 3 inactive/banned; 3 with zero play events |
+| artists | 12 | 6 countries; 1 artist from Colombia (Karol G) |
+| albums | 20 | 19 albums, 1 EP |
+| tracks | 48 | 40 on albums + 8 standalone singles (album_id IS NULL) |
+| users | 40 | 28 organic + 12 referred; 3 inactive/banned; 3 with zero play events |
 | playlists | 18 | 15 original + 3 forked; 2 private playlists |
-| track_artists | 32 | 1 track with 2 artists (multi-artist test) |
-| artist_genres | 24 | Each artist has 2–3 genres; is_prim flags set |
-| track_genres | 44 | Each track has 1–2 genres |
-| playlist_tracks | 44 | 9 tracks appear in no playlist (anti-join targets) |
-| user_follows_artists | 27 | User 7 follows Kendrick with zero Kendrick plays |
-| user_liked_tracks | 25 | Partial overlap with play_events save events |
-| subscriptions | 20 | 17 active + 2 expired + 1 suspended |
-| subscription_periods | 12 | 4 users have multiple rows (plan upgrades) |
-| payments | 20 | 1 failed + 1 refunded + 1 pending |
-| play_events | ~150 | Spans 2023-01 to 2025-01; users 7, 8, 12 have zero rows |
-| daily_artist_metrics | 31 | stream_count ~5% above raw play_events per day |
+| track_artists | 49 | 1 track with 2 artists (multi-artist test) |
+| artist_genres | 27 | Each artist has 2–3 genres; is_prim flags set |
+| track_genres | 53 | Each track has 1–2 genres |
+| playlist_tracks | 109 | 4 tracks appear in no playlist (anti-join targets) |
+| user_follows_artists | 74 | User 7 follows Kendrick with zero Kendrick plays |
+| user_liked_tracks | 151 | Partial overlap with play_events save events — only 4 rows in both |
+| subscriptions | 40 | 33 active + 6 inactive + 1 suspended |
+| subscription_periods | 35 | Plan upgrades give users multiple rows |
+| payments | 442 | 420 completed + 14 failed + 8 refunded |
+| play_events | 1,230 | Spans 2023-01-05 to 2026-07-17; 963 play, 145 skip, 64 save, 58 share |
+| daily_artist_metrics | 134 | stream_count 290,000×–1,070,000× above raw play_events |
+
+> **Corrected 2026-07-21.** Every count above was re-derived from the seeded database. The previous table described the dataset before `scripts/extend_seed_data.py` extended it to the frozen clock, and had drifted badly — play_events was listed at ~150 against an actual 1,230, payments at 20 against 442.
 
 ---
 
 ## 8. Temporal Coverage
 
-Play events span **January 2023 to January 2025**, providing:
+Play events span **2023-01-05 to 2026-07-17 12:00:00** (the `IDI_FREEZE_NOW` instant), providing:
 
-- 8 full quarters for YoY and QoQ comparisons
+- 14 full quarters for YoY and QoQ comparisons
 - A visible stream spike in Q3 2024 for Billie Eilish (album launch simulation)
 - Users 7, 8, and 12 with zero events at any time (anti-join targets)
-- Pricing changes in 2023 and 2024 for all paid plans
+- Pricing changes in 2023, 2024 and 2025 for all paid plans
+- Non-empty relative windows: last month (June 2026) 78 events, this year 502, trailing 12 months 808, last calendar year 588
 
 ---
 

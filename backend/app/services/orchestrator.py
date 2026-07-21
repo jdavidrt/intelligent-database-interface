@@ -40,6 +40,12 @@ class Orchestrator:
 
     # -- database selection ----------------------------------------------------------
 
+    @property
+    def active_db_name(self) -> str | None:
+        """The selected database, or None before POST /db/select. Read by
+        GET /health so a benchmark harness can record which DB it measured."""
+        return self._active_db_name
+
     def select_database(self, db_name: str) -> DBProfile:
         """(Re)build the connector/context/profile for db_name, unless it's
         already the active database. Only swaps instance state after a
@@ -252,7 +258,33 @@ class Orchestrator:
             yield result
             return
 
-        yield self._ev(sid, "verification", "done", "SQL passed all 3 layers", verify.model_dump())
+        # A "caution" verdict passes and executes: the SQL is valid, but the schema
+        # alone cannot confirm the *reading* it assumed (an ambiguous join route, a
+        # self-join's direction, a join key the verifier could not resolve). Silence
+        # there would claim a certainty the system does not have, so the caveats ride
+        # into the answer as a lesson rather than a blocker.
+        payload = verify.model_dump()
+        payload["verdict"] = verify.verdict
+        payload["caveats"] = verify.caveats
+        if verify.caveats:
+            yield self._ev(
+                sid,
+                "verification",
+                "progress",
+                "Possibly right — " + " ".join(verify.caveats),
+                payload,
+            )
+        yield self._ev(
+            sid,
+            "verification",
+            "done",
+            (
+                "SQL passed all 3 layers, with caveats"
+                if verify.caveats
+                else "SQL passed all 3 layers"
+            ),
+            payload,
+        )
 
         # -- 6. Execution --------------------------------------------------------------------
         yield self._ev(sid, "orchestrator", "progress", "Executing SQL…")

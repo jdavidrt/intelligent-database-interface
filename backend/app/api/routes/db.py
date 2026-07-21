@@ -3,9 +3,9 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from backend.app.services.orchestrator import orchestrator
 from backend.app.services.db.discovery import list_available_databases
 from backend.app.services.memory.sessions import list_sessions
+from backend.app.services.orchestrator import orchestrator
 
 router = APIRouter()
 

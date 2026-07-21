@@ -47,5 +47,9 @@
     "play_count": "play_events table (raw)",
     "monthly_listeners_cached": "daily_artist_metrics (pre-aggregated — use for reports, not real-time)",
     "total_plays": "tracks.total_plays is a cached counter; use COUNT(play_events) for accuracy"
+  },
+  "join_preferences": {
+    "_comment": "sorted \"tableA|tableB\" -> canonical bridge table. Settles an equally-short-route tie the FK graph cannot call, and silences the ambiguity caveat for that pair. Only add an entry when the domain really has one right answer.",
+    "artists|play_events": "track_artists"
   }
 }

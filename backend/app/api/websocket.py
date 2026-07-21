@@ -1,9 +1,11 @@
 """WebSocket /ws — streams AgentEvents for the ProgressIndicator."""
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from backend.app.services.orchestrator import orchestrator
-from backend.app.models.envelope import AgentEvent, QueryResult
 import json
+
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
+from backend.app.models.envelope import AgentEvent, QueryResult
+from backend.app.services.orchestrator import orchestrator
 
 router = APIRouter()
 

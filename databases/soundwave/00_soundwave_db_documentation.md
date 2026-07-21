@@ -109,13 +109,17 @@ These rules are not derivable from column names alone. An NL2SQL system must kno
 
 ### 5.4 Two sources, two answers (pre-aggregated vs raw)
 
-| Cached / pre-aggregated | Raw source | Drift |
+| Cached / pre-aggregated | Raw source | Measured divergence |
 |---|---|---|
-| `daily_artist_metrics.stream_count` | `COUNT(play_events WHERE event_type='play')` | ~5% higher (ETL inflation) |
-| `tracks.total_plays` | Raw play_events | Cached, may drift |
-| `artists.monthly_listeners_cached` | `COUNT(DISTINCT user_id)` in play_events | ~5% higher |
+| `daily_artist_metrics.stream_count` | `COUNT(play_events WHERE event_type='play')` | 290,000× – 1,070,000× |
+| `tracks.total_plays` | Raw play_events | 479× – 200,000,000× |
+| `artists.monthly_listeners_cached` | `COUNT(DISTINCT user_id)` in play_events | 2.4M× – 9.1M× |
 
 Never mix both sources for the same aggregate — double counting. Both answers are "correct"; the ambiguity is intentional (EC-07).
+
+> **Corrected 2026-07-21.** This table previously described the divergence as "~5% higher (ETL inflation)". That was the design intent and it is not what the seed generator produced: the cached and pre-aggregated columns hold production-scale figures (millions to billions) while `play_events` is a ~1,000-row teaching sample, so the two disagree by five to eight orders of magnitude. The ratios above were measured per artist and per track against the seeded data, not estimated.
+>
+> The size of the gap changes what a benchmark question may claim. At 5% it is defensible to accept either source as correct; at 500,000× an item that accepts both is unfalsifiable, since almost any answer falls between them. `docs/EVALUATION_PROTOCOL.md` §9 quirk 2 was amended accordingly — every EC-07 benchmark item must name its source, and `accepted_alternatives` is forbidden on them.
 
 ### 5.5 Duplicated column names across tables
 
@@ -155,26 +159,28 @@ The verification test syllabus. Q01–Q30 in `03_soundwave_edge_cases.md` each t
 | Table | Rows | Notable |
 |---|---|---|
 | subscription_plans | 4 | Free, Student, Individual, Family |
-| pricing_history | 8 | 2–3 historical prices per plan; changes in 2023 and 2024 |
+| pricing_history | 11 | 1–4 historical prices per plan; changes in 2023, 2024 and 2025 |
 | genres | 18 | 8 roots + 10 sub-genres (depth 2) |
-| artists | 12 | 10 countries; Karol G is the Colombian artist |
-| albums | 15 | 13 studio + 2 compilations |
-| tracks | 30 | 25 on albums + 5 singles (`album_id IS NULL`) |
-| users | 20 | 15 organic + 5 referred (16–20); users 7, 8, 12 inactive/banned with zero play events |
+| artists | 12 | 6 countries; Karol G is the Colombian artist |
+| albums | 20 | 19 albums + 1 EP |
+| tracks | 48 | 40 on albums + 8 singles (`album_id IS NULL`) |
+| users | 40 | 28 organic + 12 referred; users 7, 8, 12 inactive/banned with zero play events |
 | playlists | 18 | 15 original + 3 forked; 2 private |
-| track_artists | 32 | Track 10 has 2 artists (Bad Bunny + Karol G) |
-| artist_genres | 24 | 2–3 genres per artist, `is_prim` set |
-| track_genres | 44 | 1–2 genres per track |
-| playlist_tracks | 44 | Tracks 2, 5, 7, 11, 15, 17, 19, 21, 29 in no playlist (anti-join) |
-| user_follows_artists | 27 | User 7 follows Kendrick Lamar with zero Kendrick plays (canonical anti-join) |
-| user_liked_tracks | 25 | Partial overlap with `event_type='save'` (intentional) |
-| subscriptions | 20 | 17 active + 2 expired + 1 suspended |
-| subscription_periods | 12 | 4 users with plan upgrades (cohort queries) |
-| payments | 20 | 1 failed (user 16), 1 refunded (user 12), 1 pending |
-| play_events | ~150 | 2023-01 to 2025-01; Billie Eilish spike Q3 2024 |
-| daily_artist_metrics | 31 | `stream_count` ~5% above raw events |
+| track_artists | 49 | Track 10 has 2 artists (Bad Bunny + Karol G) |
+| artist_genres | 27 | 2–3 genres per artist, `is_prim` set |
+| track_genres | 53 | 1–2 genres per track |
+| playlist_tracks | 109 | 4 tracks appear in no playlist (anti-join) |
+| user_follows_artists | 74 | User 7 follows Kendrick Lamar with zero Kendrick plays (canonical anti-join) |
+| user_liked_tracks | 151 | Partial overlap with `event_type='save'` — only 4 rows appear in both (intentional) |
+| subscriptions | 40 | 33 active + 6 inactive + 1 suspended |
+| subscription_periods | 35 | plan upgrades give overlapping periods (cohort queries) |
+| payments | 442 | 420 completed + 14 failed + 8 refunded; no pending rows survive |
+| play_events | 1,230 | 2023-01-05 to 2026-07-17; 963 `play`, 145 `skip`, 64 `save`, 58 `share` |
+| daily_artist_metrics | 134 | 2023-01-05 to 2026-07-13; see §5.4 for the divergence from raw events |
 
-Temporal coverage: 8 full quarters (Jan 2023 – Jan 2025) for YoY/QoQ comparisons.
+Temporal coverage: 2023-01-05 → 2026-07-17 12:00:00, the frozen-clock instant. Relative windows resolve to: last month (June 2026) 78 events, this year (2026) 502, trailing 12 months 808, last calendar year (2025) 588.
+
+> **Corrected 2026-07-21.** Every figure in this table was re-counted against the seeded database. The previous values described the dataset as it stood *before* `scripts/extend_seed_data.py` extended it forward to the frozen clock, and had drifted badly — play_events was listed at ~150 against an actual 1,230, payments at 20 against 442, users at 20 against 40. The "8 full quarters (Jan 2023 – Jan 2025)" line was from the same era and understated coverage by six quarters.
 
 ## 8. How IDI Agents Should Use This Context
 

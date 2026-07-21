@@ -13,19 +13,20 @@ The live frontend chat calls /query; /chat remains as a direct-generation
 fallback and the backing loop for the /benchmark comparison page.
 """
 
-from fastapi import FastAPI, BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-import time
-import requests
 import os
 import re
 import shutil
 import subprocess
 import sys
-import uuid
 import threading
+import time
+import uuid
+
+import requests
+from fastapi import BackgroundTasks, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 try:
     import psutil
@@ -33,10 +34,13 @@ try:
 except ImportError:
     HAS_PSUTIL = False
 
-from backend.app.api.routes import health, query as query_route, db as db_route, session as session_route
 from backend.app.api import websocket as ws_module
-from backend.app.services.memory.sessions import init_db
+from backend.app.api.routes import db as db_route
+from backend.app.api.routes import health
+from backend.app.api.routes import query as query_route
+from backend.app.api.routes import session as session_route
 from backend.app.config import settings
+from backend.app.services.memory.sessions import init_db
 
 app = FastAPI(title="IDI Backend")
 

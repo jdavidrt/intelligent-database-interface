@@ -1,4 +1,20 @@
-"""Regenera el cuerpo de IDI_Tercer_Informe.html a partir de IDI_Capitulo3_v2.md.
+"""OBSOLETO — NO EJECUTAR. Se conserva como registro de cómo se construyó el
+cuerpo inicial del Tercer Informe (2026-07-17).
+
+Política vigente (2026-07-21, GUIA_GENERACION_INFORMES_HTML.md §5.4): los informes
+HTML se actualizan **editando el HTML directamente**, no con scripts de Python.
+Escribir y depurar un actualizador cuesta varias veces más que escribir el HTML que
+se quiere insertar, y el resultado es el mismo.
+
+Además, este script en particular es destructivo: el cuerpo del capítulo va embebido
+abajo como cadena literal (una foto del 2026-07-17), así que regenerar desde él borra
+cualquier sección o captura añadida después — por ejemplo la §3.12. Lleva una guarda
+en main() que aborta en ese caso, pero la guarda solo cubre lo que se le enseñó a
+detectar: no la conviertas en una excusa para volver a usarlo.
+
+--- Descripción original (histórica) ---
+
+Regenera el cuerpo de IDI_Tercer_Informe.html a partir de IDI_Capitulo3_v2.md.
 
 Conserva del HTML existente todo lo caro y estable — el <head> con las fuentes
 Ancizar en base64 y la portada con el escudo — y reemplaza desde el ÍNDICE hasta
@@ -265,6 +281,21 @@ def main() -> None:
     # newline desde Python 3.13; aquí corre 3.10).
     with io.open(REPORT, "r", encoding="utf-8", newline="") as fh:
         html = fh.read()
+
+    # Guarda anti-regresión (2026-07-21). BODY es una cadena literal: es una foto
+    # del capítulo v2 tal como estaba el 2026-07-17, no una conversión del .md.
+    # Cualquier sección añadida al HTML después de esa fecha desaparecería al
+    # regenerar. La §3.12 (endurecimiento de la verificación) se insertó con
+    # tools/add_seccion_3_12.py; si no está también en BODY, este script la
+    # borraría en silencio.
+    for marca, quien in [("3.12. ENDURECIMIENTO", "tools/add_seccion_3_12.py")]:
+        if marca in html and marca not in BODY:
+            raise SystemExit(
+                f"[abortado] el informe contiene «{marca}» pero BODY no.\n"
+                f"Regenerar ahora borraría esa sección (insertada por {quien}).\n"
+                f"Actualiza BODY con el contenido vigente, o edita el HTML con un "
+                f"script quirúrgico como se hizo con esa sección."
+            )
 
     body = BODY
     for num, token in [

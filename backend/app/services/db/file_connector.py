@@ -24,6 +24,7 @@ from sqlglot import exp
 from backend.app.config import settings
 from backend.app.models.envelope import ColumnInfo, DBProfile, TableInfo
 from backend.app.services import clock
+from backend.app.services.sql_safety import is_read_only
 
 
 def _mysql_to_sqlite(sql: str) -> str:
@@ -295,7 +296,11 @@ class FileConnector:
 
     def execute_read(self, sql: str, limit: int = 200) -> list[dict[str, Any]]:
         self.connect()
-        if not sql.strip().upper().startswith("SELECT"):
+        # Shared with the verifier's sanity layer (services/sql_safety.py) so the
+        # two can never disagree about what "read-only" means — they did: this
+        # string check rejected every `WITH ... SELECT` while passing
+        # `SELECT 1; DROP TABLE users`.
+        if not is_read_only(sql):
             raise ValueError("Only SELECT statements are permitted.")
         # Agents emit MySQL; the engine is SQLite. Transpile at the boundary.
         sql = _mysql_to_sqlite(sql)

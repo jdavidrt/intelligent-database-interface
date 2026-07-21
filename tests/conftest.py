@@ -18,6 +18,7 @@ import pytest
 
 import backend.app.agents.query_understanding as qu_module
 import backend.app.agents.sql_generator as sg_module
+from backend.app.agents.context_manager import ContextManager
 from backend.app.services import adapter_registry
 from backend.app.services.db.file_connector import FileConnector
 from backend.app.services.llm_service import llm_service
@@ -33,7 +34,19 @@ def soundwave_connector() -> FileConnector:
 
 @pytest.fixture(scope="session")
 def soundwave_profile(soundwave_connector: FileConnector):
-    return soundwave_connector.introspect()
+    """Introspection PLUS the per-database survey — the profile production
+    actually uses.
+
+    `ContextManager.build_profile()` is introspect -> _apply_survey -> _embed;
+    only the embedding step is skipped here (slow, stateful, needs ChromaDB).
+    Introspection alone leaves `glossary`, `coded_value_maps`,
+    `source_of_truth` and `join_preferences` empty, so tests would exercise a
+    profile the app never builds — and a survey-driven behaviour (e.g. a
+    declared canonical join route silencing an ambiguity caveat) would look
+    broken in tests while working in the app.
+    """
+    profile = soundwave_connector.introspect()
+    return ContextManager(soundwave_connector)._apply_survey(profile)
 
 
 @pytest.fixture

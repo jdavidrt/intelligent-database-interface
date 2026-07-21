@@ -13,7 +13,9 @@ Período: 2026-1S (Febrero 2 – Mayo 30, 2026)
 >
 > **[Revisión editorial — 2026-07-16]** Pasada de redacción sobre todo el capítulo: se adopta el término "query" en lugar de "sonda"; los casos límite se nombran por su nombre completo ("prueba de ejecución de casos límite N") en lugar de los códigos EC-NN; se simplifica la redacción de las secciones 3.3 y 3.6–3.10; y los pendientes que constituyen evidencia de evaluación — la medición del tiempo de verificación (<2s) y el defecto de restauración de sesiones — se trasladan al Capítulo 4.
 >
-> **[Cierre de alcance — 2026-07-16]** Se redactaron las conclusiones (§3.13) y recomendaciones (§3.14); la §3.11 se actualizó al estado real de los requerimientos didácticos (completos donde aplican; Verificación y Orquestador son mecanismos internos sin objetivo didáctico); y la conexión a base de datos real (MySQL) quedó descartada del alcance en favor de la simulación por archivos de contexto, con rutas preparadas para versiones posteriores de código abierto (§3.12).
+> **[Cierre de alcance — 2026-07-16]** Se redactaron las conclusiones (§3.14) y recomendaciones (§3.15); la §3.11 se actualizó al estado real de los requerimientos didácticos (completos donde aplican; Verificación y Orquestador son mecanismos internos sin objetivo didáctico); y la conexión a base de datos real (MySQL) quedó descartada del alcance en favor de la simulación por archivos de contexto, con rutas preparadas para versiones posteriores de código abierto (§3.13).
+
+> **[Actualización — 2026-07-21 · Endurecimiento de la verificación]** Se añade la §3.12, que documenta una jornada de endurecimiento sobre el Generador SQL (§3.3) y el Agente de Verificación (§3.4): las tres partes que consultan el vocabulario cerrado de uniones — prompt, planificador y verificador — no coincidían entre sí, y el verificador rechazaba SQL correcto. El hallazgo obliga a matizar una afirmación del capítulo: la cadena de verificación no solo puede fallar dejando pasar SQL incorrecto, sino también rechazando el correcto, y ese segundo error es el más costoso para el propósito didáctico. Se introduce además un tercer veredicto ("posiblemente correcto") para las consultas cuya corrección depende de la interpretación de la pregunta, y se cierra una guarda de solo lectura duplicada que era a la vez demasiado estricta y demasiado laxa. Las secciones siguientes se renumeran (3.12→3.13, 3.13→3.14, 3.14→3.15). La medición del efecto de este trabajo sobre la precisión de las respuestas es evidencia de evaluación y queda ruteada al Capítulo 4 (OE4).
 
 
 ÍNDICE
@@ -30,9 +32,10 @@ Capítulo 3: Desarrollo de la Solución
     3.9. Reconstrucción del Frontend
     3.10. Datos Sintéticos y Fine-Tuning LoRA
     3.11. Estado del Requerimiento Didáctico Transversal por Módulo
-    3.12. Estado de Avance y Problemas Conocidos
-    3.13. Conclusiones del Capítulo
-    3.14. Recomendaciones
+    3.12. Endurecimiento de la Verificación: un Solo Vocabulario de Uniones y Veredicto de Tres Estados
+    3.13. Estado de Avance y Problemas Conocidos
+    3.14. Conclusiones del Capítulo
+    3.15. Recomendaciones
 
 
 ────────────────────────────────────────────────────────────────────────
@@ -88,6 +91,8 @@ Implementado en la fase temprana de implementación como cadena de tres capas (s
 La implementación sigue la política de auto-corrección silenciosa fijada en la actualización del Capítulo 1 (UC-06): los fallos que el reintento automático resuelve se consumen como contexto interno y no se exponen al usuario; solo los fallos no corregibles (o los bloqueos de seguridad) llegan a la interfaz, y deben llegar como explicación conceptual, no como error técnico.
 
 La medición real del tiempo de verificación de extremo a extremo frente a su umbral de <2s es evidencia de evaluación y se traslada como pendiente al Capítulo 4 (§4.4).
+
+Una revisión posterior (2026-07-20) mostró que esta cadena también se equivocaba en la dirección contraria a la prevista — rechazando SQL correcto —, y que el vocabulario de uniones que usa para juzgar no coincidía con el que el Generador SQL recibía. La corrección de esos defectos, el tercer veredicto de verificación que introdujo y las salvedades que quedaron abiertas se documentan en la §3.12.
 
 
 3.5. MOTOR DE VISUALIZACIÓN
@@ -187,14 +192,75 @@ El Capítulo 1 (§1.6) asignó un requerimiento didáctico a cada uno de los sie
 | Orchestrator | Trazabilidad de fase y agente activo | No aplica como objetivo didáctico — es solo el orquestador; su trazabilidad de fase y agente activo está implementada y visible en la interfaz |
 
 
-3.12. ESTADO DE AVANCE Y PROBLEMAS CONOCIDOS
+3.12. ENDURECIMIENTO DE LA VERIFICACIÓN: UN SOLO VOCABULARIO DE UNIONES Y VEREDICTO DE TRES ESTADOS
+
+Esta sección documenta una jornada de endurecimiento realizada el 2026-07-20 sobre el Generador SQL (§3.3) y el Agente de Verificación (§3.4). No añade módulos ni cambia la arquitectura: corrige la forma en que tres partes del sistema ya construido se comunicaban entre sí, y añade un tercer veredicto de verificación. Se documenta aquí porque el hallazgo central contradice un supuesto que el capítulo daba por sentado — que la cadena de verificación solo podía equivocarse dejando pasar SQL malo.
+
+3.12.1. El problema: tres partes con tres respuestas distintas
+
+El sistema define un "vocabulario cerrado de uniones": el conjunto de igualdades `tabla.columna = tabla.columna` que son uniones legales, derivado de las claves foráneas del esquema. Tres partes lo consultan y deben coincidir: el prompt que se le entrega al modelo (que enumera las uniones permitidas), el planificador que calcula la ruta entre tablas, y el verificador que revisa el SQL producido. Al reproducir su comportamiento sobre la base de datos SoundWave en ejecución, las tres discrepaban.
+
+El caso más costoso estaba en el prompt. El planificador entrega rutas que incluyen atajos transitivos — uniones que no son una clave foránea literal, pero que son igual de válidas porque ambas columnas apuntan a la misma clave. De las 75 igualdades legales del esquema, solo 29 son claves foráneas directas. El prompt, sin embargo, enumeraba únicamente esas 29 y afirmaba que "una clave de unión no listada aquí no existe", mientras el plan adjunto en el mismo mensaje ordenaba "copia estas cláusulas literalmente" para una unión ausente de la lista. El modelo recibía dos instrucciones contradictorias en el mismo mensaje, y precisamente sobre la consulta más frecuente del proyecto (la de la prueba de ejecución de casos límite 8).
+
+Un segundo defecto afectaba al planificador. Las claves foráneas que una tabla dirige hacia sí misma — el género padre de un género, el usuario que refirió a otro usuario, la lista de reproducción de la que otra se bifurcó — se estaban tratando como si fueran identidades. El efecto era que 11 de las 86 uniones que el sistema consideraba legales eran falsas, y una de ellas llegaba a los planes: al conectar listas de reproducción con canciones, el sistema proponía unir por la columna de bifurcación en lugar de por el identificador de la lista. La consulta se ejecutaba, devolvía casi nada, y la verificación la aprobaba, porque el verificador consultaba el mismo vocabulario contaminado.
+
+3.12.2. El hallazgo principal: la verificación también se equivocaba rechazando
+
+El supuesto implícito del diseño era que el verificador es una red de seguridad: su error posible es dejar pasar SQL incorrecto. La revisión mostró que también rechazaba SQL correcto, y que ese error es el más caro de los dos.
+
+Se reprodujeron cinco rechazos indebidos, todos con SQL válido y ejecutable:
+
+| SQL correcto rechazado | Causa |
+|---|---|
+| Consultas con cláusula `WITH` (expresiones de tabla común) | El nombre que la propia consulta define se buscaba en el esquema y se reportaba como "tabla alucinada" |
+| `ON al.artist_id = a.artist_id AND al.label = a.label` | Se exigía que *toda* igualdad del `ON` fuera una clave foránea; un filtro acompañando a la clave se leía como unión inventada |
+| `WHERE ... HAVING COUNT(*) > 5` escrito en una sola línea | La revisión usaba una expresión regular cuyo punto no cruza saltos de línea: el veredicto dependía de dónde el modelo hubiera partido las líneas |
+| Consultas con `WITH` (segunda causa, independiente) | La guarda de solo lectura exigía que el texto empezara por `SELECT`, y estas empiezan por `WITH` |
+| `WHERE x IN (SELECT ... HAVING COUNT(*) > 5)` | Detectado durante el arreglo del tercer caso: la primera corrección propuesta habría introducido este nuevo falso positivo |
+
+Por qué importa para el propósito didáctico del sistema: un rechazo indebido no tiene mensaje de corrección posible, porque el modelo no hizo nada mal. El ciclo de regeneración gasta un intento completo, vuelve a fallar igual, y el usuario recibe una respuesta equivocada acompañada de una explicación segura de sí misma — el peor resultado para una herramienta cuyo propósito es enseñar. La regla operativa que se adoptó es que el verificador solo puede exigir reglas que el prompt efectivamente enuncia; si una comprobación no corresponde a ninguna regla enunciada, o se añade la regla al prompt, o se retira la comprobación.
+
+También se cerró un problema de seguridad que la revisión destapó: la guarda de solo lectura estaba escrita dos veces (en el verificador y en el conector), y ambas copias fallaban en las dos direcciones. Rechazaban toda consulta con `WITH`, y a la vez dejaban pasar `SELECT 1; DROP TABLE users`, porque el texto empieza por `SELECT`. Ahora existe una sola definición compartida, basada en el árbol sintáctico y que falla del lado seguro; es estrictamente más estricta que la anterior.
+
+3.12.3. El tercer veredicto: "posiblemente correcto"
+
+Algunas consultas no son correctas ni incorrectas hasta saber qué quiso decir quien pregunta. "Qué canciones tiene la lista X" y "qué canciones se reprodujeron desde la lista X" producen SQL distinto, ambos legales, y el grafo de claves foráneas no puede distinguirlos: ve dos rutas igual de cortas y elige una por orden alfabético. Lo mismo ocurre con la dirección de una unión de una tabla consigo misma (padre o hijo) y con cualquier unión cuyo extremo no sea una tabla del esquema.
+
+Aprobarlas en silencio afirma una certeza que el sistema no tiene; rechazarlas descarta SQL correcto. Por eso el veredicto de verificación pasó de dos estados a tres: aprobado, **posiblemente correcto** y rechazado. "Posiblemente correcto" no bloquea nada — la consulta se ejecuta igual — pero adjunta a la respuesta la lectura que se asumió y la alternativa que existía, con lo que la ambigüedad se convierte en material didáctico en lugar de en un error invisible. Cuatro situaciones lo activan: ruta de unión ambigua, unión de una tabla consigo misma, extremo de unión no verificable, e igualdad adicional entre dos columnas clave que ninguna clave foránea relaciona.
+
+Para los casos en que el dominio sí tiene una respuesta correcta, la encuesta de cada base de datos admite ahora declararla (`join_preferences`): una entrada fija la ruta canónica y silencia la advertencia para ese par de tablas. Se declaró una sola, la que la documentación de casos límite ya establecía; el resto de los empates permanece marcado como ambiguo, que es la postura honesta por defecto.
+
+3.12.4. Fidelidad de las pruebas
+
+Las pruebas construían el perfil de la base de datos solo por introspección, mientras el sistema en ejecución lo construye por introspección más la encuesta de dominio. El glosario, los mapas de valores codificados y las preferencias de unión llegaban vacíos a las pruebas. No era un defecto del sistema en ejecución — que siempre aplicó la encuesta —, sino de las pruebas, que ejercitaban un perfil que la aplicación nunca usa: una función guiada por la encuesta podía verse rota en pruebas y sana en la aplicación, o al revés. Las pruebas ahora replican el perfil de producción. En esa verificación se detectó además que las entradas de comentario de los archivos de encuesta (`_comment`, usadas porque JSON no admite comentarios) llegaban al perfil como conocimiento de dominio real y se habrían entregado al modelo dentro del glosario; ahora se descartan al cargar.
+
+3.12.5. Resultado
+
+La suite de pruebas pasó de 104 a 208 pruebas en verde. Las nuevas se agrupan en tres archivos con propósitos distintos: las que fijan que el planificador nunca proponga una unión que su propio verificador rechazaría; un corpus de SQL legal que debe pasar la verificación completa **y ejecutarse de verdad**, que es la salvaguarda contra volver a introducir rechazos indebidos; y las del tercer veredicto, que comprueban sobre todo que una advertencia jamás bloquee la ejecución. El corpus es la pieza que más valor demostró: encontró por sí solo dos de los defectos anteriores, incluido el de la guarda de solo lectura, que estaba oculto detrás de otro y solo apareció cuando el primero quedó corregido.
+
+3.12.6. Problemas conocidos y salvedades
+
+Los siguientes puntos quedan **abiertos y documentados como tales**; ninguno bloquea el funcionamiento del sistema.
+
+| Problema conocido / salvedad | Estado y razón |
+|---|---|
+| Ruta de unión ambigua entre tablas puente | **Conocido, no resoluble por esquema.** Cuando dos rutas son igual de cortas, la respuesta correcta depende de la pregunta, no de la base de datos. Se marca como "posiblemente correcto" y se declara la ruta canónica en la encuesta cuando el dominio la tiene |
+| Dirección de una unión de tabla consigo misma | **Conocido, no verificable.** El grafo conoce tablas, no roles: no puede distinguir padre de hijo. Se marca como "posiblemente correcto" |
+| Uniones con un extremo que no es tabla del esquema | **Conocido, no verificable.** Una expresión `WITH`, una subconsulta o un alias de un ámbito superior no tienen clave foránea contra la cual comprobar. Se marca como "posiblemente correcto" |
+| Clave inventada acompañando a una clave foránea real | **Salvedad aceptada.** Se exige que la unión esté anclada en al menos una relación real; una igualdad adicional errónea solo puede reducir filas, nunca inventar una relación. Se marca como "posiblemente correcto" en lugar de rechazarse, para no reintroducir el falso positivo del filtro dentro del `ON` |
+| Uniones implícitas por coma (`FROM a, b WHERE ...`) | **Cerrado por rechazo explícito.** Eludían por completo la revisión de claves de unión. Se rechazan con un mensaje que indica reescribir con `JOIN ... ON`, que es lo que el prompt ya exigía |
+| Medición del efecto sobre la precisión de las respuestas | **Trasladado al Capítulo 4.** Este trabajo corrige un defecto estructural; cuantificar su efecto es evidencia de evaluación (OE4) |
+
+
+3.13. ESTADO DE AVANCE Y PROBLEMAS CONOCIDOS
 
 | Artefacto | Estado |
 |---|---|
 | Pipeline de 7 agentes end-to-end sobre `/query` | Completado (fase temprana de implementación) |
 | Frontend didáctico de 4 paneles | Completado (fase temprana de implementación) |
 | Registro de adaptadores/instrucciones + hot-swap | Completado (fase temprana de implementación) |
-| Suite de pruebas offline (`pytest`) | Completado (fase temprana de implementación), extendida con las pruebas de filtrado de consultas |
+| Suite de pruebas offline (`pytest`) | Completado (fase temprana de implementación), extendida con las pruebas de filtrado de consultas y con las de vocabulario de uniones y falsos positivos de verificación (208 pruebas, 2026-07-20 — §3.12) |
+| Endurecimiento del vocabulario de uniones y falsos positivos de verificación | Completado (2026-07-20) — con salvedades documentadas en la §3.12.6 |
 | `ruff`/`black`, `eslint`/`prettier` | Completado (fase temprana de implementación) |
 | Salvaguarda de filtrado de consultas (allowlist) | Completado (2026-07-06) |
 | Documentación visual del frontend (capturas del sistema en ejecución) | Completado — hay capturas a lo largo de este capítulo y del Capítulo 2 |
@@ -207,7 +273,7 @@ El Capítulo 1 (§1.6) asignó un requerimiento didáctico a cada uno de los sie
 Nota sobre la conexión a bases de datos reales: la conexión directa a un motor MySQL se descartó del alcance del proyecto, y en su lugar las bases de datos se simulan por medio de sus archivos de contexto (`databases/<db>/`). Implementar la conexión real habría implicado una complejidad mucho mayor del proyecto — credenciales, seguridad, latencias y esquemas fuera de nuestro control — sin aportar a los objetivos específicos, pues la simulación reproduce fielmente el comportamiento de consulta. La decisión, sin embargo, dejó rutas preparadas para que esa conexión ocurra sin mayor problema más adelante: los agentes consumen una interfaz de conector genérica, de la cual el conector de archivos es la implementación actual, de modo que un conector MySQL puede añadirse sin tocar el pipeline. El autor planea continuar el proyecto por su cuenta como código abierto, y esta es una de las primeras extensiones previstas para versiones posteriores.
 
 
-3.13. CONCLUSIONES DEL CAPÍTULO
+3.14. CONCLUSIONES DEL CAPÍTULO
 
 1. (aporta a OE3) Los siete módulos centrales de IDI quedaron implementados y operando de extremo a extremo. Las decisiones de diseño tomadas en el Capítulo 2 — la cadena de verificación de tres capas, la capa de contexto por base de datos, el mecanismo de hot-swap de especializaciones y la respuesta didáctica de 4 paneles — se implementaron satisfactoriamente y fueron las que permitieron que el proyecto funcionara: cada una está validada en el sistema en ejecución (Puerta D1, suite de pruebas offline y las capturas de este capítulo y del Capítulo 2).
 
@@ -218,7 +284,7 @@ Nota sobre la conexión a bases de datos reales: la conexión directa a un motor
 4. El requerimiento didáctico transversal se implementó sin módulos adicionales: donde aplica, viaja dentro de los contratos existentes (respuesta de 4 paneles, etiquetas de perfil activo, sesiones repasables, panel de información de la base de datos), lo que valida la decisión de diseño del Capítulo 2 (§2.2).
 
 
-3.14. RECOMENDACIONES
+3.15. RECOMENDACIONES
 
 1. (OE3) Tratar las desviaciones del plan como decisiones de ingeniería de primera clase: registrarlas con su evidencia y su justificación en el momento en que se toman — como se hizo con el número de adaptadores, el tamaño del dataset y la conexión a bases de datos reales —, de modo que la evaluación (OE4) mida el sistema que efectivamente se decidió construir, y no un plan que la evidencia recomendó ajustar.
 

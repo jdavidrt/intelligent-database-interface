@@ -1,4 +1,18 @@
-"""Incrusta capturas de pantalla en un informe HTML del proyecto IDI.
+"""OBSOLETO — NO EJECUTAR. Se conserva como registro (2026-07-15).
+
+Dos razones, ambas por políticas posteriores:
+1. Los informes HTML se editan **a mano**, no con scripts de Python
+   (GUIA_GENERACION_INFORMES_HTML.md §5.4, 2026-07-21).
+2. Este script incrusta las imágenes en **base64**, práctica abandonada el
+   2026-07-17: infló el Tercer Informe a >1 MB y lo volvió ineditable. Las capturas
+   van por ruta relativa a `figures/` (§1).
+
+Para insertar una captura hoy: reemplazar el `<div class="shot">` por el `<figure>`
+directamente en el HTML, con `<img src="figures/shot_N_M_<slug>.png">`.
+
+--- Descripción original (histórica) ---
+
+Incrusta capturas de pantalla en un informe HTML del proyecto IDI.
 
 Reemplaza cada placeholder <div class="shot">...</div> (en orden de aparición)
 por un <figure class="fig"> con las imágenes en base64 y su leyenda "Captura N.M".

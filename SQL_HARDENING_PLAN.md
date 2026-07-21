@@ -144,7 +144,45 @@ can't point at one, either add the rule to `SYSTEM_PROMPT` first, or don't add t
 
 ---
 
-## Step 0 (NEW — blocking prerequisite) — One vocabulary: correctly built, symmetrically enforced
+## Step 0 — ✅ COMPLETE (2026-07-20) — One vocabulary: correctly built, symmetrically enforced
+
+> **As built.** All of 0a–0j landed, plus **0k** (below), which the plan did not anticipate — the
+> legal-SQL corpus found it within minutes of first running, which is the clearest argument for
+> having written the corpus first. `pytest tests/`: **104 → 177 passed, 6 skipped**, `ruff`/`black`
+> clean on every touched file. Two deviations from the plan as written, both recorded in place:
+>
+> - **0i took menu option A** (reject implicit-join syntax) rather than the WHERE-anchoring
+>   alternative — it enforces a rule `SYSTEM_PROMPT` already states, in ~15 lines instead of ~40.
+> - **0k (new): the read-only guard was duplicated, and both copies were wrong.**
+>   `_layer_sanity` and `FileConnector.execute_read` each carried
+>   `sql.strip().upper().startswith("SELECT")`. That is simultaneously too strict (every
+>   `WITH … SELECT` rejected as a non-SELECT statement — this was the *second* bug hiding behind
+>   0e's CTE false positive, invisible until the first was fixed) and too lax
+>   (`SELECT 1; DROP TABLE users` starts with "SELECT" and was waved through). Both now call one
+>   shared `services/sql_safety.py:is_read_only()`, AST-based and failing closed. The guard is
+>   strictly stronger than before *and* the verifier can no longer green-light SQL the executor
+>   refuses — a parity failure the corpus caught end-to-end.
+>
+> Measured after the fixes: `join_tree({"playlists","tracks"})` routes through
+> `playlists.playlist_id`; the EC-08 chain is byte-identical; the poisoned equivalence classes shed
+> exactly **11** of 86 edges (86 → 75 legal equalities, 29 of them raw FKs).
+>
+> **Follow-up (2026-07-21) — the third verdict, 0c and the residual gaps.** 0c and the self-join
+> gap were re-scoped rather than left silent: they are **not decidable from the schema**, so
+> `VerifyReport.verdict` gained a third state — `pass` / **`caution`** / `fail` — and they now
+> report as "possibly right" instead of passing invisibly. A caveat never blocks: `overall_passed`
+> stays `True`, the query executes, and the caveat rides into the didactic answer. Four sources:
+> ambiguous junction bridge (0c), self-join direction, join sides the verifier cannot resolve
+> (gap 4), and an extra key-column equality alongside a real FK (gap 3 — implementable precisely
+> after all, since the discriminator is `is_key_column`, so it never fires on the legal
+> filter-in-ON corpus). `JoinGraph.ambiguous_bridges()` exposes the ties `_score` used to break
+> silently; a new per-DB survey key `join_preferences` lets a human settle a route where the domain
+> has one right answer (seeded with exactly one entry — the EC-08 bridge — leaving
+> `playlists↔tracks` deliberately ambiguous). Two more findings en route: the **test fixture built
+> a profile production never uses** (`introspect()` without the survey, so glossary / coded values /
+> join preferences were empty — now mirrors `ContextManager`), and survey `_comment` keys were
+> arriving as real domain knowledge (they reach the SQL Generator's prompt via `glossary`) — now
+> stripped at load. **177 → 208 tests.**
 
 **Files:** `backend/app/services/db/join_graph.py`, `backend/app/agents/verification.py`,
 `backend/app/agents/sql_generator.py`, plus regressions in `tests/test_schema_grounding.py`,
@@ -163,6 +201,7 @@ Two halves, both blocking:
 | **0g** | Secondary non-key equality in an ON clause flagged as an invented join key | false **positive** | **yes** |
 | **0h** | Sanity's aggregate-in-WHERE regex rejects legal single-line SQL | false **positive** | **yes** |
 | **0i** | Comma joins bypass rule 4b entirely | false **negative** | yes |
+| **0k** | Read-only guard duplicated in verifier + connector; both copies wrong in both directions | false **positive** *and* false **negative** | **yes — unplanned, found by the corpus** |
 
 Everything below was reproduced against the live soundwave profile
 (`FileConnector("soundwave").introspect()`, 19 tables, 29 FK edges) before being written down.
@@ -264,7 +303,14 @@ def _edge_label(self, table_a: str, table_b: str) -> str | None:
     return min(labels, key=rank)   # real FK first, then lexicographic (stable)
 ```
 
-### 0c. Junction tie-break can pick a semantically wrong bridge (note, not blocking)
+### 0c. Junction tie-break can pick a semantically wrong bridge — ✅ RESOLVED AS A KNOWN ISSUE (caveat)
+
+> **As built (2026-07-21).** Not fixed — **declared undecidable and surfaced.** There is no faithful
+> truth to recover: the right bridge depends on the question, which the FK graph never sees.
+> `JoinGraph.ambiguous_bridges(a, b)` returns the tied routes, and the verifier reports
+> `verdict == "caution"` naming the route taken and the alternatives. `join_preferences` in the
+> per-DB survey settles a pair when the domain does have one right answer. The analysis below stands
+> as the rationale.
 
 `join_tree({"playlists", "tracks"})` routes through `play_events`, not `playlist_tracks` — both are
 junction tables, both paths are length 2, so `_score`'s lexicographic tie-break decides
@@ -582,6 +628,65 @@ with two guards against turning a false negative into a false positive:
 See the fix menu for the full option set. If neither shape feels safe, **skip 0i**: it is the only
 item in §0 that is not blocking, and shipping it wrong costs more than not shipping it. Record the
 gap in the risk register either way.
+
+### 0k. (NOT PLANNED — found by the corpus) The read-only guard was duplicated, and both copies were wrong
+
+The plan did not predict this one. It surfaced the first time the legal-SQL corpus ran, as a second
+failure on the CTE entry *after* 0e had already been fixed — a bug that was structurally invisible
+while 0e was masking it.
+
+Two independent copies of the same safety rule:
+
+```python
+# verification.py, _layer_sanity
+if not sql_upper.lstrip().startswith("SELECT"): ...reject
+# file_connector.py, execute_read
+if not sql.strip().upper().startswith("SELECT"): raise ValueError(...)
+```
+
+Wrong in **both** directions at once:
+
+| SQL | String guard | Correct | |
+|---|---|---|---|
+| `WITH top AS (…) SELECT …` | rejected | read-only | too strict — blocks every CTE query |
+| `SELECT 1; DROP TABLE users` | **passed** | must reject | too lax — starts with "SELECT" |
+| `SELECT … UNION SELECT …` | passed | read-only | correct by luck |
+| `WITH t AS (…) DELETE FROM users` | rejected | must reject | correct by luck |
+
+And because the two copies lived on opposite sides of the pipeline, fixing only the verifier's copy
+produced a *new* failure mode — verification passing SQL that `execute_read` then refuses:
+
+```
+verify(WITH … SELECT …).overall_passed -> True
+execute_read(same sql)                 -> ValueError: Only SELECT statements are permitted.
+```
+
+**Fix:** one shared `backend/app/services/sql_safety.py`, following the precedent
+`services/temporal.py` already sets (shared by generator and verifier "so generation and
+verification can never drift apart"):
+
+```python
+_READ_ONLY_TYPES = (exp.Select, exp.SetOperation)
+
+def is_read_only(sql: str, dialect: str = "mysql") -> bool:
+    """True when `sql` is a single read-only statement. Fails closed."""
+    try:
+        tree = sqlglot.parse_one(sql, dialect=dialect)
+    except Exception:
+        return False
+    return isinstance(tree, _READ_ONLY_TYPES)
+```
+
+`parse_one` returns `exp.Block` for stacked statements and the concrete write type
+(`exp.Delete`/`exp.Update`/`exp.Drop`) for writes, including behind a CTE — so a single
+`isinstance` decides all four rows of the table correctly. Both call sites now import it, and the
+corpus asserts parity in both directions (every legal query executes; every read-only-guard
+rejection also raises in `execute_read`).
+
+**The lesson, for the risk register:** V3 and V4 violations can *hide each other*. 0e's CTE
+rejection masked 0k's CTE rejection completely — the corpus entry stayed red after the first fix
+and named a different layer, which is the only reason it was found. A single-assertion smoke test
+("does the CTE query pass?") would have been marked green by whichever fix landed second.
 
 ### 0j. Regressions + the legal-SQL corpus
 
@@ -1263,25 +1368,45 @@ won't fix systematic (join/identifier) errors — only "model knew better but fl
 
 | File | Change |
 |---|---|
-| `backend/app/services/db/join_graph.py` | **(0a)** no `_union` on self-loop FKs; **(0b)** `_fk_edge_keys` + FK-preferring `_edge_label`; **(0g)** `_key_columns` + `is_key_column()`; **(0d option B, if escalated)** `legal_equalities_for()` — the vocabulary contract's four API entries live here and nowhere else |
-| `backend/app/agents/verification.py` | **(0e)** exempt CTE names from the table check + comment pinning why aliases are already safe; **(0g)** rule 4b checks per-JOIN anchoring, not per-equality; **(0h)** aggregate-in-WHERE regex → scope-limited AST; **(0i, optional)** reject implicit joins |
-| `tests/test_vocabulary_parity.py` | **new** — one property test per invariant V0–V2 (V3 is the corpus, V4 the must-reject set) |
-| `backend/app/agents/sql_generator.py` | **(0d)** join-paths wording + non-FK edges annotated in the plan block; then: greedy sampling on both LLM calls; unify fallback plan shape; `anchor` + `join_complete`; `_locked_columns`, `_assemble_from_join`, `_assemble_sql`, `_generate_structured`; self-join guard; `last_meta` reset; casing normalisation |
+| `backend/app/services/db/join_graph.py` | ✅ **(0a)** no `_union` on self-loop FKs; **(0b)** `_fk_edge_keys` + FK-preferring `_edge_label`; **(0g)** `_key_columns` + `is_key_column()` + `is_fk_edge()`. `legal_equalities_for()` not needed — 0d option A sufficed |
+| `backend/app/agents/verification.py` | ✅ **(0e)** exempt CTE names + comment pinning why aliases are already safe; **(0g)** `_cross_table_equalities` + per-JOIN anchoring; **(0h)** `_find_aggregate_in_where`, scope-limited; **(0i)** `_find_implicit_join`; **(0k)** read-only guard delegated to `sql_safety` |
+| `backend/app/services/sql_safety.py` | ✅ **new (0k)** — `is_read_only()`, the single definition of the read-only rule |
+| `backend/app/services/db/file_connector.py` | ✅ **(0k)** `execute_read` calls the shared guard instead of its own `startswith("SELECT")` |
+| `tests/test_vocabulary_parity.py` | ✅ **new** — 12 tests: V0 (vocabulary correctness), V1/V2 as properties over all 2- and 3-table combinations |
+| `tests/test_verification_false_positives.py` | ✅ **new** — 14-entry legal corpus × (per-layer, end-to-end, executes) + 9 must-reject + executor parity = 61 tests |
+| `backend/app/agents/sql_generator.py` | ✅ **(0d)** join-paths wording + `_render_join_edges` annotating non-FK edges in both plan blocks. *Still pending (Steps 1–2):* greedy sampling on both LLM calls; unify fallback plan shape; `anchor` + `join_complete`; `_locked_columns`, `_assemble_from_join`, `_assemble_sql`, `_generate_structured`; self-join guard; `last_meta` reset; casing normalisation |
+| `tests/test_schema_grounding.py` | ✅ + 6 join-graph regressions (0a/0b/`is_key_column`), 13 → 19 tests |
 | `backend/app/config.py` | + `sql_temperature`, `sql_top_k`, `structured_sql` settings |
 | `backend/app/services/llm_service.py` | `chat_with_meta` gains `extra` param |
 | `backend/app/models/envelope.py` | `SqlCandidate.structured: bool = False` |
 | `backend/app/services/orchestrator.py` | surface `structured` on the `sql_generator` "done" event payload |
-| `tests/test_schema_grounding.py` | + join-graph regressions and the planner↔verifier vocabulary-parity assertion (0j) |
-| `tests/test_verification_false_positives.py` | **new** — the legal-SQL corpus (0j), the gate for "no false positives" |
-| `tests/test_verification.py` | + the must-reject counterparts (unanchored join, `WHERE COUNT(x) > 5`, `; DROP TABLE`) kept green alongside the corpus |
 | `tests/test_structured_sql.py` | new |
 | `tests/ab_structured_sql.py` | new |
 | `.env` / `.env.example` | document new flags (all default to today's behavior — no required edits) |
 | `start.py` | (Step 6 only) `IDI_MODEL_FILENAME` |
 
-Note the shape of this table: **`verification.py` is now the second-largest change in the plan**, and
-four of its five edits are false-positive removals. That is the correction this revision makes to the
-original plan, which treated the verifier purely as a backstop to be preserved.
+Note the shape of this table: **`verification.py` was the second-largest change in the plan**, and
+five of its six edits are false-positive removals. That is the correction this revision made to the
+original plan, which treated the verifier purely as a backstop to be preserved. As built, Step 0
+touched five source files and added 73 tests without a single line of the structured-emission work
+it was a prerequisite for.
+
+## Known issues & caveats (as built, 2026-07-21)
+
+Open, documented, and none blocking. Each surfaces to the user as `verdict == "caution"` rather than
+passing silently or being rejected — see `tests/test_verification_caveats.py` and §3.12.6 of
+`docs/reports/IDI_Capitulo3_v2.md`.
+
+| Known issue | Status | Why it stays |
+|---|---|---|
+| **Ambiguous junction bridge** (0c) — `playlists↔tracks` via `playlist_tracks` / `play_events` / `user_liked_tracks` | **Known, undecidable from the schema.** Reported as caution; settleable per-DB via `join_preferences` | The correct route depends on the question, not the database. Any tie-break the graph picks is a guess wearing a uniform |
+| **Self-join direction** — `genres` parent/child, `users` referrer/referred, `playlists` forked-from | **Known, unverifiable.** Reported as caution | The graph knows tables, not roles; reversing the two columns is equally legal SQL answering the opposite question |
+| **Unresolvable join side** — CTE, subquery, or outer-scope alias | **Known, unverifiable.** Reported as caution | No schema table behind the alias, so rule 4b has nothing to check against. "I could not check this" ≠ "this is fine" |
+| **Invented key alongside a real FK** (gap 3) | **Accepted caveat.** Anchored joins pass; the extra equality is reported as caution | Rejecting it would reinstate 0g's false positive on every legal filter-in-`ON` query. An extra equality can only narrow rows, never fabricate a relationship |
+| **Implicit comma joins** | **Closed by explicit rejection** (0i menu option A) | Enforces a rule `SYSTEM_PROMPT` already states, and the message is actionable — so regeneration converges instead of looping |
+| **`verify()` parses the same SQL 5×** | Open, cosmetic | Correctness unaffected; fold into Step 2 when `_layer_sanity` is touched anyway. Five parses are five chances for the layers to disagree — same drift class as 0k |
+| **`tools/build_tercer_informe.py` is stale** | Guarded, not fixed | Its `BODY` is a literal snapshot; regenerating would silently drop §3.12. It now aborts if the report contains a section its `BODY` lacks |
+| **Effect on answer accuracy unmeasured** | Routed to Chapter 4 (OE4) | Structural fix; quantifying it is evaluation evidence, not implementation |
 
 ## Risk register
 
@@ -1290,7 +1415,9 @@ original plan, which treated the verifier purely as a backstop to be preserved.
 | **0g loosens rule 4b (per-JOIN anchoring) and lets a real hallucinated key through alongside a legal one** | An unanchored join is still rejected, which is the only shape the observed failures took; the must-reject tests stay green next to the corpus, and Step 4 reads rejection counts in pairs so a drop can't be mistaken for progress |
 | **0e's CTE exemption becomes a hallucination hole** (model invents a table and a `WITH` clause naming it) | The exemption is keyed to names actually bound by a `WITH` in the same statement — a CTE that exists is a real relation with a real projection, and `_scope_output_columns` still validates every column against it |
 | **0i turns a false negative into a new false positive** (non-key comma-join correlation flagged) | Preferred option rejects implicit-join *syntax*, enforcing a rule the prompt already states, rather than re-judging join legality in WHERE; the thorough alternative keeps both guards; 0i is explicitly droppable (menu option D) |
-| **A fix for a false positive ships a new one** — already happened once, in 0h's own first draft | The legal-SQL corpus (0j) is the standing guard, and the fix menu's rule 1: one option per commit, corpus + must-reject set green before the next |
+| **A fix for a false positive ships a new one** — happened twice: 0h's first draft flagged legal `WHERE … IN (SELECT … HAVING COUNT(*))`, and fixing 0e's CTE rejection exposed 0k's identical CTE rejection one layer down | The legal-SQL corpus (0j) is the standing guard, and the fix menu's rule 1: one option per commit, corpus + must-reject set green before the next |
+| **Two violations mask each other**, so a smoke test goes green on the second fix while the first bug is still live (0e ↔ 0k, both rejecting the same CTE query from different layers) | Corpus entries assert **per layer** and **end-to-end and executes**, so a still-failing entry names which layer is guilty instead of just "CTE broken" |
+| **A safety rule gets duplicated again** and the copies drift (0k: verifier vs. connector) | Shared rules live in `services/` and are imported, never re-implemented — the precedent `temporal.py` set and `sql_safety.py` now follows; the corpus asserts verifier/executor parity in both directions |
 | Legal-SQL corpus goes stale — new false positives ship unnoticed | Corpus is a gate, not a suite: every real false rejection found in Step 4 or in use gets appended before the fix lands |
 | Self-join guard diverts most real questions to free text, making the A/B unrepresentative | Report coverage % as a first-class metric (Step 4) |
 | Structured schema can't express a needed shape (nested aggregate, CASE, UNION, window fn) | `_generate_structured` returns `None` → free-text fallback; count fallbacks in Step 4 |

@@ -82,3 +82,27 @@ Los ítems [PENDIENTE] del capítulo no van al HTML entregable: se rastrean aqu�
   entregable es HTML + figures/, o el PDF impreso.
 - No se generó PDF para este informe; regenerarlo desde el HTML (imprimir a PDF,
   tamaño carta) cuando se desee.
+
+- (2026-07-21) Se anadio la SS3.12 «Endurecimiento de la verificacion: un solo
+  vocabulario de uniones y veredicto de tres estados», que documenta la jornada
+  del 2026-07-20. Las secciones siguientes se renumeraron: 3.12->3.13 (Estado de
+  Avance), 3.13->3.14 (Conclusiones), 3.14->3.15 (Recomendaciones). Indice y
+  cuerpo verificados coincidentes (3.1..3.15).
+  La insercion se hizo editando el HTML directamente. POLITICA (2026-07-21): los
+  informes HTML se actualizan a mano, no con scripts de Python -- escribir y depurar
+  un actualizador cuesta varias veces mas que escribir el HTML que se quiere insertar.
+  Ver GUIA_GENERACION_INFORMES_HTML.md 5.4.
+  OJO: build_tercer_informe.py NO debe ejecutarse: lleva el cuerpo del capitulo
+  embebido como cadena literal (foto del 2026-07-17) y borraria la SS3.12 y las
+  capturas. Se le dejo una guarda que aborta en ese caso; se conserva solo como
+  registro de como se construyo el cuerpo inicial.
+- (2026-07-21) Problemas conocidos y salvedades del endurecimiento: quedan
+  documentados dentro del propio informe, en la SS3.12.6 (ruta de union ambigua,
+  direccion de auto-union, uniones no verificables, clave extra junto a una FK real).
+  No son pendientes de redaccion: son limitaciones conocidas y asumidas.
+- (2026-07-21) La medicion del efecto de este endurecimiento sobre la precision de
+  las respuestas es evidencia de evaluacion -> Capitulo 4 (OE4).
+- (2026-07-21) Render NO reverificado con Playwright tras esta insercion; si se
+  verifico estructura (indice==cuerpo, 0 placeholders, 0 dependencias remotas, todas
+  las imagenes referenciadas existen, seccion nueva bien formada como XML).
+  El PDF sigue sin regenerarse.

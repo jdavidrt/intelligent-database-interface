@@ -66,13 +66,15 @@ def _check_ec02(result: dict) -> str | None:
 
 
 def _check_ec03(result: dict) -> str | None:
-    """Tracks 26-30 have album_id IS NULL -> 5 standalone singles."""
+    """Tracks with album_id IS NULL are standalone singles: the original 26-30
+    plus 46-48 added by the 2026 seed extension -> 8.
+    Re-derived 2026-07-21 after extend_seed_data.py (was 5)."""
     rows = result.get("rows") or []
     if len(rows) != 1:
         return f"expected 1 row (a COUNT), got {len(rows)}"
     values = list(rows[0].values())
-    if 5 not in values:
-        return f"expected COUNT == 5, got {rows[0]}"
+    if 8 not in values:
+        return f"expected COUNT == 8, got {rows[0]}"
     return None
 
 
@@ -95,8 +97,11 @@ def _check_ec04(result: dict) -> str | None:
 
 
 def _check_ec05(result: dict) -> str | None:
-    """sum(trk_dur_ms) across all 30 tracks = 6,567,447ms -> avg = 218,914.9ms
-    = 3.648 minutes."""
+    """Mean trk_dur_ms across all tracks -> 3.5852 minutes.
+    Re-derived 2026-07-21 after the seed extension added tracks 31-48 (was
+    3.648 over 30 tracks). Still inside the 3.4-3.9 band checked below, so the
+    band is unchanged — recorded here so the next reader knows it was verified,
+    not merely assumed to still hold."""
     rows = result.get("rows") or []
     if len(rows) != 1:
         return f"expected 1 row (an AVG), got {len(rows)}"
@@ -105,20 +110,52 @@ def _check_ec05(result: dict) -> str | None:
         return f"expected a numeric average, got {rows[0]}"
     val = values[0]
     if not (3.4 <= val <= 3.9):
-        return f"expected avg duration ~3.65 minutes, got {val}"
+        return f"expected avg duration ~3.59 minutes, got {val}"
     return None
 
 
 def _check_ec06(result: dict) -> str | None:
-    """pricing_history row (plan_id=3, 9.99, '2024-01-01', NULL) is current.
+    """pricing_history row (plan_id=3, 11.99, '2025-09-01', NULL) is current.
     Exactly one row: 'current price' means the open-ended SCD row only — a
-    multi-row result is the full price history, i.e. the EC-06 trap itself."""
+    multi-row result is the full price history, i.e. the EC-06 trap itself.
+    Re-derived 2026-07-21: the seed extension adds a 2025-09-01 price change,
+    closing the old 9.99 row and opening 11.99. Plan 3 now has 4 history rows,
+    so this probe discriminates more sharply than it did against 3."""
     rows = result.get("rows") or []
     if len(rows) != 1:
         return f"expected exactly 1 row (the current price), got {len(rows)}"
     values = [v for row in rows for v in row.values() if isinstance(v, (int, float))]
-    if not any(abs(v - 9.99) < 0.001 for v in values):
-        return f"expected price 9.99, got {values}"
+    if not any(abs(v - 11.99) < 0.001 for v in values):
+        return f"expected price 11.99, got {values}"
+    return None
+
+
+def _check_ec07(result: dict) -> str | None:
+    """ "Which artist had the most plays last month?" -> The Weeknd, 13 plays.
+
+    Scorable since the 2026 seed extension. This probe was left unscored on the
+    grounds that it was "date-relative against a dataset frozen at 2025-01-20";
+    extend_seed_data.py moved the data to the frozen clock, so "last month" is
+    now June 2026 and holds 78 events. Re-derived by query 2026-07-21.
+
+    Both sources rank The Weeknd first, so the *name* does not discriminate —
+    the magnitude does. Raw play_events gives 13; daily_artist_metrics gives
+    4,966,274 for the same artist and window. The count is therefore checked
+    against a raw-scale band: anything above 1000 means the model answered from
+    the pre-aggregated table, which is the EC-07 trap firing.
+    """
+    rows = result.get("rows") or []
+    if not rows:
+        return "expected at least 1 row (The Weeknd), got 0"
+    values = [str(v).lower() for v in rows[0].values()]
+    if not any("weeknd" in v for v in values):
+        return f"expected The Weeknd as the top artist, got {rows[0]}"
+    counts = [v for v in rows[0].values() if isinstance(v, (int, float))]
+    if counts and max(counts) > 1000:
+        return (
+            f"count {max(counts)} is at daily_artist_metrics scale, not play_events "
+            f"scale (expected 13) — answered from the pre-aggregated table"
+        )
     return None
 
 
@@ -144,8 +181,7 @@ CHECKERS = {
     "EC-04": _check_ec04,
     "EC-05": _check_ec05,
     "EC-06": _check_ec06,
-    # EC-07 ("most plays last month") is date-relative against a dataset
-    # frozen at 2025-01-20 - not fixed-derivable, intentionally not scored.
+    "EC-07": _check_ec07,
     "EC-08": _check_ec08,
 }
 

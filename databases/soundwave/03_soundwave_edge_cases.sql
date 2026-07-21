@@ -352,8 +352,9 @@ ORDER BY avg_monthly_plays DESC;
 -- [Q20]  EC-07  Difficulty: Extra Hard
 -- NL: "Compare total stream counts from the analytics table vs
 --      raw play events for Karol G in 2024."
--- WHY HARD: Two valid sources give different numbers (~5% gap).
---           Both answers are "correct" depending on the source.
+-- WHY HARD: Two valid sources give different numbers — by a factor of roughly
+--           290,000 to 1,070,000, not the "~5% gap" this comment claimed until
+--           2026-07-21. Both answers are "correct" depending on the source.
 --           This exposes the pre-aggregated vs raw ambiguity.
 --           Expected result: metrics_table > raw_play_events.
 SELECT 'metrics_table'   AS source,
@@ -419,12 +420,19 @@ ORDER BY yoy_growth_pct DESC;
 -- WHY HARD: LEFT JOIN + IS NULL anti-join pattern.
 --           Must also filter event_type = 'play' inside the LEFT JOIN
 --           condition, not in WHERE — otherwise the outer join collapses.
+--           Second trap, and the reason this query was corrected on
+--           2026-07-21: the LEFT JOIN fans out to one row per play event, so
+--           a bare COUNT(*) counts events (963), not tracks (48). Every
+--           track-level figure must therefore be COUNT(DISTINCT track_id).
+--           The percentage happens to survive the bug only because the
+--           numerator is currently 0 — a wrong query that looks right is
+--           exactly the failure class this suite exists to catch.
 SELECT
-    COUNT(*)                                                         AS total_tracks,
-    SUM(CASE WHEN pe.event_id IS NULL THEN 1 ELSE 0 END)            AS never_played,
+    COUNT(DISTINCT t.track_id)                                       AS total_tracks,
+    COUNT(DISTINCT CASE WHEN pe.event_id IS NULL THEN t.track_id END) AS never_played,
     ROUND(
-        SUM(CASE WHEN pe.event_id IS NULL THEN 1 ELSE 0 END) * 100.0
-        / COUNT(*), 2
+        COUNT(DISTINCT CASE WHEN pe.event_id IS NULL THEN t.track_id END) * 100.0
+        / COUNT(DISTINCT t.track_id), 2
     )                                                                AS pct_never_played
 FROM tracks t
 LEFT JOIN play_events pe

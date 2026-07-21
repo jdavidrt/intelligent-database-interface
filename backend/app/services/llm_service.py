@@ -65,6 +65,15 @@ class LLMService:
                 messages = [{"role": "system", "content": self._instruction_profile}] + messages
 
         payload: dict[str, Any] = {"messages": messages, "temperature": temperature}
+        if settings.greedy:
+            # Applied here rather than at each call site so no agent can opt out
+            # of a scored run's decoding contract by passing its own temperature
+            # (EVALUATION_PROTOCOL.md §1.3). Set after `temperature` and before
+            # `extra` so the caller's value is the one being overridden; `extra`
+            # carries grammars, never sampling parameters.
+            payload["temperature"] = 0.0
+            payload["top_p"] = 1.0
+            payload["seed"] = settings.greedy_seed
         if extra:
             # Constrained decoding et al. — e.g. {"response_format": {"type":
             # "json_object", "schema": {...}}} makes llama.cpp compile the JSON

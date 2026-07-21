@@ -1,7 +1,9 @@
 """DBConnector protocol — thin interface over any relational DB."""
 
 from __future__ import annotations
+
 from typing import Any, Protocol, runtime_checkable
+
 from backend.app.models.envelope import DBProfile
 
 

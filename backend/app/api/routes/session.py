@@ -1,8 +1,11 @@
 """Session routes — list, get, and create sessions."""
 
 from fastapi import APIRouter, HTTPException
+
 from backend.app.services.memory.sessions import (
-    list_sessions, get_session, create_session,
+    create_session,
+    get_session,
+    list_sessions,
 )
 from backend.app.services.orchestrator import orchestrator
 

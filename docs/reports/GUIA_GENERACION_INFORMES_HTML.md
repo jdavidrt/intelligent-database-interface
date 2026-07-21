@@ -2,8 +2,12 @@
 
 Condensa lo aprendido produciendo `IDI_Segundo_Informe.html` (capítulo 2, julio 2026):
 las convenciones del documento, el playbook de capturas de pantalla del sistema en vivo,
-y los errores ya cometidos para no repetirlos. Los scripts que funcionaron están en
-[`tools/`](tools/).
+y los errores ya cometidos para no repetirlos. En [`tools/`](tools/) queda la herramienta
+de captura de pantallas (`capture_shots.js`), que sí se usa.
+
+> **Nota de política (2026-07-21):** el HTML del informe **se edita a mano**; no se
+> actualiza con scripts de Python (§5.4). Los generadores que quedan en `tools/` son
+> históricos y `build_tercer_informe.py` no debe ejecutarse.
 
 ---
 
@@ -12,9 +16,14 @@ y los errores ya cometidos para no repetirlos. Los scripts que funcionaron está
 ```
 IDI_CapituloN_vX.md      →  IDI_<Nombre>_Informe.html  →  IDI_<Nombre>_Informe.pdf
 (contenido canónico,        (documento entregable,        (impresión del HTML,
- versionado, con marcas      autocontenido, es-CO)         Letter, se regenera
+ versionado, con marcas      es-CO; se edita a mano)       Letter, se regenera
  [PANTALLAZO]/[PENDIENTE])                                 manualmente)
 ```
+
+Las flechas son "se refleja en", no "se genera desde": **el HTML no se compila a partir
+del `.md`**. El `.md` es la fuente canónica de la prosa (versionada, revisable); el HTML
+es el entregable y se edita directamente (§5.4). Un cambio se aplica en los dos, en el
+mismo paso.
 
 - **Fuente de contenido**: los capítulos viven en `docs/reports/IDI_CapituloN_vX.md`.
   Versiones viejas se archivan en `docs/legacydocs/reports/`. El canon editorial
@@ -66,7 +75,7 @@ Orden del `<body>`:
 
 ### CSS y tipografía (copiar del informe anterior, no reinventar)
 
-- `<html lang="es">`, `<meta charset="utf-8">`, CRLF y UTF-8 (así lo dejó Word/Windows — conservarlo al editar por script: `read_text(..., newline="")`).
+- `<html lang="es">`, `<meta charset="utf-8">`, CRLF y UTF-8 (así lo dejó Word/Windows — conservarlo al editar: el archivo es CRLF completo, no meter líneas con LF suelto).
 - **Todo el CSS compartido va en `assets/informe.css`** (regla de economía de contexto,
   §1): ahí viven las reglas siguientes y los `@font-face`. El informe lo enlaza con
   `<link rel="stylesheet" href="assets/informe.css">` y solo define overrides propios.
@@ -117,8 +126,8 @@ Así las referencias en el texto a "la Figura 2.N" nunca se rompen.
   chat abajo; o las tres rutas de enrutamiento).
 - Los PNG quedan en `docs/reports/figures/shot_N_M_<slug>.png` y el HTML **los referencia
   por esa ruta relativa — nunca en base64** (ver la política de imágenes de §1; el
-  Segundo Informe de 4 MB es el contraejemplo que no se repite). El script generador debe
-  incluir un assert de que el cuerpo no contiene `data:image`.
+  Segundo Informe de 4 MB es el contraejemplo que no se repite). Al insertarlas a mano,
+  comprobar que no se coló ningún `data:image` nuevo en el cuerpo.
 
 ## 5. Playbook de captura (sistema en vivo)
 
@@ -185,15 +194,47 @@ Salud: `:7860/health`, `:5000/docs`, `:5173/`. Al terminar, matar por puerto
 
 ### 5.4 Inserción y verificación
 
-- Reemplazar los `.shot` por `figure` con un **script** (p. ej. `tools/build_tercer_informe.py`),
-  nunca a mano. El script debe (a) verificar que encuentra exactamente los
-  N placeholders antes de escribir, (b) sustituir en orden de aparición, (c) conservar
-  CRLF/UTF-8, (d) assert final de que no queda `class="shot"`, (e) verificar que cada
-  PNG referenciado existe en `figures/` y (f) assert de que el cuerpo generado no
-  contiene `base64,` — las capturas van por referencia relativa, no incrustadas.
-- Verificación final con Playwright sobre `file:///…/IDI_…_Informe.html`: 0 divs `.shot`,
-  todos los `<img>` con `naturalWidth > 0`, las figuras SVG intactas. Revisar visualmente
-  1–2 PNG (verificar que muestran lo que la leyenda promete).
+**Política vigente (2026-07-21): el HTML del informe se edita directamente.** Nada de
+scripts de Python para actualizarlo. La regla anterior — "sustituir siempre con un
+script, nunca a mano" — se revirtió porque en la práctica costaba mucho más de lo que
+protegía: escribir un actualizador con sus anclajes y sus asserts, depurarlo y ejecutarlo
+es varias veces el trabajo de escribir el HTML que se quería insertar, y el resultado es
+el mismo. Añadir una sección, corregir una tabla o renumerar encabezados son ediciones de
+texto: se hacen sobre el archivo.
+
+Esto es viable precisamente por la regla de economía de contexto (§1): con las imágenes,
+el CSS y los SVG fuera del archivo, el HTML del informe es prosa y estructura, y se puede
+editar a mano sin arrastrar megabytes.
+
+Lo que sí hay que conservar al editar directamente (antes lo garantizaban los asserts del
+script, ahora es lista de chequeo):
+
+- **CRLF y UTF-8.** El archivo es CRLF completo; no introducir líneas con LF suelto.
+- **Numeración coherente.** Si se inserta o renumera una sección, actualizar en el mismo
+  paso el `div.toc-sub` del índice y el `<h2>` del cuerpo, y revisar las referencias en
+  prosa (`§3.N`) que apunten a las secciones desplazadas.
+- **Sin `class="shot"`, `[PENDIENTE]` ni `[PANTALLAZO]`** en el entregable.
+- **Sin `base64,` nuevo** y sin `src="http`/`href="http`: capturas y SVG por ruta relativa
+  a `figures/`; el único base64 tolerado sigue siendo el de las fuentes en `assets/`.
+- **Cada PNG/SVG referenciado existe** en `figures/`.
+- Reflejar el mismo cambio en el `.md` del capítulo, que es la fuente canónica de prosa.
+
+Comprobaciones rápidas de una línea (grep, no scripts que escriban el archivo):
+
+```bash
+grep -c 'class="shot"\|\[PENDIENTE\|\[PANTALLAZO' IDI_Tercer_Informe.html   # → 0
+grep -oE '(src|href)="http[^"]*"' IDI_Tercer_Informe.html                    # → vacío
+grep -oE '<h2>(3\.[0-9]+)\.' IDI_Tercer_Informe.html                         # vs. el índice
+```
+
+- **`tools/build_tercer_informe.py` quedó obsoleto** para actualizaciones y **no debe
+  ejecutarse**: lleva el cuerpo del capítulo embebido como cadena literal (una foto del
+  2026-07-17), así que regenerar desde él borra cualquier sección o captura añadida
+  después. Se le dejó una guarda que aborta si el informe contiene una sección que su
+  `BODY` no tiene. Se conserva solo como registro de cómo se construyó el cuerpo inicial.
+- Verificación de render: abrir el HTML en el navegador y revisar que las imágenes cargan
+  y no hay desbordamiento horizontal. (Playwright sigue siendo opción para una revisión
+  automática, pero no es requisito para una edición de prosa.)
 - Actualizar el sidecar `…_PENDIENTES.txt` (fecha, qué se resolvió, si el PDF quedó
   desactualizado a propósito).
 
@@ -217,3 +258,7 @@ usuario lo pida** — el 2026-07-15 se dejó desactualizado a propósito.
 - [ ] Render verificado en navegador (imágenes cargan, sin overflow horizontal).
 - [ ] PNG/SVG fuente en `figures/`; versiones viejas del capítulo en `docs/legacydocs/reports/`.
 - [ ] `…_PENDIENTES.txt` al día; PDF regenerado o marcado como desactualizado.
+- [ ] Índice y cuerpo con la misma lista de secciones, sin huecos ni repetidos; las
+      referencias en prosa (`§3.N`) apuntan a donde deben tras cualquier renumeración.
+- [ ] El HTML se editó **directamente** (§5.4); no se ejecutó ningún script generador
+      sobre él, y el `.md` del capítulo recogió el mismo cambio.

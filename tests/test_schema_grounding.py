@@ -17,6 +17,7 @@ from __future__ import annotations
 import pytest
 
 from backend.app.agents.sql_generator import (
+    PLAN_SYSTEM_PROMPT,
     SQLGenerator,
     _linked_tables,
     _tables_in_feedback,
@@ -95,6 +96,57 @@ def test_join_tree_pulls_in_intermediates(graph):
 
 def test_join_tree_single_table(graph):
     assert graph.join_tree({"artists"}) == ([], {"artists"})
+
+
+def test_self_referencing_fk_does_not_leak_into_other_joins(graph):
+    """A self-loop FK (users.referred_by_user_id -> users.user_id) is a *role*
+    edge, not an identity. Merging the two columns into one equivalence class
+    made every user-FK column in the schema join-legal against the referrer
+    column, and materialised that as a real graph edge — so a query joining
+    payments to the *referrer* of a user passed verification silently."""
+    assert graph.has_edge("users.referred_by_user_id", "users.user_id")  # direct: legal
+    assert graph.has_edge("genres.parent_genre_id", "genres.genre_id")
+    assert not graph.has_edge("payments.user_id", "users.referred_by_user_id")
+    assert graph.has_edge("payments.user_id", "users.user_id")
+
+
+def test_join_tree_prefers_the_real_fk_over_a_derived_edge(graph):
+    """`payments.user_id = users.referred_by_user_id` sorted lexicographically
+    before the real `= users.user_id`, so the plan named the fork/referrer
+    column. _edge_label now ranks real FKs first."""
+    tree = graph.join_tree({"users", "payments", "subscription_plans"})
+    assert tree is not None
+    assert "payments.user_id = users.user_id" in tree[0]
+    assert not any("referred_by" in edge for edge in tree[0])
+
+
+def test_join_tree_playlists_to_tracks_uses_playlist_identity(graph):
+    """The same poisoning, but reaching the prompt as a LOCKED plan: routing
+    playlists->tracks through playlists.forked_from_id filtered on fork lineage
+    instead of playlist identity, returning near-empty results with a passing
+    verification chain."""
+    tree = graph.join_tree({"playlists", "tracks"})
+    assert tree is not None
+    assert "play_events.playlist_id = playlists.playlist_id" in tree[0]
+    assert not any("forked_from" in edge for edge in tree[0])
+
+
+def test_ec08_chain_is_unchanged_by_the_self_loop_fix(graph):
+    """The fix must be surgical — this is the chain everything else depends on."""
+    assert graph.join_tree({"artists", "play_events"}) == (
+        [
+            "track_artists.artist_id = artists.artist_id",
+            "play_events.track_id = track_artists.track_id",
+        ],
+        {"artists", "track_artists", "play_events"},
+    )
+
+
+def test_is_key_column_distinguishes_join_keys_from_filter_columns(graph):
+    """Lets the verifier tell `al.artist_id = a.artist_id` (a relationship)
+    from `al.label = a.label` (a filter) inside one ON clause."""
+    assert graph.is_key_column("artists.artist_id")
+    assert not graph.is_key_column("albums.label")
 
 
 # -- 2. Verifier: closed join vocabulary -------------------------------------------
@@ -299,7 +351,11 @@ def test_regeneration_replans_with_verifier_feedback(
     plan_prompts: list[str] = []
 
     def fake_chat(messages, temperature=0.3, timeout=90, extra=None):
-        plan_prompts.append(messages[-1]["content"])
+        # Two constrained-decoding steps now share llm_service.chat — planning
+        # and structured emission — so this counts plan calls by their system
+        # prompt rather than assuming every grammar call is a plan.
+        if messages[0]["content"] is PLAN_SYSTEM_PROMPT:
+            plan_prompts.append(messages[-1]["content"])
         return CANNED_PLAN_JSON_MISMATCHED
 
     monkeypatch.setattr(llm_service, "chat", fake_chat)

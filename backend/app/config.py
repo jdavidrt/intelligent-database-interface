@@ -42,6 +42,24 @@ class Settings(BaseSettings):
     # physically unable to hallucinate. Costs one extra LLM call per query.
     constrained_planning: bool = Field(default=True, alias="IDI_CONSTRAINED_PLANNING")
 
+    # Structured SQL emission (SQL_HARDENING_PLAN Step 2): the final SELECT is
+    # filled into a JSON query object whose identifier slots are enums from the
+    # locked plan, then rendered deterministically, instead of being written as
+    # free text and regexed out. Shapes the object cannot represent (CTEs,
+    # window functions, subqueries, self-joins) fall back to free-form
+    # generation, so this narrows how the model can go wrong without narrowing
+    # what it can answer.
+    structured_sql: bool = Field(default=True, alias="IDI_STRUCTURED_SQL")
+
+    # Greedy decoding for scored benchmark runs. EVALUATION_PROTOCOL.md §1.3
+    # requires temperature=0, top_p=1 and a fixed seed: non-greedy sampling
+    # makes Execution Accuracy a random variable, and a run executed with it is
+    # reportable only alongside n>=3 repetitions. Each agent picks its own
+    # temperature (0.0-0.4) for interactive use; this flag overrides all of them
+    # at the single point they share, so the override cannot miss one.
+    greedy: bool = Field(default=False, alias="IDI_GREEDY")
+    greedy_seed: int = Field(default=20260721, alias="IDI_GREEDY_SEED")
+
     # Backend
     backend_port: int = Field(default=5000, alias="BACKEND_PORT")
     cors_origins: list[str] = Field(default=["*"])

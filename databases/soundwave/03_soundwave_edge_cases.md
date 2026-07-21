@@ -496,7 +496,7 @@ ORDER BY avg_monthly_plays DESC;
 | **EC** | EC-07 |
 | **Tier** | Extra Hard |
 | **NL** | "Compare total stream counts from the analytics table vs raw play events for Karol G in 2024." |
-| **Why Hard** | Two valid data sources give different counts — `daily_artist_metrics.stream_count` is intentionally ~5% above raw `play_events`. Both answers are "correct" depending on business definition. The model must use both without conflating them into a single query. Expected result: `metrics_table > raw_play_events`. |
+| **Why Hard** | Two valid data sources give different counts — `daily_artist_metrics.stream_count` sits **290,000×–1,070,000×** above raw `play_events` (corrected 2026-07-21; this row previously said "~5%", which was the design intent and never the seeded reality). Both answers are "correct" depending on business definition. The model must use both without conflating them into a single query. Expected result: `metrics_table > raw_play_events`. Because the gap is this large, benchmark items derived from EC-07 must name their source — see `docs/EVALUATION_PROTOCOL.md` §9 quirk 2. |
 | **Common Wrong Version** | JOIN both tables without UNION ALL — causes double-counting; or selecting only one source without explaining the discrepancy |
 
 **Correct SQL:**

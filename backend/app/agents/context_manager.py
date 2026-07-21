@@ -10,6 +10,15 @@ from backend.app.models.envelope import DBProfile
 from backend.app.services.memory.vector import embed_db_profile, embed_text
 
 
+def _without_comments(mapping: dict) -> dict:
+    """Drop `_`-prefixed keys from a survey mapping.
+
+    JSON has no comment syntax, so survey files document their conventions with
+    a `"_comment"` entry — which would otherwise arrive as a real glossary term
+    or join preference and be handed to the model as domain knowledge."""
+    return {k: v for k, v in mapping.items() if not k.startswith("_")}
+
+
 class ContextManager:
     """
     1. Introspects the connected DB -> DBProfile.
@@ -43,9 +52,10 @@ class ContextManager:
         with open(matches[0], encoding="utf-8") as f:
             survey = json.load(f)
         profile.domain_description = survey.get("domain_description")
-        profile.glossary = survey.get("glossary", {})
-        profile.coded_value_maps = survey.get("coded_value_maps", {})
-        profile.source_of_truth = survey.get("source_of_truth", {})
+        profile.glossary = _without_comments(survey.get("glossary", {}))
+        profile.coded_value_maps = _without_comments(survey.get("coded_value_maps", {}))
+        profile.source_of_truth = _without_comments(survey.get("source_of_truth", {}))
+        profile.join_preferences = _without_comments(survey.get("join_preferences", {}))
         return profile
 
     def _embed(self, profile: DBProfile) -> None:

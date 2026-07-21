@@ -50,9 +50,21 @@
 --          subscriptions.end_date           -> NULL = currently active
 --
 --  [EC-07] Pre-aggregated vs raw event table ambiguity
---          daily_artist_metrics.stream_count  ~5% higher than COUNT(play_events)
---          tracks.total_plays                 cached; may drift from raw events
---          artists.monthly_listeners_cached   cached; may drift from raw events
+--          daily_artist_metrics.stream_count  290,000x - 1,070,000x COUNT(play_events)
+--          tracks.total_plays                 479x - 200,000,000x raw events
+--          artists.monthly_listeners_cached   2.4M x - 9.1M x raw distinct listeners
+--
+--          CORRECTED 2026-07-21. Every line above previously read "~5% higher"
+--          or "may drift". That was the design intent, and it was never true of
+--          the generated data: the cached and pre-aggregated columns are seeded
+--          at production scale (millions to billions) while play_events is a
+--          ~1,000-row teaching sample, so the two sources disagree by five to
+--          eight orders of magnitude, not by 5%. Ratios above were measured
+--          against the seeded data, per artist and per track, not estimated.
+--          The trap is real either way, but its size matters: a benchmark item
+--          that accepts both sources as correct is unfalsifiable at this
+--          spread, which is why EVALUATION_PROTOCOL.md §9 quirk 2 now requires
+--          every EC-07 item to name its source instead.
 --
 --  [EC-08] Many-to-many junction tables (multi-hop join chains)
 --          playlists -> playlist_tracks -> tracks -> track_artists -> artists
@@ -132,7 +144,8 @@ CREATE TABLE genres (
 -- ============================================================
 --  TABLE 04: artists
 --  Stress patterns: EC-01 (name, country), EC-07 (cached counter)
---  monthly_listeners_cached diverges from raw play_events by ~5%.
+--  monthly_listeners_cached diverges from raw play_events by 2.4M x - 9.1M x
+--  (measured 2026-07-21; the "~5%" this line used to claim was never true).
 -- ============================================================
 CREATE TABLE artists (
     artist_id                INT UNSIGNED   NOT NULL AUTO_INCREMENT,
@@ -140,14 +153,14 @@ CREATE TABLE artists (
     country                  CHAR(2)        NOT NULL,           -- [EC-01] also in users; ISO-3166 alpha-2
     bio                      TEXT           NULL,
     verified                 TINYINT(1)     NOT NULL DEFAULT 0,
-    monthly_listeners_cached INT UNSIGNED   NOT NULL DEFAULT 0, -- [EC-07] ~5% drift vs raw events
+    monthly_listeners_cached INT UNSIGNED   NOT NULL DEFAULT 0, -- [EC-07] 2.4M x - 9.1M x raw
     debut_year               YEAR           NULL,
     label                    VARCHAR(100)   NULL,
     created_at               DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (artist_id),
     KEY idx_artist_country (country)
 ) ENGINE=InnoDB
-  COMMENT='Artist catalog. monthly_listeners_cached intentionally ~5% above raw play_events. [EC-01, EC-07]';
+  COMMENT='Artist catalog. monthly_listeners_cached is seeded at production scale and exceeds raw play_events by millions of times, not by 5%. [EC-01, EC-07]';
 
 
 -- ============================================================
@@ -189,7 +202,7 @@ CREATE TABLE tracks (
     is_exp        TINYINT(1)     NOT NULL DEFAULT 0,            -- [EC-05] is_explicit (abbreviated)
     isrc          CHAR(12)       NULL,
     track_number  TINYINT        NULL,                          -- NULL if standalone single
-    total_plays   BIGINT UNSIGNED NOT NULL DEFAULT 0,           -- [EC-07] cached; may drift
+    total_plays   BIGINT UNSIGNED NOT NULL DEFAULT 0,           -- [EC-07] 479x - 2e8 x raw
     PRIMARY KEY (track_id),
     KEY idx_track_album   (album_id),
     KEY idx_track_release (release_date),
@@ -491,7 +504,8 @@ CREATE TABLE play_events (
 -- ============================================================
 --  TABLE 19: daily_artist_metrics  (Pre-aggregated analytics)
 --  Stress patterns:
---    EC-07 (stream_count ~5% higher than COUNT(play_events) — ETL inflation)
+--    EC-07 (stream_count 290,000x - 1,070,000x COUNT(play_events) — see the
+--          header note; the intended "~5% ETL inflation" was never generated)
 --    EC-16 (composite PK: artist_id + metric_date + country_code)
 --
 --  Composite PK tests GROUP BY completeness: queries on this table
@@ -503,7 +517,7 @@ CREATE TABLE daily_artist_metrics (
     artist_id        INT UNSIGNED   NOT NULL,
     metric_date      DATE           NOT NULL,
     country_code     CHAR(2)        NOT NULL,
-    stream_count     INT UNSIGNED   NOT NULL DEFAULT 0,         -- [EC-07] ~5% above raw play_events
+    stream_count     INT UNSIGNED   NOT NULL DEFAULT 0,         -- [EC-07] ~3e5 - 1e6 x raw
     skip_count       INT UNSIGNED   NOT NULL DEFAULT 0,
     save_count       INT UNSIGNED   NOT NULL DEFAULT 0,
     unique_listeners INT UNSIGNED   NOT NULL DEFAULT 0,
@@ -513,7 +527,7 @@ CREATE TABLE daily_artist_metrics (
     KEY idx_dam_country (country_code),
     CONSTRAINT fk_dam_artist FOREIGN KEY (artist_id) REFERENCES artists (artist_id)
 ) ENGINE=InnoDB
-  COMMENT='Pre-aggregated daily stats. stream_count intentionally ~5% above raw play_events. Composite PK. [EC-07, EC-16]';
+  COMMENT='Pre-aggregated daily stats seeded at production scale; stream_count exceeds raw play_events by five to six orders of magnitude, not by 5%. Composite PK. [EC-07, EC-16]';
 
 
 SET FOREIGN_KEY_CHECKS = 1;

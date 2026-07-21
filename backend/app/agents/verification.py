@@ -17,6 +17,7 @@ from backend.app.models.envelope import (
 )
 from backend.app.services import temporal
 from backend.app.services.db.join_graph import JoinGraph
+from backend.app.services.sql_safety import is_read_only
 
 # -- Temporal-grounding check (sanity layer) -----------------------------------------
 # A relative time window in the question ("last 8 months", "this year") can only be
@@ -153,10 +154,26 @@ class VerificationAgent:
         except Exception as e:
             return LayerResult(passed=False, message=f"Parse error in semantic layer: {e}")
 
-        # Check table references
+        # Check table references.
+        #
+        # Two namespaces meet here and must not be confused:
+        #   - schema objects (DBProfile.tables), and
+        #   - names the query binds itself (CTEs, and table aliases).
+        # Aliases are already safe and must stay that way: sqlglot puts the real
+        # table in exp.Table.name and the alias in .alias, so `FROM artists AS a`
+        # is checked as 'artists', never as 'a'. NEVER "fix" this by comparing
+        # tbl.alias against known_tables, or by resolving qualifiers with a
+        # regex — `a.name` would then report the real table `artists` as
+        # hallucinated. Column qualifiers are resolved through scope.sources
+        # below, which sqlglot keys by alias-when-present, for the same reason.
+        # CTE references have no such fallback (`JOIN top ON ...` parses as a
+        # Table named 'top'), so they are exempted explicitly.
+        cte_names = {
+            cte.alias_or_name.lower() for cte in tree.find_all(exp.CTE) if cte.alias_or_name
+        }
         for tbl in tree.find_all(exp.Table):
             name = tbl.name.lower()
-            if name and name not in known_tables:
+            if name and name not in known_tables and name not in cte_names:
                 return LayerResult(
                     passed=False,
                     message=f"Hallucinated table: '{tbl.name}' not in DBProfile",
@@ -250,24 +267,148 @@ class VerificationAgent:
         # `artists.artist_id = play_events.user_id`). The message carries the
         # legal multi-hop chain so the regeneration loop gets the fix, not just
         # the diagnosis.
+        caveats: list[str] = []
         if profile.relationship_edges:
             graph = JoinGraph(profile.relationship_edges)
-            violation = self._find_illegal_join_edge(scopes, source_maps, graph)
+            violation = self._find_illegal_join_edge(scopes, source_maps, graph, caveats)
             if violation is not None:
                 return violation
+            caveats.extend(
+                self._bridge_caveats(scopes, source_maps, graph, profile.join_preferences)
+            )
 
         return LayerResult(
             passed=True,
             message="All column references resolve to tables present in FROM/JOIN",
+            caveats=caveats,
         )
 
     @staticmethod
+    def _bridge_caveats(
+        scopes, source_maps, graph: JoinGraph, preferences: dict[str, str] | None = None
+    ) -> list[str]:
+        """Routes where an equally-good alternative bridge exists (0c).
+
+        The FK graph cannot decide between "tracks IN a playlist"
+        (playlist_tracks) and "tracks PLAYED FROM it" (play_events) — both are
+        two hops through a junction table, so `_score` picks lexicographically.
+        Rather than let that coin-flip pass as certainty, name the route taken
+        and the alternatives; the user (or the survey's source_of_truth) is the
+        only authority that can settle it.
+        """
+        out: list[str] = []
+        seen: set[tuple[str, str]] = set()
+        for scope in scopes:
+            tables = sorted({t for t, _ in (source_maps.get(id(scope), {}) or {}).values() if t})
+            for i, a in enumerate(tables):
+                for b in tables[i + 1 :]:
+                    if (a, b) in seen or graph.path(a, b) == []:
+                        continue
+                    routes = graph.ambiguous_bridges(a, b)
+                    if len(routes) < 2:
+                        continue
+                    used = [r for r in routes if all(t in tables for t in r)]
+                    if len(used) != 1:
+                        continue  # no route taken, or several — nothing specific to say
+                    seen.add((a, b))
+                    # A survey entry means a human has settled this route for this
+                    # database; the tie is no longer the schema's to call. Silent
+                    # when the query took the declared route, still flagged when it
+                    # took another (that IS worth saying).
+                    preferred = (preferences or {}).get(f"{a}|{b}")
+                    if preferred and preferred.lower() in used[0]:
+                        continue
+                    others = [" -> ".join(r) for r in routes if r != used[0]]
+                    out.append(
+                        f"Ambiguous join route: {a} and {b} were connected through "
+                        f"{' -> '.join(used[0])}, but {' and '.join(others)} link them "
+                        f"equally directly and answer a different question. The schema "
+                        f"alone cannot say which reading you meant."
+                    )
+        return out
+
+    @staticmethod
+    def _cross_table_equalities(
+        on: exp.Expression,
+        sources: dict[str, tuple[str | None, set[str] | None]],
+        caveats: list[str] | None = None,
+    ) -> list[tuple[str, str, exp.Column, exp.Column]]:
+        """Equalities in an ON clause that relate columns of two *different*
+        real tables, as (qualified_left, qualified_right, left, right).
+
+        Skips column-vs-literal filters and unqualified columns outright. The
+        two cases the FK graph *cannot* judge — a self-join (one table, two
+        roles) and a side that resolves to no real table (subquery, CTE, or an
+        alias owned by an enclosing scope) — are reported through `caveats`
+        instead of being silently dropped: "I could not check this" is a
+        different statement from "this is fine"."""
+        pairs: list[tuple[str, str, exp.Column, exp.Column]] = []
+        for eq in on.find_all(exp.EQ):
+            left, right = eq.this, eq.expression
+            if not (isinstance(left, exp.Column) and isinstance(right, exp.Column)):
+                continue
+            lq = left.table.lower() if left.table else ""
+            rq = right.table.lower() if right.table else ""
+            if not lq or not rq:
+                continue
+            l_table = sources.get(lq, (None, None))[0]
+            r_table = sources.get(rq, (None, None))[0]
+            if l_table is not None and r_table is not None and l_table != r_table:
+                pairs.append(
+                    (
+                        f"{l_table}.{left.name.lower()}",
+                        f"{r_table}.{right.name.lower()}",
+                        left,
+                        right,
+                    )
+                )
+            elif caveats is None:
+                continue
+            elif l_table is not None and l_table == r_table:
+                # Self-join: `genres child JOIN genres parent ON
+                # child.parent_genre_id = parent.genre_id`. Both sides are the
+                # same table, so the FK graph — which knows tables, not roles —
+                # cannot tell parent-of from child-of, nor which direction the
+                # question wanted. Reversing the two columns yields SQL that is
+                # equally legal and answers the opposite question.
+                caveats.append(
+                    f"Unverified self-join on '{l_table}': "
+                    f"'{left.table}.{left.name} = {right.table}.{right.name}' relates the "
+                    f"table to itself in two roles. The schema cannot confirm the "
+                    f"direction — check that this is the intended one and not its reverse."
+                )
+            else:
+                # One side is a subquery, a CTE, or an alias belonging to an
+                # enclosing scope: there is no real table to look up, so rule 4b
+                # has nothing to check against. Say so rather than pass silently.
+                unresolved = left.table if l_table is None else right.table
+                caveats.append(
+                    f"Unverified join condition: "
+                    f"'{left.table}.{left.name} = {right.table}.{right.name}' — "
+                    f"'{unresolved}' is a subquery, CTE or outer-scope alias, not a schema "
+                    f"table, so this join key could not be checked against the foreign keys."
+                )
+        return pairs
+
+    @classmethod
     def _find_illegal_join_edge(
+        cls,
         scopes,
         source_maps: dict[int, dict[str, tuple[str | None, set[str] | None]]],
         graph: JoinGraph,
+        caveats: list[str] | None = None,
     ) -> LayerResult | None:
-        """First JOIN ... ON equality that is not a real FK edge, or None."""
+        """First JOIN whose ON clause is not anchored on a real relationship.
+
+        Checks the JOIN, not each equality. An ON clause carries at most one
+        relationship and any number of filters —
+        `ON al.artist_id = a.artist_id AND al.label = a.label` is ordinary,
+        legal SQL — so requiring *every* equality to be an FK edge rejected
+        correct queries (albums/artists share a non-key `label` column, as do
+        nine other column names in this schema). Requiring at least *one* still
+        catches the failure this rule exists for, because an invented join key
+        is the join's only equality.
+        """
         for scope in scopes:
             sources = source_maps.get(id(scope), {})
             expression = getattr(scope, "expression", None)
@@ -276,44 +417,63 @@ class VerificationAgent:
                 on = join.args.get("on")
                 if on is None:
                     continue
-                for eq in on.find_all(exp.EQ):
-                    left, right = eq.this, eq.expression
-                    if not (isinstance(left, exp.Column) and isinstance(right, exp.Column)):
-                        continue  # column-vs-literal filters inside ON are fine
-                    lq = left.table.lower() if left.table else ""
-                    rq = right.table.lower() if right.table else ""
-                    if not lq or not rq:
-                        continue
-                    l_table = sources.get(lq, (None, None))[0]
-                    r_table = sources.get(rq, (None, None))[0]
-                    if l_table is None or r_table is None or l_table == r_table:
-                        continue  # subquery/CTE side or self-join — out of scope here
-                    a = f"{l_table}.{left.name.lower()}"
-                    b = f"{r_table}.{right.name.lower()}"
-                    if graph.has_edge(a, b):
-                        continue
-                    legal = graph.path(l_table, r_table)
-                    if legal:
-                        hint = (
-                            f" The legal join chain from {l_table} to {r_table} is: "
-                            + " ; ".join(legal)
-                            + " — join through the intermediate table(s), copying these "
-                            "ON clauses verbatim."
-                        )
-                    else:
-                        hint = (
-                            f" No foreign-key path connects {l_table} and {r_table} at "
-                            "all — one of them is the wrong table for this question."
-                        )
-                    return LayerResult(
-                        passed=False,
-                        message=(
-                            f"Invented join key: '{left.table}.{left.name} = "
-                            f"{right.table}.{right.name}' is not a relationship in the "
-                            f"schema — no foreign key links {a} to {b}, directly or "
-                            f"transitively.{hint}"
-                        ),
+                pairs = cls._cross_table_equalities(on, sources, caveats)
+                if not pairs:
+                    continue  # nothing relating two real tables (e.g. ON 1 = 1)
+                if any(graph.has_edge(a, b) for a, b, _, _ in pairs):
+                    # Anchored on a real relationship; the remaining equalities are
+                    # filters and none of rule 4b's business — `ON al.artist_id =
+                    # a.artist_id AND al.label = a.label` is ordinary SQL. But an
+                    # extra equality between two *key* columns that no FK relates
+                    # (`AND al.album_id = a.artist_id`) is not a plausible filter:
+                    # comparing two identifiers from different key families is
+                    # either a mistake or an intent the schema can't express.
+                    # Flag it without blocking — some models legitimately narrow a
+                    # join this way, and the anchor already guarantees the
+                    # relationship is real.
+                    if caveats is not None:
+                        for a, b, left, right in pairs:
+                            if graph.has_edge(a, b):
+                                continue
+                            if graph.is_key_column(a) and graph.is_key_column(b):
+                                caveats.append(
+                                    f"Unverified extra join condition: "
+                                    f"'{left.table}.{left.name} = {right.table}.{right.name}' "
+                                    f"compares two key columns that no foreign key relates "
+                                    f"({a} vs {b}). The join itself is anchored on a real "
+                                    f"relationship, so this only narrows the result — but it "
+                                    f"may not mean what it looks like."
+                                )
+                    continue
+                # Unanchored. Report the most key-like equality so the message
+                # names the columns the model actually meant as the join key.
+                a, b, left, right = max(
+                    pairs,
+                    key=lambda p: (graph.is_key_column(p[0]) + graph.is_key_column(p[1])),
+                )
+                l_table, r_table = a.rsplit(".", 1)[0], b.rsplit(".", 1)[0]
+                legal = graph.path(l_table, r_table)
+                if legal:
+                    hint = (
+                        f" The legal join chain from {l_table} to {r_table} is: "
+                        + " ; ".join(legal)
+                        + " — join through the intermediate table(s), copying these "
+                        "ON clauses verbatim."
                     )
+                else:
+                    hint = (
+                        f" No foreign-key path connects {l_table} and {r_table} at "
+                        "all — one of them is the wrong table for this question."
+                    )
+                return LayerResult(
+                    passed=False,
+                    message=(
+                        f"Invented join key: '{left.table}.{left.name} = "
+                        f"{right.table}.{right.name}' is not a relationship in the "
+                        f"schema — no foreign key links {a} to {b}, directly or "
+                        f"transitively.{hint}"
+                    ),
+                )
         return None
 
     @staticmethod
@@ -355,13 +515,22 @@ class VerificationAgent:
         - Must be SELECT (read-only guard).
         - No NULL = NULL patterns (= NULL instead of IS NULL).
         - No aggregate in WHERE without HAVING (pre-agg vs raw).
+        - No implicit (comma) joins — SYSTEM_PROMPT asks for explicit JOIN ... ON.
         - Must have or accept a LIMIT.
         - Temporal grounding: a relative window in the question requires a
           CURDATE()/NOW()-anchored date filter in the SQL (needs `intent`).
         """
-        sql_upper = sql.upper()
+        try:
+            tree = sqlglot.parse_one(sql, dialect="mysql")
+        except Exception:
+            tree = None  # unparseable; the string guard below is the only check left
 
-        if not sql_upper.lstrip().startswith("SELECT"):
+        # Read-only guard — the same function the connector calls before executing
+        # (services/sql_safety.py), so verification can never green-light a
+        # statement execution refuses, or vice versa. It is strictly stronger than
+        # the startswith("SELECT") check it replaces: `WITH ... SELECT` is now
+        # correctly a SELECT, and `SELECT 1; DROP TABLE users` is now correctly not.
+        if not is_read_only(sql):
             return LayerResult(
                 passed=False, message="Non-SELECT statement rejected (read-only guard)"
             )
@@ -373,12 +542,13 @@ class VerificationAgent:
                 message="NULL comparison error: use IS NULL, not = NULL (EC-11)",
             )
 
-        # Aggregate in WHERE clause (should be HAVING)
-        if re.search(r"\bWHERE\b.*\b(COUNT|SUM|AVG|MIN|MAX)\s*\(", sql, re.IGNORECASE):
-            return LayerResult(
-                passed=False,
-                message="Aggregate function found in WHERE clause — use HAVING instead",
-            )
+        if tree is not None:
+            aggregate_in_where = self._find_aggregate_in_where(tree)
+            if aggregate_in_where is not None:
+                return aggregate_in_where
+            implicit_join = self._find_implicit_join(tree)
+            if implicit_join is not None:
+                return implicit_join
 
         # Temporal grounding: relative window in the question, no now-anchor in the SQL.
         temporal = self._check_temporal_grounding(sql, intent)
@@ -386,6 +556,73 @@ class VerificationAgent:
             return temporal
 
         return LayerResult(passed=True, message="Sanity checks passed")
+
+    @staticmethod
+    def _find_aggregate_in_where(tree: exp.Expression) -> LayerResult | None:
+        """Aggregate used as a WHERE predicate (belongs in HAVING), or None.
+
+        Two traps this avoids, both of which a regex over the raw SQL walked
+        straight into:
+
+        1. `\\bWHERE\\b.*AGG\\(` never matched across newlines, so the verdict
+           depended on where the model happened to break lines — the same query
+           passed multi-line and failed single-line.
+        2. An aggregate inside a *subquery* in the WHERE is legal:
+           `WHERE user_id IN (SELECT ... HAVING COUNT(*) > 5)` is correct SQL.
+           So the walk stops at any nested SELECT/subquery and only reports
+           aggregates belonging to the WHERE's own scope.
+        """
+        for where in tree.find_all(exp.Where):
+            for node in where.walk():
+                if not isinstance(node, exp.AggFunc):
+                    continue
+                parent, nested = node.parent, False
+                while parent is not None and parent is not where:
+                    if isinstance(parent, (exp.Select, exp.Subquery)):
+                        nested = True
+                        break
+                    parent = parent.parent
+                if not nested:
+                    return LayerResult(
+                        passed=False,
+                        message=("Aggregate function found in WHERE clause — use HAVING instead"),
+                    )
+        return None
+
+    @staticmethod
+    def _find_implicit_join(tree: exp.Expression) -> LayerResult | None:
+        """Reject comma joins (`FROM a, b WHERE a.x = b.y`), or None.
+
+        Not a style rule: rule 4b reads each JOIN's ON clause, so an
+        implicit join has no ON to check and bypasses the closed join
+        vocabulary entirely — `FROM artists a, play_events pe WHERE
+        a.artist_id = pe.user_id` is exactly the invented key rule 4b exists to
+        catch, and it passed. SYSTEM_PROMPT already asks for explicit
+        `JOIN ... ON`, so this enforces a rule the generator was given, and the
+        message tells it precisely what to do differently.
+        """
+        # sqlglot keeps the first FROM source in args["from"] and each
+        # comma-separated one in args["joins"] as a join with no "on", no side
+        # and no kind — which is exactly what distinguishes it from an explicit
+        # CROSS/NATURAL JOIN (kind set) or a LEFT/RIGHT JOIN (side set).
+        for select in tree.find_all(exp.Select):
+            for join in select.args.get("joins") or []:
+                if join.args.get("on") is not None or join.args.get("using"):
+                    continue
+                if (join.side or join.kind or "").strip():
+                    continue  # CROSS JOIN / NATURAL JOIN — explicit and deliberate
+                table = join.this
+                name = table.name if isinstance(table, exp.Table) else ""
+                return LayerResult(
+                    passed=False,
+                    message=(
+                        f"Implicit (comma) join on '{name or 'a table'}': every "
+                        "relationship must be written as an explicit JOIN ... ON so its "
+                        "join key can be verified against the schema. Rewrite as "
+                        "`FROM <table> JOIN <table> ON <one of the listed join paths>`."
+                    ),
+                )
+        return None
 
     @staticmethod
     def _check_temporal_grounding(sql: str, intent: Intent | None) -> LayerResult | None:

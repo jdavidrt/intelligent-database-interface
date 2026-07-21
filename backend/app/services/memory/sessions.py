@@ -1,15 +1,15 @@
 """Session Manager — SQLite persistence for multi-turn sessions."""
 
 from __future__ import annotations
-import sqlite3
+
 import json
-import uuid
 import os
+import sqlite3
+import uuid
 from datetime import datetime
 from typing import Any
 
 from backend.app.config import settings
-
 
 DB_PATH = os.path.join(settings.repo_root, "data", "sessions.db")
 
